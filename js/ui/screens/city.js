@@ -19,7 +19,7 @@ import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
 import { applyHeroLook, ELDER_ART, heroSprite } from "../art.js";
 import { playSound } from "../audio.js";
-import { shakeCard } from "../components/card.js";
+import { shakeCard } from "../components/card.ts";
 import { openQuestDialog } from "../components/questDialog.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";

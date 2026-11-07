@@ -6,7 +6,7 @@ import { buyShopMap, canBuyShopMap, canRemoveCardAtShop, isShopRemovalUsed, remo
 import { saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
 import { playSound } from "../audio.js";
-import { openCardList } from "../components/cardList.js";
+import { openCardList } from "../components/cardList.ts";
 import { createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";

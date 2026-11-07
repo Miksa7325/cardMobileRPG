@@ -30,6 +30,11 @@ const ICONS = {
 
 // Горение — пламя, как у «Сжечь»
 ICONS.burning = ICONS.burn;
+// Временные значки новых статусов из уже имеющихся рисунков; свои нарисуем на этапе 9
+ICONS.slow = [ICONS.debuff[0], "frost"];
+ICONS.haste = [ICONS.buff[0], "gold"];
+ICONS.stun = [ICONS.vulnerable[0], "arcane"];
+ICONS.bleed = [ICONS.leech[0], "rose"];
 
 // Значок как элемент. Неизвестное имя — пустой значок, чтобы интерфейс не падал
 export function createIcon(name, className = "") {

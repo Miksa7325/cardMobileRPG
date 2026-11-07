@@ -6,7 +6,7 @@ import { getCurrentFloor } from "../../engine/run.ts";
 import { state } from "../../state.ts";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
-import { openCardList } from "./cardList.js";
+import { openCardList } from "./cardList.ts";
 import { showTooltip } from "./tooltip.js";
 
 const MENU_CONFIRM_MS = 3000; // столько живёт предупреждение: столько же, сколько видна подсказка

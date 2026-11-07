@@ -1,7 +1,7 @@
 // Окно с параметрами поверх экрана: для врага, реликвии, зелья или героя. Карты показывает cardPreview.js.
 import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
-import { closeOnTap, createGlossary, createRichText } from "./cardPreview.js";
+import { closeOnTap, createGlossary, createRichText } from "./cardPreview.ts";
 import { hideTooltip } from "./tooltip.js";
 
 // icon — готовый элемент с рисунком, kind — строка о типе предмета, text — описание, lines — строки параметров

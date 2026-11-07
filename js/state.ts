@@ -7,7 +7,12 @@ export interface GameState {
   selectedPotionIndex: number | null;
   tutorialStep: number | null;
   arena: { fightId: string; rewarded: boolean } | null;
-  test: { enabled: boolean; heroId: HeroId; enemyIds: string[]; pickerOpen: boolean; addUpgraded: boolean };
+  test: {
+    enabled: boolean; heroId: HeroId; enemyIds: string[]; pickerOpen: boolean; addUpgraded: boolean;
+    unitId: string; // кому тестовая панель кладёт статусы и ходы: "hero" или id врага
+    stepMode: boolean; // «Запуск» идёт по клеткам: каждая — по нажатию
+    damageLog: string[]; // из чего сложился каждый удар последнего «Запуска»
+  };
 }
 
 export const state: GameState = {
@@ -22,5 +27,8 @@ export const state: GameState = {
     enemyIds: ["cultist"], // каких врагов выбрали для тестового боя
     pickerOpen: false, // открыт ли список карт поверх боя
     addUpgraded: false, // добавлять ли карты из списка улучшенными
+    unitId: "hero",
+    stepMode: false,
+    damageLog: [],
   },
 };

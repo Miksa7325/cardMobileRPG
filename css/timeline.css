@@ -318,3 +318,28 @@
   top: calc(52px + env(safe-area-inset-top));
   bottom: auto;
 }
+
+/* Тестовая панель: статусы и ходы врага плиткой, журнал урона мелким шрифтом */
+.picker__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.picker__log {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.picker__log-line {
+  margin: 0 0 4px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.button--selected {
+  outline: 2px solid var(--color-highlight, #ffd36a);
+}

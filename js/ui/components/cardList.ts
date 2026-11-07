@@ -1,20 +1,26 @@
 // Список карт поверх экрана: просмотр колоды, стопок и выбор карты для удаления.
 import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
-import { createCardElement } from "./card.js";
-import { openCardPreview } from "./cardPreview.js";
+import { createCardElement } from "./card.ts";
+import { openCardPreview } from "./cardPreview.ts";
 import { hideTooltip } from "./tooltip.js";
+import type { CardInstance } from "../../types.ts";
+
+export interface CardSection {
+  title: string;
+  cards: CardInstance[];
+}
 
 // Вне боя статусов нет: числа на картах показываем без них
 const HERO_OUTSIDE_COMBAT = { statuses: {} };
 
 // sections: [{ title, cards }]. onPick необязателен: с ним нажатие на карту выбирает её.
 // onClose — что сделать, если список закрыли без выбора
-export function openCardList(sections, onPick = null, onClose = null) {
+export function openCardList(sections: CardSection[], onPick: ((card: CardInstance) => void) | null = null, onClose: (() => void) | null = null): void {
   hideTooltip();
-  const overlay = el("div", "picker");
+  const overlay: HTMLElement = el("div", "picker");
 
-  const closeButton = el("button", "button", TEXTS.close);
+  const closeButton: HTMLButtonElement = el("button", "button", TEXTS.close);
   closeButton.type = "button";
   closeButton.addEventListener("click", () => {
     overlay.remove();
@@ -26,7 +32,7 @@ export function openCardList(sections, onPick = null, onClose = null) {
     overlay.append(el("p", "picker__title", `${title} (${cards.length})`));
     if (cards.length === 0) overlay.append(el("p", "picker__empty", TEXTS.emptyPile));
 
-    const row = el("div", "card-row");
+    const row: HTMLElement = el("div", "card-row");
     for (const card of cards) {
       row.append(createCardElement(card, HERO_OUTSIDE_COMBAT, {
         playable: true,
@@ -45,5 +51,5 @@ export function openCardList(sections, onPick = null, onClose = null) {
     }
     overlay.append(row);
   }
-  document.getElementById("app").append(overlay);
+  document.getElementById("app")?.append(overlay);
 }

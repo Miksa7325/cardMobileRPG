@@ -2,8 +2,8 @@
 import { TEXTS } from "../../data/texts.ru.ts";
 import { getRestHealAmount, getUpgradableCards, restHeal, restUpgrade } from "../../engine/run.ts";
 import { state } from "../../state.ts";
-import { createCardElement } from "../components/card.js";
-import { openCardPreview } from "../components/cardPreview.js";
+import { createCardElement } from "../components/card.ts";
+import { openCardPreview } from "../components/cardPreview.ts";
 import { createRunBar } from "../components/runBar.js";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";

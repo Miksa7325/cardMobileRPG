@@ -18,10 +18,10 @@ import type { ActionResult, CardData, CardInstance, Combat, EnemyUnit, Equipment
 import { captureCombatView, playLaunch, showDrawnCards } from "../animations.js";
 import { enemySprite, heroSprite, IDLE_STYLES, setHeroLookVariable } from "../art.js";
 import { playSound } from "../audio.js";
-import { createCardElement, shakeCard } from "../components/card.js";
-import { openCardList } from "../components/cardList.js";
-import { createCardPicker } from "../components/cardPicker.js";
-import { openCardPreview } from "../components/cardPreview.js";
+import { createCardElement, shakeCard } from "../components/card.ts";
+import { openCardList } from "../components/cardList.ts";
+import { createCardPicker } from "../components/cardPicker.ts";
+import { openCardPreview } from "../components/cardPreview.ts";
 import { createHpBar } from "../components/hpBar.js";
 import { createCombatItems, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
@@ -42,7 +42,6 @@ type Untyped = (...args: any[]) => any;
 const ui = {
   createTutorialBanner: createTutorialBanner as Untyped,
   createRunBar: createRunBar as Untyped,
-  createCardElement: createCardElement as Untyped,
   playLaunch: playLaunch as Untyped,
 };
 const IDLE = IDLE_STYLES as Record<string, string>;
@@ -294,12 +293,12 @@ function createHand(current: Combat): HTMLElement {
 
   current.piles.hand.forEach((instance, index) => {
     const isSelected = selection?.kind === "card" && selection.uid === instance.uid;
-    const element = ui.createCardElement(instance, current.hero, {
+    const element = createCardElement(instance, current.hero, {
       playable: isPlayable(current, instance),
       selected: isSelected,
       onTap: () => onCardTap(instance),
       onHold: () => openCardPreview(instance, current.hero),
-    }) as HTMLElement;
+    });
     if (current.keep.includes(instance.uid)) {
       element.classList.add("card--kept");
       element.append(el("div", "card__kept", "📌"));
@@ -576,6 +575,28 @@ function getVfxPositions(before: { units: Record<string, ViewUnit> }, card: Card
   return { from: center(before.units.hero), targets: targets.map(center).filter(Boolean), enemies: enemies.map(center).filter(Boolean) };
 }
 
+// Журнал расчёта урона для тестового режима: из чего сложился каждый удар
+function unitName(current: Combat, id: string): string {
+  if (id === "hero") return HEROES[current.hero.heroId].name;
+  const enemy = current.enemies.find((unit) => unit.instanceId === id);
+  return enemy ? ENEMIES[enemy.enemyId].name : id;
+}
+
+function buildDamageLog(current: Combat): string[] {
+  const lines: string[] = [];
+  for (const event of current.events) {
+    if (event.type === "turnEnd") break;
+    if (event.type !== "hit") continue;
+    const b = event.breakdown as { base: number; strength: number; weak: number; vulnerable: number; reduction: number; fixed: boolean } | undefined;
+    const who = `${unitName(current, event.sourceId as string)} → ${unitName(current, event.targetId as string)}`;
+    const formula = !b ? "" : b.fixed
+      ? `${b.base} (фикс.)`
+      : `${b.base} × (1+${b.strength * 10}%) × (1−${Math.min(b.weak, 3) * 10}%) × (1+${Math.min(b.vulnerable, 10) * 10}%) × (1−${b.reduction}%)`;
+    lines.push(`Клетка ${event.cell}: ${who}: ${formula} = ${event.damage}; блок ${event.blocked}, HP −${event.hpLost}`);
+  }
+  return lines;
+}
+
 // «Запуск»: логика считает розыгрыш мгновенно, а экран показывает его по клеткам и потом рисует новый ход
 async function onLaunchTap(): Promise<void> {
   const current = combat();
@@ -584,8 +605,10 @@ async function onLaunchTap(): Promise<void> {
   if (!result.ok) return showError(result);
   selection = null;
   notifyTutorial("launched");
+  if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
   playSound("click");
   await ui.playLaunch(before, current, {
+    stepMode: state.test.enabled && state.test.stepMode,
     onCardPlayed: (event: { cardId: string; targetId: string | null }) => {
       const card = CARDS[event.cardId];
       playCardEffect(card, getVfxPositions(before, card, event.targetId));

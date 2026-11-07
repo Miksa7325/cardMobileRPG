@@ -151,7 +151,7 @@ function heroLunge() {
 // Розыгрыш шкалы: экран показывает состояние до «Запуска», указатель идёт по клеткам,
 // и события каждой клетки меняют экран шаг за шагом. Тап по экрану проматывает до конца.
 // onCardPlayed(event) — сработала карта героя: экран рисует её эффект
-export async function playLaunch(before, combat, { onCardPlayed = null } = {}) {
+export async function playLaunch(before, combat, { onCardPlayed = null, stepMode = false } = {}) {
   skipping = false;
   hideTooltip();
   document.querySelector(".tutorial")?.remove();
@@ -159,8 +159,11 @@ export async function playLaunch(before, combat, { onCardPlayed = null } = {}) {
   if (hint) hint.textContent = TEXTS.timeline.hintResolving;
 
   const blocker = el("div", "input-blocker");
+  // Пошаговый просмотр (тестовый режим): нажатие переходит к следующей клетке, а не проматывает
+  let nextStep = null;
   blocker.addEventListener("pointerdown", () => {
-    skipping = true;
+    if (stepMode) nextStep?.();
+    else skipping = true;
   });
   document.getElementById("app").append(blocker);
 
@@ -173,7 +176,15 @@ export async function playLaunch(before, combat, { onCardPlayed = null } = {}) {
     if (event.cell !== cell) {
       cell = event.cell;
       moveTimelinePointer(cell);
-      await wait(CELL_MS);
+      playSound("step"); // временный звук шага указателя по шкале
+      if (stepMode) {
+        if (hint) hint.textContent = TEXTS.test.stepHint(cell);
+        await new Promise((resolve) => {
+          nextStep = resolve;
+        });
+      } else {
+        await wait(CELL_MS);
+      }
     }
     if (event.type === "cardPlayed") {
       onCardPlayed?.(event);
@@ -305,12 +316,14 @@ function showEvent(event, before) {
     showHit(event, before, "burst");
   } else if (event.type === "repair") {
     showNumber(target.rect, `🔧−${event.amount}`, "number--block");
-    playSound("shield");
+    playSound("gem"); // временный звук Починки
   } else if (event.type === "stunned") {
     showNumber(target.rect, "💫", "number--status");
     playSound("stone");
   } else if (event.type === "status") {
     showNumber(target.rect, `+${event.amount}`, "number--status", 0, event.status);
+    // Временный звук ломки брони: Уязвимость — сломанные доспехи
+    if (event.status === "vulnerable") playSound("stone");
   }
 }
 
