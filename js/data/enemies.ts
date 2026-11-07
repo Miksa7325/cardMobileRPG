@@ -2,13 +2,16 @@
 import type { Effect, EnemyData, EnemyMove, Statuses } from "../types.ts";
 
 // Короткие записи для одинаковых ходов. Числа врагов меняй прямо в таблице ниже.
+// Стартовые веса ходов (клеток шкалы): атака 3, защита, усиление и ослабление 2. Точные подберём на этапе 5
 const attack = (damage: number, hits = 1): EnemyMove => ({
   intent: "attack",
+  weight: 3,
   effects: Array.from({ length: hits }, () => ({ type: "damage", amount: damage })),
 });
-const guard = (block: number): EnemyMove => ({ intent: "defend", effects: [{ type: "block", amount: block, target: "self" }] });
+const guard = (block: number): EnemyMove => ({ intent: "defend", weight: 2, effects: [{ type: "block", amount: block, target: "self" }] });
 const buff = (strength: number, block = 0): EnemyMove => ({
   intent: "buff",
+  weight: 2,
   effects: [
     { type: "applyStatus", status: "strength", amount: strength, target: "self" },
     ...(block > 0 ? [{ type: "block", amount: block, target: "self" } as Effect] : []),
@@ -17,6 +20,7 @@ const buff = (strength: number, block = 0): EnemyMove => ({
 // statuses: { weak: 2, poison: 1 }; wounds — сколько Ран добавить в сброс героя
 const debuff = (statuses: Statuses, wounds = 0): EnemyMove => ({
   intent: "debuff",
+  weight: 2,
   effects: [
     ...(Object.entries(statuses) as [keyof Statuses, number][]).map(([status, amount]): Effect => ({ type: "applyStatus", status, amount })),
     ...Array.from({ length: wounds }, (): Effect => ({ type: "addCard", cardId: "wound", pile: "discard" })),
@@ -43,7 +47,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "spider",
     name: "Паук",
     hp: [18, 24],
-    moves: { bite: attack(5), venom: debuff({ poison: 3 }), web: debuff({ weak: 2 }) },
+    moves: { bite: attack(5), venom: debuff({ poison: 3 }), web: debuff({ weak: 2, slow: 2 }) },
     pattern: ["bite", "venom", "web"],
   },
 
@@ -68,7 +72,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "crypt_warden",
     name: "Хранитель склепа",
     hp: [150, 150],
-    moves: { hex: debuff({ weak: 2 }, 1), scythe: attack(15), flurry: attack(5, 3), fortify: buff(2, 12) },
+    moves: { hex: debuff({ weak: 2, slow: 2 }, 1), scythe: attack(15), flurry: attack(5, 3), fortify: buff(2, 12) },
     pattern: ["hex", "scythe", "flurry", "fortify"],
   },
 
@@ -91,7 +95,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "banshee",
     name: "Банши",
     hp: [30, 35],
-    moves: { wail: debuff({ weak: 2 }), scream: attack(7, 2) },
+    moves: { wail: debuff({ weak: 2, slow: 2 }), scream: attack(7, 2) },
     pattern: ["wail", "scream"],
   },
   gargoyle: {
@@ -146,7 +150,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "wraith",
     name: "Призрак",
     hp: [44, 50],
-    moves: { touch: attack(10), fade: guard(16), chill: debuff({ weak: 2 }) },
+    moves: { touch: attack(10), fade: guard(16), chill: debuff({ weak: 2, slow: 2 }) },
     pattern: ["chill", "touch", "fade"],
   },
   golem: {
@@ -190,7 +194,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "death_knight",
     name: "Рыцарь смерти",
     hp: [128, 139],
-    moves: { cleave: attack(19), dread: debuff({ vulnerable: 2 }, 1), combo: attack(8, 3), oath: buff(3, 22) },
+    moves: { cleave: attack(19), dread: debuff({ vulnerable: 2, slow: 2 }, 1), combo: attack(8, 3), oath: buff(3, 22) },
     pattern: ["dread", "cleave", "combo", "oath"],
   },
   demon: {
@@ -207,7 +211,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     name: "Король-лич",
     hp: [272, 272],
     moves: {
-      doom: debuff({ vulnerable: 2, weak: 2 }, 2),
+      doom: debuff({ vulnerable: 2, weak: 2, slow: 2 }, 2),
       soulfire: attack(20),
       barrage: attack(6, 4),
       phylactery: buff(4, 26),

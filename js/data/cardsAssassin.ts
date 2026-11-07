@@ -81,11 +81,11 @@ export const ASSASSIN_CARDS: CardData[] = [
   triggerPower("a_toxic_blades", "Отравленные клинки", "uncommon", 2, "Каждая атака: {poison} Яда всем.", "onCardPlayed", [allStatus("poison", 1)], [allStatus("poison", 2)], "attack"),
   card("a_light_feet", "Лёгкая поступь", "power", "uncommon", 1, "self", "Получить {dexterity} Ловкости.", [selfStatus("dexterity", 2)], { effects: [selfStatus("dexterity", 3)] }),
   triggerPower("a_quick_wit", "Смекалка", "uncommon", 1, "Каждый навык: {block} блока.", "onCardPlayed", [block(2)], [block(3)], "skill"),
-  triggerPower("a_venom_aura", "Ядовитая аура", "uncommon", 1, "В конце хода {poison} Яда всем.", "onTurnEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
+  triggerPower("a_venom_aura", "Ядовитая аура", "uncommon", 1, "В конце хода {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
   triggerPower("a_killer_instinct", "Чутьё убийцы", "uncommon", 1, "Когда враг умирает, взять {draw} карты.", "onEnemyDeath", [draw(2)], [draw(3)]),
-  triggerPower("a_shadow_cloak", "Плащ теней", "uncommon", 1, "В начале хода {block} блока.", "onTurnStart", [block(3)], [block(4)]),
+  triggerPower("a_shadow_cloak", "Плащ теней", "uncommon", 1, "В начале хода {block} блока.", "onTactStart", [block(3)], [block(4)]),
   card("a_agility", "Гибкость", "power", "uncommon", 1, "self", "Получить {strength} Силу. Получить {dexterity} Ловкость.", [selfStatus("strength", 1), selfStatus("dexterity", 1)], { effects: [selfStatus("strength", 2), selfStatus("dexterity", 2)] }),
-  triggerPower("a_cold_blood", "Хладнокровие", "uncommon", 1, "В конце хода {block} блока.", "onTurnEnd", [block(2)], [block(3)]),
+  triggerPower("a_cold_blood", "Хладнокровие", "uncommon", 1, "В конце хода {block} блока.", "onTactEnd", [block(2)], [block(3)]),
 
   // Редкие атаки
   card("a_perfect_kill", "Идеальное убийство", "attack", "rare", 3, "enemy", "Нанести {damage} урона.", [damage(40)], { effects: [damage(52)] }),
@@ -100,8 +100,8 @@ export const ASSASSIN_CARDS: CardData[] = [
   card("a_pandemic", "Пандемия", "skill", "rare", 2, "allEnemies", "Наложить {poison} Яда всем. Сжечь.", [status("poison", 11), burn], { effects: [status("poison", 15), burn] }),
 
   // Редкие силы
-  cheaperPower("a_master_poisoner", "Мастер ядов", "rare", 2, "В начале хода {poison} Яда всем.", "onTurnStart", [allStatus("poison", 3)], 1),
-  card("a_shadow_form", "Форма тени", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости. Каждый ход +{draw} карта.", [selfStatus("strength", 2), selfStatus("dexterity", 2)], { cost: 2 }, { trigger: "onTurnStart", effects: [draw(1)] }),
-  cheaperPower("a_quickness", "Быстрота", "rare", 1, "В начале хода взять {draw} карту.", "onTurnStart", [draw(1)], 0),
+  cheaperPower("a_master_poisoner", "Мастер ядов", "rare", 2, "В начале хода {poison} Яда всем.", "onTactStart", [allStatus("poison", 3)], 1),
+  card("a_shadow_form", "Форма тени", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости. Каждый ход +{draw} карта.", [selfStatus("strength", 2), selfStatus("dexterity", 2)], { cost: 2 }, { trigger: "onTactStart", effects: [draw(1)] }),
+  cheaperPower("a_quickness", "Быстрота", "rare", 1, "В начале хода взять {draw} карту.", "onTactStart", [draw(1)], 0),
   cheaperPower("a_thousand_blades", "Тысяча клинков", "rare", 1, "Каждая карта: {damage} урона всем.", "onCardPlayed", [fixedDamageToAll(2)], 0),
 ];

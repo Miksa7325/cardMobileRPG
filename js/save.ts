@@ -186,7 +186,7 @@ function isValidRun(run: Untrusted): run is Run {
 
 // Проверяет бой из сохранения: те же причины, что и у забега
 function isValidCombat(combat: Untrusted): combat is Combat {
-  if (combat.status !== "playerTurn" || !combat.rng || !combat.hero || !Array.isArray(combat.enemies)) return false;
+  if (combat.status !== "planning" || !combat.rng || !combat.hero || !Array.isArray(combat.enemies)) return false;
   const { draw, hand, discard, exhaust } = combat.piles ?? {};
   if (![draw, hand, discard, exhaust].every(Array.isArray)) return false;
   return [...draw, ...hand, ...discard, ...exhaust].every((card: RunCard) => CARDS[card.cardId])

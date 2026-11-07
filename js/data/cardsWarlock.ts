@@ -15,7 +15,7 @@ export const WARLOCK_CARDS: CardData[] = [
   card("w_dark_harvest", "Тёмная жатва", "skill", "uncommon", 1, "self", "Тьма 3: вылечить {heal} HP.", [spend("darkness", 3, [heal(10)])], { effects: [spend("darkness", 3, [heal(14)])] }),
   card("w_wound_feast", "Пир на ранах", "skill", "uncommon", 0, "self", "Сжечь Раны в руке. Тьма 2: взять {draw} карты.", [exhaustWounds, spend("darkness", 2, [draw(3)])], { effects: [exhaustWounds, spend("darkness", 2, [draw(4)])] }),
   card("w_abyss", "Бездна", "attack", "rare", 3, "allEnemies", "Нанести {damage} урона всем, +2 за каждую Тьму.", [grow(damage(6), "darkness", 2)], { effects: [grow(damage(9), "darkness", 2)] }),
-  triggerPower("w_eclipse", "Затмение", "rare", 2, "В начале хода +{darkness} Тьмы.", "onTurnStart", [gainResource("darkness", 2)], [gainResource("darkness", 3)]),
+  triggerPower("w_eclipse", "Затмение", "rare", 2, "В начале хода +{darkness} Тьмы.", "onTactStart", [gainResource("darkness", 2)], [gainResource("darkness", 3)]),
 
   // Стартовые
   card("w_bolt", "Тёмный разряд", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
@@ -82,10 +82,10 @@ export const WARLOCK_CARDS: CardData[] = [
   cheaperPower("w_numbness", "Онемение", "uncommon", 1, "Когда карта сгорает: взять {draw} карту.", "onExhaust", [draw(1)], 0),
   triggerPower("w_pain_power", "Сила боли", "uncommon", 1, "Теряя HP от атаки: {block} блока.", "onDamageTaken", [block(3)], [block(4)]),
   triggerPower("w_soul_link", "Связь душ", "uncommon", 1, "Когда враг умирает, вылечить {heal} HP.", "onEnemyDeath", [heal(4)], [heal(6)]),
-  triggerPower("w_ritual_circle", "Круг ритуала", "uncommon", 1, "В конце хода {block} блока.", "onTurnEnd", [block(2)], [block(3)]),
+  triggerPower("w_ritual_circle", "Круг ритуала", "uncommon", 1, "В конце хода {block} блока.", "onTactEnd", [block(2)], [block(3)]),
   card("w_demon_skin", "Кожа демона", "power", "uncommon", 2, "self", "Получить {dexterity} Ловкости.", [selfStatus("dexterity", 3)], { effects: [selfStatus("dexterity", 4)] }),
-  triggerPower("w_curse_aura", "Аура порчи", "uncommon", 1, "В конце хода {poison} Яда всем.", "onTurnEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
-  cheaperPower("w_hunger", "Голод", "uncommon", 1, "В начале хода +{strength} Сила и −{loseHp} HP.", "onTurnStart", [selfStatus("strength", 1), loseHp(1)], 0),
+  triggerPower("w_curse_aura", "Аура порчи", "uncommon", 1, "В конце хода {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
+  cheaperPower("w_hunger", "Голод", "uncommon", 1, "В начале хода +{strength} Сила и −{loseHp} HP.", "onTactStart", [selfStatus("strength", 1), loseHp(1)], 0),
 
   // Редкие атаки
   card("w_annihilate", "Уничтожение", "attack", "rare", 3, "enemy", "Нанести {damage} урона.", [damage(40)], { effects: [damage(52)] }),
@@ -101,7 +101,7 @@ export const WARLOCK_CARDS: CardData[] = [
 
   // Редкие силы
   card("w_lich_form", "Форма лича", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости.", [selfStatus("strength", 3), selfStatus("dexterity", 3)], { cost: 2 }),
-  cheaperPower("w_blood_god", "Бог крови", "rare", 1, "В начале хода +{energy} энергия и −{loseHp} HP.", "onTurnStart", [energy(1), loseHp(2)], 0),
+  cheaperPower("w_blood_god", "Бог крови", "rare", 1, "В начале хода +{energy} энергия и −{loseHp} HP.", "onTactStart", [energy(1), loseHp(2)], 0),
   cheaperPower("w_corruption", "Порча мира", "rare", 1, "Каждая карта: {damage} урона всем.", "onCardPlayed", [fixedDamageToAll(2)], 0),
   triggerPower("w_ashes", "Пепел", "rare", 1, "Когда карта сгорает: {damage} урона всем.", "onExhaust", [fixedDamageToAll(5)], [fixedDamageToAll(7)]),
 ];

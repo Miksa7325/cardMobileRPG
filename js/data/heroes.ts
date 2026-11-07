@@ -12,6 +12,9 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Воин",
     description: "Ярость: чем дольше бой, тем страшнее его удары.",
     maxHp: CONFIG.warriorMaxHp,
+    capacity: CONFIG.capacity.warrior,
+    drawPerTurn: CONFIG.drawPerTurn.warrior,
+    potionWeight: CONFIG.potionWeight,
     mechanic: {
       name: "Ярость",
       resource: "rage",
@@ -34,6 +37,9 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Убийца",
     description: "Комбо: много дешёвых карт за ход, а потом — добивание.",
     maxHp: CONFIG.assassinMaxHp,
+    capacity: CONFIG.capacity.assassin,
+    drawPerTurn: CONFIG.drawPerTurn.assassin,
+    potionWeight: CONFIG.potionWeight,
     mechanic: {
       name: "Комбо",
       resource: "combo",
@@ -52,6 +58,9 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Чернокнижник",
     description: "Тьма: платит здоровьем и Ранами, а Тьма копится весь бой.",
     maxHp: CONFIG.warlockMaxHp,
+    capacity: CONFIG.capacity.warlock,
+    drawPerTurn: CONFIG.drawPerTurn.warlock,
+    potionWeight: CONFIG.potionWeight,
     mechanic: {
       name: "Тьма",
       resource: "darkness",
@@ -73,6 +82,9 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Алхимик",
     description: "Варка: носит 4 зелья и варит их прямо в бою.",
     maxHp: CONFIG.alchemistMaxHp,
+    capacity: CONFIG.capacity.alchemist,
+    drawPerTurn: CONFIG.drawPerTurn.alchemist,
+    potionWeight: 0, // зелья Алхимика весят 0
     maxPotions: 4,
     mechanic: {
       name: "Варка",
@@ -95,12 +107,17 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Маг",
     description: "Прилив: с каждым ходом всё больше энергии на дорогие заклинания.",
     maxHp: CONFIG.mageMaxHp,
+    capacity: CONFIG.capacity.mage,
+    drawPerTurn: CONFIG.drawPerTurn.mage,
+    potionWeight: CONFIG.potionWeight,
+    prepCapacity: CONFIG.magePrepCapacity,
     mechanic: {
       name: "Прилив",
       resource: "surge",
       text: "В начале каждого хода Маг получает столько дополнительной энергии, сколько у него Прилива, а потом Прилив растёт на 1. Новых карт в руку почти не приходит: заклинания дорогие, их надо тратить с умом. Чародейские карты сильнее за каждый Прилив.",
       passives: [
-        { trigger: "onTurnStart", effects: [{ type: "gainEnergy", amount: 0, bonus: { status: "surge", per: 1 } }, ...gain("surge")] },
+        // Прилив сокращает задержку подготовки заклинаний: каждый — на клетку
+        { trigger: "onTurnStart", effects: gain("surge") },
       ],
     },
     deck: [

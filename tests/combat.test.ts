@@ -1,20 +1,10 @@
-// Автотесты правил боя. Запуск: npm test
-// Каждый тест строит маленький бой и проверяет одно правило. Если правку сломала правило — тест упадёт.
+// Автотесты правил боя: формула урона, порядок эффектов, статусы, защита Воина. Запуск: npm test
+// Каждый тест строит маленький бой и проверяет одно правило. Если правка сломала правило — тест упадёт.
 import { describe, expect, it } from "vitest";
-import { CONFIG } from "../js/config.ts";
-import { canPlayCard, createCombat, endTurn, playCard } from "../js/engine/combat.ts";
+import { createCombat, getEnemyIntent, launch, placeCard } from "../js/engine/combat.ts";
 import { applyBurning, applyPoison, calculateBlock, calculateDamage, executeEffects, orderEffects } from "../js/engine/effects.ts";
 import type { Effect } from "../js/types.ts";
-
-type Statuses = Record<string, number>;
-const unit = (statuses: Statuses = {}) => ({ statuses });
-
-// Колода из одинаковых карт: в руке точно окажутся именно они
-const deckOf = (cardId: string, count = 10) => Array.from({ length: count }, () => ({ cardId, upgraded: false }));
-
-function fight(options: Record<string, unknown> = {}) {
-  return createCombat({ heroId: "warrior", enemyIds: ["skeleton"], seed: 1, deck: deckOf("strike"), ...options });
-}
+import { deckOf, fight, giveBlock, quiet, setLane, unit } from "./helpers.ts";
 
 describe("формула урона", () => {
   it("Сила: +10% за стак", () => {
@@ -108,26 +98,25 @@ describe("Сокрушение и Починка", () => {
 });
 
 describe("блок", () => {
-  it("Ловкость прибавляется только к блоку от карт", () => {
-    expect(calculateBlock(5, unit({ dexterity: 2 }), true)).toBe(7);
-    expect(calculateBlock(5, unit({ dexterity: 2 }), false)).toBe(5);
+  it("Ловкость больше не прибавляет блок", () => {
+    expect(calculateBlock(5, unit({ dexterity: 2 }), true)).toBe(5);
   });
   it("урон сначала снимает блок, остаток — HP", () => {
     const combat = fight();
     const enemy = combat.enemies[0];
-    enemy.block = 4;
+    giveBlock(enemy, 4);
     const hp = enemy.hp;
     executeEffects(combat, [{ type: "damage", amount: 6 }], { source: combat.hero, targets: [enemy], fromCard: true });
     expect(enemy.block).toBe(0);
     expect(enemy.hp).toBe(hp - 2);
   });
-  it("блок героя пропадает в начале его хода", () => {
-    const combat = fight({ deck: deckOf("defend") });
-    playCard(combat, combat.piles.hand[0].uid);
-    expect(combat.hero.block).toBe(5);
-    combat.enemies[0].patternIndex = 1; // Скелет защищается и не бьёт
-    endTurn(combat);
-    expect(combat.hero.block).toBe(0);
+  it("урон снимает сначала ту порцию блока, что исчезнет раньше", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    enemy.blocks = [{ amount: 5, expires: 20 }, { amount: 3, expires: 4 }];
+    enemy.block = 8;
+    executeEffects(combat, [{ type: "damage", amount: 4 }], { source: combat.hero, targets: [enemy], fromCard: true });
+    expect(enemy.blocks).toEqual([{ amount: 4, expires: 20 }]);
   });
 });
 
@@ -135,7 +124,7 @@ describe("статусы", () => {
   it("Яд бьёт мимо блока и убывает на 1", () => {
     const combat = fight();
     const enemy = combat.enemies[0];
-    enemy.block = 10;
+    giveBlock(enemy, 10);
     enemy.statuses.poison = 3;
     const hp = enemy.hp;
     applyPoison(combat, enemy);
@@ -146,7 +135,7 @@ describe("статусы", () => {
   it("Горение бьёт сначала по блоку, потом остаётся меньшая половина: 5 → 2 → 1 → 0", () => {
     const combat = fight();
     const enemy = combat.enemies[0];
-    enemy.block = 3;
+    giveBlock(enemy, 3);
     enemy.statuses.burning = 5;
     const hp = enemy.hp;
     applyBurning(combat, enemy);
@@ -159,18 +148,18 @@ describe("статусы", () => {
     expect(enemy.statuses.burning).toBeUndefined();
   });
   it("Горение героя не даёт Ярости и не снижается защитой Воина", () => {
-    const combat = fight({ deck: deckOf("defend") });
+    const combat = fight();
     combat.hero.statuses.burning = 10;
     const hp = combat.hero.hp;
     applyBurning(combat, combat.hero);
     expect(combat.hero.hp).toBe(hp - 10);
     expect(combat.hero.statuses.rage).toBeUndefined();
   });
-  it("Слабость убывает на 1 в конце хода, Уязвимость и Сила остаются", () => {
+  it("Слабость убывает на 1 в конце шкалы, Уязвимость и Сила остаются", () => {
     const combat = fight();
+    quiet(combat);
     Object.assign(combat.hero.statuses, { vulnerable: 2, weak: 1, strength: 3 });
-    combat.enemies[0].patternIndex = 1;
-    endTurn(combat);
+    launch(combat);
     expect(combat.hero.statuses).toMatchObject({ vulnerable: 2, strength: 3 });
     expect(combat.hero.statuses.weak).toBeUndefined();
   });
@@ -180,34 +169,36 @@ describe("статусы", () => {
     executeEffects(combat, [{ type: "applyStatus", status: "weak", amount: 5 }], { source: combat.hero, targets: [enemy], fromCard: true });
     expect(enemy.statuses.weak).toBe(3);
   });
-  it("Комбо Убийцы сгорает в конце хода", () => {
+  it("Комбо Убийцы: +1 за каждую сработавшую карту, сгорает в конце шкалы", () => {
     const combat = fight({ heroId: "assassin", deck: deckOf("a_strike") });
-    playCard(combat, combat.piles.hand[0].uid, combat.enemies[0].instanceId);
-    expect(combat.hero.statuses.combo).toBe(1);
-    endTurn(combat);
+    quiet(combat);
+    const target = combat.enemies[0].instanceId;
+    placeCard(combat, combat.piles.hand[0].uid, 1, target);
+    placeCard(combat, combat.piles.hand[0].uid, 2, target);
+    launch(combat);
+    expect(combat.events.filter((e) => e.type === "status" && e.status === "combo")).toHaveLength(2);
     expect(combat.hero.statuses.combo).toBeUndefined();
   });
 });
 
 describe("защита Воина", () => {
   it("удар Скелета на 9 бьёт Воина на 7", () => {
-    const combat = fight({ deck: deckOf("strike") });
-    combat.enemies[0].patternIndex = 0; // Рубка на 9
+    const combat = fight();
+    setLane(combat.enemies[0], ["hack"]);
     const hp = combat.hero.hp;
-    endTurn(combat);
+    launch(combat);
     expect(combat.hero.hp).toBe(hp - 7);
   });
   it("у других классов защиты нет", () => {
     const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
-    combat.enemies[0].patternIndex = 0;
+    setLane(combat.enemies[0], ["hack"]);
     const hp = combat.hero.hp;
-    endTurn(combat);
+    launch(combat);
     expect(combat.hero.hp).toBe(hp - 9);
   });
-  it("намерение врага показывает урон уже с защитой", async () => {
-    const { getEnemyIntent } = await import("../js/engine/combat.ts");
+  it("намерение врага показывает урон уже с защитой", () => {
     const combat = fight();
-    combat.enemies[0].patternIndex = 0;
+    setLane(combat.enemies[0], ["hack"]);
     expect(getEnemyIntent(combat, combat.enemies[0]).damage).toBe(7);
   });
   it("плата своим HP защитой не снижается", () => {
@@ -218,86 +209,47 @@ describe("защита Воина", () => {
   });
 });
 
-describe("энергия и розыгрыш карт", () => {
-  it("в начале хода энергия и добор по CONFIG", () => {
-    const combat = fight();
-    expect(combat.energy).toBe(CONFIG.energyPerTurn);
-    expect(combat.piles.hand).toHaveLength(CONFIG.cardsPerTurn);
-  });
-  it("карта тратит энергию и уходит в сброс", () => {
-    const combat = fight();
-    const card = combat.piles.hand[0];
-    expect(playCard(combat, card.uid, combat.enemies[0].instanceId).ok).toBe(true);
-    expect(combat.energy).toBe(CONFIG.energyPerTurn - 1);
-    expect(combat.piles.discard).toContain(card);
-  });
-  it("без энергии карту не сыграть", () => {
-    const combat = fight();
-    combat.energy = 0;
-    expect(playCard(combat, combat.piles.hand[0].uid, combat.enemies[0].instanceId)).toEqual({ ok: false, reason: "cannotPlay" });
-  });
-  it("Рану разыграть нельзя", () => {
-    const combat = fight({ deck: deckOf("wound") });
-    expect(canPlayCard(combat, combat.piles.hand[0])).toBe(false);
-  });
-  it("атака без цели не играется", () => {
-    const combat = fight();
-    expect(playCard(combat, combat.piles.hand[0].uid, "nobody").ok).toBe(false);
-  });
-  it("когда добор пуст, сброс перемешивается в добор", () => {
-    const combat = fight({ deck: deckOf("defend", 6) });
-    combat.enemies[0].patternIndex = 1;
-    endTurn(combat); // 5 карт ушли в сброс, в доборе 1
-    expect(combat.piles.hand).toHaveLength(5);
-    expect(combat.piles.draw.length + combat.piles.discard.length).toBe(1);
-  });
-});
-
 describe("враги", () => {
-  it("ходы врага идут по кругу pattern", () => {
-    const combat = fight({ deck: deckOf("defend") });
-    const enemy = combat.enemies[0];
-    const seen: number[] = [];
-    for (let turn = 0; turn < 4; turn++) {
-      seen.push(enemy.patternIndex);
-      combat.hero.hp = 999;
-      endTurn(combat);
-    }
-    expect(seen).toEqual([0, 1, 2, 0]);
-  });
   it("победа, когда все враги мертвы", () => {
     const combat = fight();
+    quiet(combat);
     combat.enemies[0].hp = 1;
-    playCard(combat, combat.piles.hand[0].uid, combat.enemies[0].instanceId);
+    placeCard(combat, combat.piles.hand[0].uid, 1, combat.enemies[0].instanceId);
+    launch(combat);
     expect(combat.status).toBe("won");
   });
   it("поражение, когда у героя кончилось HP", () => {
     const combat = fight();
+    setLane(combat.enemies[0], ["hack"]);
     combat.hero.hp = 1;
-    combat.enemies[0].patternIndex = 0; // Рубка на 9
-    endTurn(combat);
+    launch(combat);
     expect(combat.status).toBe("lost");
   });
 });
 
 describe("Ярость Воина", () => {
-  it("+1 за разыгранную атаку", () => {
+  it("+1 за сработавшую атаку", () => {
     const combat = fight();
-    playCard(combat, combat.piles.hand[0].uid, combat.enemies[0].instanceId);
+    quiet(combat);
+    placeCard(combat, combat.piles.hand[0].uid, 1, combat.enemies[0].instanceId);
+    expect(combat.hero.statuses.rage).toBeUndefined(); // пока карта только стоит на шкале
+    launch(combat);
     expect(combat.hero.statuses.rage).toBe(1);
   });
   it("+1 за пропущенный удар", () => {
-    const combat = fight({ deck: deckOf("defend") });
-    combat.enemies[0].patternIndex = 0;
-    endTurn(combat);
+    const combat = fight();
+    setLane(combat.enemies[0], ["hack"]);
+    launch(combat);
     expect(combat.hero.statuses.rage).toBe(1);
   });
   it("«Ярость N» тратит Ярость на сильный эффект, если её хватает", () => {
     const combat = fight({ deck: deckOf("rage_burst") });
+    quiet(combat);
     const enemy = combat.enemies[0];
     combat.hero.statuses.rage = 3;
     const hp = enemy.hp;
-    playCard(combat, combat.piles.hand[0].uid, enemy.instanceId);
+    placeCard(combat, combat.piles.hand[0].uid, 1, enemy.instanceId);
+    launch(combat);
     expect(enemy.hp).toBe(hp - 15);
     expect(combat.hero.statuses.rage).toBe(1); // 3 потрачено, +1 за атаку
   });

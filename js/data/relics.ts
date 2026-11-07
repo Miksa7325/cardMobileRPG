@@ -101,7 +101,7 @@ export const RELICS: Record<string, RelicData> = {
     icon: "🛡️",
     rarity: "common",
     description: "В конце хода 2 блока.",
-    trigger: "onTurnEnd",
+    trigger: "onTactEnd",
     effects: [{ type: "block", amount: 2, target: "self" }],
   },
   thorn_bracer: {
@@ -231,7 +231,7 @@ export const RELICS: Record<string, RelicData> = {
     icon: "📿",
     rarity: "common",
     description: "В начале хода 2 блока.",
-    trigger: "onTurnStart",
+    trigger: "onTactStart",
     effects: [{ type: "block", amount: 2, target: "self" }],
   },
   holy_water: {
@@ -278,7 +278,7 @@ export const RELICS: Record<string, RelicData> = {
     icon: "👑",
     rarity: "boss",
     description: "В начале хода +1 энергия.",
-    trigger: "onTurnStart",
+    trigger: "onTactStart",
     effects: [{ type: "gainEnergy", amount: 1 }],
   },
   abyss_heart: {
@@ -287,7 +287,7 @@ export const RELICS: Record<string, RelicData> = {
     icon: "🖤",
     rarity: "boss",
     description: "В начале хода взять 1 карту.",
-    trigger: "onTurnStart",
+    trigger: "onTactStart",
     effects: [{ type: "draw", amount: 1 }],
   },
   blood_oath: {

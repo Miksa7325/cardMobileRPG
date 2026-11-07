@@ -31,11 +31,11 @@ export const ALCHEMIST_CARDS: CardData[] = [
   card("al_double_brew", "Двойная варка", "skill", "uncommon", 2, "self", "Сварить 2 зелья. Сжечь.", [brew(2), burn], { cost: 1 }),
   card("al_transmute", "Трансмутация", "skill", "uncommon", 0, "self", "Реагенты 4: получить {energy} энергии.", [spend("reagents", 4, [energy(2)])], { effects: [spend("reagents", 3, [energy(2)])], description: "Реагенты 3: получить {energy} энергии." }),
   card("al_stoneskin", "Каменная кожа", "skill", "uncommon", 2, "self", "Получить {block} блока. Реагенты 5: ещё {block} блока.", [block(8), spend("reagents", 5, [block(16)])], { effects: [block(10), spend("reagents", 5, [block(20)])] }),
-  cheaperPower("al_lab", "Походная лаборатория", "uncommon", 3, "В начале хода сварить зелье.", "onTurnStart", [brew(1)], 2),
+  cheaperPower("al_lab", "Походная лаборатория", "uncommon", 3, "В начале хода сварить зелье.", "onTactStart", [brew(1)], 2),
   card("al_volatile", "Нестабильный раствор", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Реагенты 2: ещё {damage} урона.", [damage(7), spend("reagents", 2, [damage(7)])], { effects: [damage(9), spend("reagents", 2, [damage(9)])] }),
   card("al_corrosion", "Коррозия", "skill", "uncommon", 1, "enemy", "Наложить {vulnerable} Уязвимости и {poison} Яда.", [status("vulnerable", 2), status("poison", 3)], { effects: [status("vulnerable", 3), status("poison", 4)] }),
   card("al_strength_elixir", "Эликсир силы", "skill", "uncommon", 1, "self", "Реагенты 4: получить {strength} Силы. Сжечь.", [spend("reagents", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("reagents", 4, [selfStatus("strength", 3)]), burn] }),
-  triggerPower("al_fermentation", "Брожение", "uncommon", 1, "В начале хода Реагенты +{reagents}.", "onTurnStart", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
+  triggerPower("al_fermentation", "Брожение", "uncommon", 1, "В начале хода Реагенты +{reagents}.", "onTactStart", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
 
   // Редкие
   triggerPower("al_philosopher", "Философский камень", "rare", 2, "Каждое выпитое зелье: Реагенты ещё +{reagents}.", "onPotionUsed", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),

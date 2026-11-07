@@ -17,7 +17,11 @@ export type StatusId =
   | "combo" // Комбо Убийцы
   | "darkness" // Тьма Чернокнижника
   | "reagents" // Реагенты Алхимика
-  | "surge"; // Прилив Мага
+  | "surge" // Прилив Мага
+  | "slow" // Замедление: следующие N действий весят на 1 больше
+  | "haste" // Ускорение: следующие N действий весят на 1 меньше (не меньше 1)
+  | "stun" // Оглушение: следующее действие срывается
+  | "bleed"; // Кровотечение: при действии теряет стаки × вес действия HP мимо блока
 
 export type Statuses = Partial<Record<StatusId, number>>;
 
@@ -25,8 +29,10 @@ export type Statuses = Partial<Record<StatusId, number>>;
 export type Trigger =
   | "onCombatStart"
   | "onCombatEnd"
-  | "onTurnStart"
+  | "onTurnStart" // раз в начале хода: только особенности классов
   | "onTurnEnd"
+  | "onTactStart" // в начале каждого такта (2 раза за ход)
+  | "onTactEnd" // в конце каждого такта
   | "onCardPlayed"
   | "onDamageTaken"
   | "onEnemyDeath"
@@ -118,6 +124,7 @@ export interface CardData {
 export interface EnemyMove {
   intent: Intent;
   effects: Effect[];
+  weight: number; // сколько клеток шкалы занимает ход
 }
 
 export interface EnemyData {
@@ -134,6 +141,10 @@ export interface HeroData {
   description: string;
   maxHp: number;
   maxPotions?: number;
+  capacity: number; // вместимость шкалы: сколько клеток веса карт за ход
+  drawPerTurn: number; // сколько карт добирается в начале хода
+  potionWeight: number; // вес зелья на шкале: у Алхимика 0
+  prepCapacity?: number; // Маг: вместимость дорожки подготовки
   mechanic: {
     name: string;
     resource: StatusId;
@@ -281,11 +292,18 @@ export interface Piles {
   nextUid: number;
 }
 
-// Общее у героя и врагов
+// Порция блока: держится 6 клеток с появления. expires — абсолютное время (клетки с начала боя), после которого её нет
+export interface BlockPortion {
+  amount: number;
+  expires: number;
+}
+
+// Общее у героя и врагов. block — сумма всех порций, для показа
 export interface Unit {
   hp: number;
   maxHp: number;
   block: number;
+  blocks: BlockPortion[];
   statuses: Statuses;
 }
 
@@ -296,10 +314,50 @@ export interface HeroUnit extends Unit {
   damageReduction: number; // защита класса в процентах: Воин получает меньше урона от ударов
 }
 
+// Ход врага на его дорожке. Ходы стоят встык с клетки 1, где кончается — считает движок по весам и статусам
+export interface EnemyAction {
+  move: string; // имя хода из moves
+  weight: number; // вес хода без статусов
+  resolved: boolean;
+  end?: number; // клетка, в которой ход сработал
+}
+
 export interface EnemyUnit extends Unit {
   instanceId: string;
   enemyId: string;
-  patternIndex: number;
+  patternIndex: number; // какой ход из pattern встанет на дорожку следующим
+  lane: EnemyAction[]; // ходы этого хода
+  carry: string[]; // ходы, которые не влезли в прошлый ход: встают первыми
+}
+
+// Карта или зелье на дорожке героя
+export interface LaneItem {
+  id: number; // номер постановки: при равенстве раньше срабатывает то, что поставили раньше
+  kind: "card" | "potion";
+  card?: CardInstance; // карта: пока она на шкале, её нет ни в руке, ни в стопках
+  potionId?: string; // зелье: пока оно на шкале, его нет в сумке
+  start: number; // вес ≥ 1: первая клетка (1–6); вес 0: стык (0 — перед клеткой 1, 6 — после клетки 6)
+  weight: number; // вес без статусов
+  targetId: string | null;
+  locked: boolean; // уже сработали добор или вместимость: вернуть в руку нельзя
+  resolved: boolean;
+  end?: number; // клетка, в которой сработало
+}
+
+// Заклинание Мага на дорожке подготовки: сработает само в абсолютное время due, на 50% сильнее
+export interface PreparedSpell {
+  id: number;
+  card: CardInstance;
+  turn: number; // в каком ходу поставлено: вернуть в руку можно только в этом же ходу
+  locked: boolean;
+  weight: number;
+  targetId: string | null;
+  due: number; // абсолютное время срабатывания без статусов
+}
+
+// Выбор Алхимика: из двух зелий одно попадёт в сумку
+export interface BrewChoice {
+  options: string[];
 }
 
 // Событие для анимации: удар, блок, статус... Интерфейс проигрывает их по очереди
@@ -308,13 +366,25 @@ export interface CombatEvent {
   [field: string]: unknown;
 }
 
-export type CombatStatus = "playerTurn" | "won" | "lost";
+// planning — игрок расставляет карты (в том числе на паузе посреди розыгрыша), resolving — идёт розыгрыш
+export type CombatStatus = "planning" | "resolving" | "won" | "lost";
 
 export interface Combat {
   rng: Rng;
   status: CombatStatus;
   turn: number;
-  energy: number;
+  clock: number; // последняя разыгранная граница клеток этого хода: 0 — розыгрыш ещё не начался
+  capacity: number; // вместимость шкалы героя
+  capacityBonus: number; // «+N вместимости в этом ходу»
+  lane: LaneItem[];
+  prepared: PreparedSpell[]; // дорожка подготовки Мага, живёт между ходами
+  nextLaneId: number;
+  zeroUsed: number; // сколько карт весом 0 поставлено за ход
+  rerollsLeft: number;
+  keep: number[]; // карты, которые игрок оставит в руке
+  carried: number[]; // карты, вытолкнутые со шкалы: остаются в руке
+  brewChoices: BrewChoice[];
+  launchGains: boolean; // во время розыгрыша пришли карты или вместимость: может быть пауза
   hero: HeroUnit;
   enemies: EnemyUnit[];
   piles: Piles;
@@ -334,6 +404,7 @@ export interface EffectContext {
   targets: (HeroUnit | EnemyUnit)[];
   fromCard: boolean;
   exhausted?: boolean; // карту надо сжечь после розыгрыша
+  boost?: number; // во сколько раз сильнее урон, блок и статусы: подготовленное заклинание Мага — 1.5
 }
 
 // Ответ действий игрока

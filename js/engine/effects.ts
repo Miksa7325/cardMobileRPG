@@ -37,9 +37,63 @@ export function calculateDamage(base: number, attacker: HasStatuses, target: Dam
   return Math.max(0, Math.floor((base * percent) / 100 ** 4));
 }
 
-// Ловкость прибавляется только к блоку от карт
-export function calculateBlock(base: number, unit: HasStatuses, fromCard: boolean): number {
-  return base + (fromCard ? unit.statuses.dexterity ?? 0 : 0);
+// Блок не зависит от статусов: Ловкость стала постоянным Ускорением. fromCard оставлен для описаний карт
+export function calculateBlock(base: number, _unit: HasStatuses, _fromCard: boolean): number {
+  return base;
+}
+
+// ---------- Время и блок ----------
+
+// Абсолютное время боя в клетках: ход 1 — клетки 1–6, ход 2 — 7–12. Нужно для блока, который переживает конец хода
+export function absoluteTime(combat: Combat, cell = combat.clock): number {
+  return (combat.turn - 1) * CONFIG.timeline.cells + cell;
+}
+
+// Новая порция блока: держится blockCells клеток с этого момента
+export function addBlock(combat: Combat, unit: Unit, amount: number): void {
+  if (amount <= 0) return;
+  unit.blocks.push({ amount, expires: absoluteTime(combat) + CONFIG.timeline.blockCells });
+  unit.block += amount;
+}
+
+// Убирает порции, срок которых вышел
+export function expireBlocks(combat: Combat, unit: Unit): void {
+  const now = absoluteTime(combat);
+  unit.blocks = unit.blocks.filter((portion) => portion.expires >= now);
+  unit.block = unit.blocks.reduce((sum, portion) => sum + portion.amount, 0);
+}
+
+// Урон по блоку: сначала тратится порция, которая исчезнет раньше. Возвращает, сколько поглощено
+function absorbBlock(unit: Unit, damage: number): number {
+  let left = damage;
+  unit.blocks.sort((a, b) => a.expires - b.expires);
+  for (const portion of unit.blocks) {
+    const used = Math.min(portion.amount, left);
+    portion.amount -= used;
+    left -= used;
+  }
+  unit.blocks = unit.blocks.filter((portion) => portion.amount > 0);
+  unit.block = unit.blocks.reduce((sum, portion) => sum + portion.amount, 0);
+  return damage - left;
+}
+
+// Бой окончен: дальше эффекты не исполняются
+export function isOver(combat: Combat): boolean {
+  return combat.status === "won" || combat.status === "lost";
+}
+
+// Эффекты, которые срабатывают сразу при постановке карты на шкалу, а не в её клетке
+export const PLANNING_EFFECTS: ReadonlySet<EffectType> = new Set(["draw", "gainEnergy", "brewPotion"]);
+
+// Подготовленное заклинание Мага сильнее: урон, блок, статусы и Сокрушение × boost, с округлением вниз
+export function boostEffects(effects: Effect[], boost: number): Effect[] {
+  return effects.map((effect) => {
+    if (effect.type === "spend") return { ...effect, effects: boostEffects(effect.effects, boost) };
+    if (effect.type === "damage" || effect.type === "block" || effect.type === "applyStatus" || effect.type === "sunder") {
+      return { ...effect, amount: Math.floor(effect.amount * boost) };
+    }
+    return effect;
+  });
 }
 
 // Прибавляет стаки статуса с учётом потолка. Возвращает, сколько стаков реально добавилось
@@ -70,7 +124,7 @@ export function orderEffects(effects: Effect[]): Effect[] {
 // context: source — кто действует, targets — цели, fromCard — эффект идёт от разыгранной карты
 export function executeEffects(combat: Combat, effects: Effect[], context: EffectContext): void {
   for (const effect of orderEffects(effects)) {
-    if (combat.status !== "playerTurn") return;
+    if (isOver(combat)) return;
     const handler = EFFECT_HANDLERS[effect.type] as Handler<EffectType> | undefined;
     if (!handler) throw new Error(`Эффект «${effect.type}» не работает в бою`);
     handler(combat, effect, context);
@@ -115,7 +169,8 @@ function relicConditionMet(combat: Combat, relic: RelicData, details: { cardType
 // Записывает, что произошло в бою. Логика считается мгновенно, а интерфейс потом
 // проигрывает эти события по очереди: удары, числа урона, изменение HP
 export function recordEvent(combat: Combat, event: CombatEvent): void {
-  (combat.events ??= []).push(event);
+  // Номер клетки нужен анимации: событие проигрывается, когда указатель дойдёт до неё
+  (combat.events ??= []).push({ cell: combat.clock, ...event });
 }
 
 // Счётчики боя для заданий: сколько карт разыграно, урона нанесено и зелий выпито
@@ -146,9 +201,8 @@ export function applyPoison(combat: Combat, unit: HeroUnit | EnemyUnit): void {
 export function applyBurning(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   const stacks = unit.statuses.burning;
   if (!stacks) return;
-  const absorbed = Math.min(unit.block, stacks);
+  const absorbed = absorbBlock(unit, stacks);
   const hpLost = Math.min(unit.hp, stacks - absorbed);
-  unit.block -= absorbed;
   if (unit !== combat.hero) addTally(combat, "damageDealt", hpLost);
   unit.hp -= hpLost;
   recordEvent(combat, { type: "burning", targetId: unitId(combat, unit), amount: stacks, hpLost, blocked: absorbed, hp: unit.hp, block: unit.block });
@@ -205,9 +259,8 @@ function getTargets(combat: Combat, effect: { target?: string }, context: Effect
 
 // Урон сначала снимает блок, остаток — HP
 function dealDamage(combat: Combat, source: HeroUnit | EnemyUnit, target: HeroUnit | EnemyUnit, damage: number): void {
-  const absorbed = Math.min(target.block, damage);
+  const absorbed = absorbBlock(target, damage);
   const hpLost = damage - absorbed;
-  target.block -= absorbed;
   if (target !== combat.hero) addTally(combat, "damageDealt", Math.min(target.hp, hpLost));
   target.hp = Math.max(0, target.hp - hpLost);
   recordEvent(combat, {
@@ -240,7 +293,7 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
   block(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
       const amount = calculateBlock(effect.amount + getBonus(effect, context.source), target, context.fromCard);
-      target.block += amount;
+      addBlock(combat, target, amount);
       recordEvent(combat, { type: "block", targetId: unitId(combat, target), amount, hp: target.hp, block: target.block });
     }
   },
@@ -300,12 +353,17 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     // Чернокнижник копит Тьму, когда платит своим здоровьем
     if (unit === combat.hero && unit.hp > 0) fireTrigger(combat, "onHpPaid");
   },
+  // Во время розыгрыша новые карты можно доложить на шкалу: розыгрыш встанет на паузу
   draw(combat, effect) {
+    const before = combat.piles.hand.length;
     drawCards(combat.piles, effect.amount, combat.rng);
+    if (combat.status === "resolving" && combat.piles.hand.length > before) combat.launchGains = true;
   },
-  // Энергия может расти от ресурса: так Маг получает энергию за Прилив
+  // Бывшая энергия: +N вместимости шкалы в этом ходу
   gainEnergy(combat, effect, context) {
-    combat.energy += effect.amount + getBonus(effect, context.source);
+    const amount = effect.amount + getBonus(effect, context.source);
+    combat.capacityBonus += amount;
+    if (combat.status === "resolving" && amount > 0) combat.launchGains = true;
   },
   addCard(combat, effect) {
     if (!effect.cardId || !effect.pile) throw new Error("addCard в бою: нужны cardId и pile");

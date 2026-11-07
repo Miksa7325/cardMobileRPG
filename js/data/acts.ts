@@ -135,7 +135,7 @@ export const ACTS: ActData[] = [
     mechanic: {
       name: "Жар",
       text: "В конце каждого своего хода герой теряет 3 HP.",
-      heroPassives: [{ trigger: "onTurnEnd", effects: [{ type: "loseHp", amount: 3 }] }],
+      heroPassives: [{ trigger: "onTactEnd", effects: [{ type: "loseHp", amount: 3 }] }],
     },
     encounters: [
       ["hellhound", "hellhound"],

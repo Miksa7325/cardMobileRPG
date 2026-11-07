@@ -278,8 +278,8 @@ export const CARDS: Record<string, CardData> = {
     cost: 1,
     target: "self",
     effects: [],
-    power: { trigger: "onTurnEnd", effects: [{ type: "block", amount: 3, target: "self" }] },
-    upgraded: { power: { trigger: "onTurnEnd", effects: [{ type: "block", amount: 4, target: "self" }] } },
+    power: { trigger: "onTactEnd", effects: [{ type: "block", amount: 3, target: "self" }] },
+    upgraded: { power: { trigger: "onTactEnd", effects: [{ type: "block", amount: 4, target: "self" }] } },
     description: "В конце хода {block} блока.",
   },
   rage: {
@@ -290,7 +290,7 @@ export const CARDS: Record<string, CardData> = {
     cost: 1,
     target: "self",
     effects: [],
-    power: { trigger: "onTurnStart", effects: [{ type: "applyStatus", status: "strength", amount: 1, target: "self" }] },
+    power: { trigger: "onTactStart", effects: [{ type: "applyStatus", status: "strength", amount: 1, target: "self" }] },
     upgraded: { cost: 0 },
     description: "В начале хода +{strength} Сила.",
   },
@@ -329,7 +329,7 @@ const MORE_WARRIOR_CARDS: CardData[] = [
   card("blood_rush", "Кровавый порыв", "attack", "common", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP. Получить {rage} Ярости.", [damage(8), loseHp(2), gainResource("rage", 2)], { effects: [damage(11), loseHp(2), gainResource("rage", 2)] }),
   card("rampage", "Буйство", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Ярость 5: ещё 3 удара по {damage}.", [damage(8), spend("rage", 5, hits(7, 3))], { effects: [damage(10), spend("rage", 5, hits(9, 3))] }),
   card("unstoppable", "Неудержимость", "skill", "uncommon", 1, "self", "Ярость 4: получить {strength} Силы. Сжечь.", [spend("rage", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("rage", 3, [selfStatus("strength", 2)]), burn], description: "Ярость 3: получить {strength} Силы. Сжечь." }),
-  triggerPower("seething", "Кипящая кровь", "uncommon", 1, "В начале хода +{rage} Ярость.", "onTurnStart", [gainResource("rage", 1)], [gainResource("rage", 2)]),
+  triggerPower("seething", "Кипящая кровь", "uncommon", 1, "В начале хода +{rage} Ярость.", "onTactStart", [gainResource("rage", 1)], [gainResource("rage", 2)]),
   card("execution", "Казнь", "attack", "rare", 3, "enemy", "Нанести {damage} урона: +3 за каждую Ярость.", [grow(damage(6), "rage", 3)], { effects: [grow(damage(10), "rage", 3)] }),
   card("berserk_roar", "Рёв берсерка", "attack", "rare", 1, "allEnemies", "Ярость 6: нанести {damage} урона всем и получить {block} блока.", [spend("rage", 6, [damage(20), block(10)])], { effects: [spend("rage", 6, [damage(26), block(14)])] }),
 
@@ -377,8 +377,8 @@ const MORE_WARRIOR_CARDS: CardData[] = [
   card("fortress", "Крепость", "skill", "uncommon", 3, "self", "Получить {block} блока.", [block(22)], { effects: [block(28)] }),
 
   // Необычные силы
-  card("iron_will", "Железная воля", "power", "uncommon", 1, "self", "В начале хода {block} блока.", [], { power: { trigger: "onTurnStart", effects: [block(4)] } }, { trigger: "onTurnStart", effects: [block(3)] }),
-  card("venom_mastery", "Знаток ядов", "power", "uncommon", 1, "self", "В конце хода {poison} Яда всем.", [], { power: { trigger: "onTurnEnd", effects: [allStatus("poison", 2)] } }, { trigger: "onTurnEnd", effects: [allStatus("poison", 1)] }),
+  card("iron_will", "Железная воля", "power", "uncommon", 1, "self", "В начале хода {block} блока.", [], { power: { trigger: "onTactStart", effects: [block(4)] } }, { trigger: "onTactStart", effects: [block(3)] }),
+  card("venom_mastery", "Знаток ядов", "power", "uncommon", 1, "self", "В конце хода {poison} Яда всем.", [], { power: { trigger: "onTactEnd", effects: [allStatus("poison", 2)] } }, { trigger: "onTactEnd", effects: [allStatus("poison", 1)] }),
   card("battle_trance", "Боевой транс", "power", "uncommon", 1, "self", "Каждая атака: {block} блока.", [], { power: { trigger: "onCardPlayed", cardType: "attack", effects: [block(2)] } }, { trigger: "onCardPlayed", cardType: "attack", effects: [block(1)] }),
   card("thick_hide", "Толстая шкура", "power", "uncommon", 2, "self", "Получить {dexterity} Ловкости.", [selfStatus("dexterity", 3)], { effects: [selfStatus("dexterity", 4)] }),
   card("bloodthirst", "Кровожадность", "power", "uncommon", 1, "self", "Когда враг умирает, вылечить {heal} HP.", [], { power: { trigger: "onEnemyDeath", effects: [heal(5)] } }, { trigger: "onEnemyDeath", effects: [heal(3)] }),
@@ -397,7 +397,7 @@ const MORE_WARRIOR_CARDS: CardData[] = [
   card("berserker", "Берсерк", "power", "rare", 0, "self", "Получить {strength} Силы. Потерять {loseHp} HP.", [selfStatus("strength", 3), loseHp(6)], { effects: [selfStatus("strength", 4), loseHp(6)] }),
   card("war_avatar", "Аватар войны", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости.", [selfStatus("strength", 3), selfStatus("dexterity", 3)], { cost: 2 }),
   card("thousand_cuts", "Тысяча порезов", "power", "rare", 1, "self", "Каждая карта: {damage} урона всем.", [], { power: { trigger: "onCardPlayed", effects: [{ type: "damage", amount: 2, fixed: true, target: "allEnemies" }] } }, { trigger: "onCardPlayed", effects: [{ type: "damage", amount: 1, fixed: true, target: "allEnemies" }] }),
-  card("perfect_form", "Идеальная форма", "power", "rare", 1, "self", "В начале хода взять {draw} карту.", [], { cost: 0 }, { trigger: "onTurnStart", effects: [draw(1)] }),
+  card("perfect_form", "Идеальная форма", "power", "rare", 1, "self", "В начале хода взять {draw} карту.", [], { cost: 0 }, { trigger: "onTactStart", effects: [draw(1)] }),
 ];
 
 for (const warriorCard of MORE_WARRIOR_CARDS) {
