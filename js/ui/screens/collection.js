@@ -116,7 +116,7 @@ function createCardsTab(meta) {
 }
 
 function createCardTile(card) {
-  const instance = { uid: 0, cardId: card.id, upgraded: false };
+  const instance = { uid: 0, cardId: card.id, level: 0 };
   return createTile(createCardIcon(card), card.name, () => openCardPreview(instance, HERO_OUTSIDE_COMBAT));
 }
 

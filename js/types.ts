@@ -46,6 +46,8 @@ export type Trigger =
 export type HeroId = "warrior" | "assassin" | "warlock" | "alchemist" | "mage";
 export type CardType = "attack" | "skill" | "power" | "status";
 export type CardRarity = "starter" | "common" | "uncommon" | "rare";
+// Лестница редкости улучшений: каждое улучшение — ступень выше, после легендарной — звёзды
+export type LadderRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export type RelicRarity = "starter" | "common" | "uncommon" | "rare" | "boss";
 // На кого играется карта или зелье
 export type CardTarget = "enemy" | "allEnemies" | "self" | "none";
@@ -115,8 +117,10 @@ export interface CardData {
   target: CardTarget;
   description: string;
   effects: Effect[];
-  // Поля, которые заменяются у улучшенной карты
-  upgraded?: Partial<Omit<CardData, "id" | "upgraded">>;
+  // Поля, которые заменяются у улучшенной карты (уровень 1)
+  upgraded?: Partial<Omit<CardData, "id" | "upgraded" | "levels">>;
+  // Уровни 2, 3… до легендарной: что меняется ещё (поверх предыдущих). Пропишем на этапе 5
+  levels?: Partial<Omit<CardData, "id" | "upgraded" | "levels">>[];
   power?: Power;
   hero?: HeroId; // чья это карта; у Раны героя нет
 }
@@ -277,11 +281,11 @@ export interface Rng {
   state: number;
 }
 
-// Карта в колоде или в бою. uid различает одинаковые карты
+// Карта в колоде или в бою. uid различает одинаковые карты, level — сколько раз улучшена (0 — ни разу)
 export interface CardInstance {
   uid: number;
   cardId: string;
-  upgraded: boolean;
+  level: number;
 }
 
 export interface Piles {
@@ -471,7 +475,7 @@ export interface CombatRecord {
 export interface RunCard {
   uid: number;
   cardId: string;
-  upgraded: boolean;
+  level: number;
 }
 
 export interface Run {

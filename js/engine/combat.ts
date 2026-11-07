@@ -46,7 +46,7 @@ export interface CombatSetup {
   seed: number;
   hp?: number;
   maxHp?: number;
-  deck?: (RunCard | { cardId: string; upgraded: boolean })[];
+  deck?: (RunCard | { cardId: string; level: number })[];
   relics?: string[];
   potions?: string[];
   enemyHpMultiplier?: number;
@@ -64,7 +64,7 @@ export function createCombat({
 }: CombatSetup): Combat {
   const rng = createRng(seed);
   const heroData = HEROES[heroId];
-  const startingDeck = heroData.deck.map((cardId) => ({ cardId, upgraded: false }));
+  const startingDeck = heroData.deck.map((cardId) => ({ cardId, level: 0 }));
 
   const combat: Combat = {
     rng,
@@ -828,9 +828,9 @@ export function endTurn(combat: Combat): void {
 }
 
 // Тестовый режим: кладёт любую карту в руку. Возвращает false, если рука полна
-export function addCardToHand(combat: Combat, cardId: string, upgraded = false): boolean {
+export function addCardToHand(combat: Combat, cardId: string, level = 0): boolean {
   if (combat.piles.hand.length >= CONFIG.maxHandSize) return false;
-  combat.piles.hand.push(createCardInstance(combat.piles, cardId, upgraded));
+  combat.piles.hand.push(createCardInstance(combat.piles, cardId, level));
   return true;
 }
 

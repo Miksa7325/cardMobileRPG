@@ -43,7 +43,7 @@ export function renderRestUpgradeScreen(root) {
   const run = state.run;
   const row = el("div", "card-row");
   for (const card of getUpgradableCards(run)) {
-    const upgraded = { ...card, upgraded: true };
+    const upgraded = { ...card, level: card.level + 1 };
     row.append(createCardElement(upgraded, HERO_OUTSIDE_COMBAT, {
       playable: true,
       selected: false,

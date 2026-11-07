@@ -7,7 +7,7 @@ import { CARDS } from "../data/cards.ts";
 import { COSMETICS } from "../data/cosmetics.ts";
 import { HEROES } from "../data/heroes.ts";
 import { RELICS } from "../data/relics.ts";
-import { canUpgradeCard } from "./deck.ts";
+import { canUpgradeFirstStep, upgradeCard } from "./deck.ts";
 import { getLockedContent, isHeroDead } from "./meta.ts";
 import { pickRandom, pickWeighted } from "./rng.ts";
 import type { ArenaFight, Equipment, HeroId, Meta, Rng, Run } from "../types.ts";
@@ -23,7 +23,7 @@ export function isBuilt(meta: Meta, buildingId: string): boolean {
 function createStarterEquipment(heroId: HeroId): Equipment {
   const hero = HEROES[heroId];
   return {
-    deck: hero.deck.map((cardId, uid) => ({ uid, cardId, upgraded: false })),
+    deck: hero.deck.map((cardId, uid) => ({ uid, cardId, level: 0 })),
     nextCardUid: hero.deck.length,
     relics: [...hero.relics],
     potions: [],
@@ -46,15 +46,15 @@ function pay(meta: Meta, price: number): boolean {
   return true;
 }
 
-// Тренировочная арена: какие карты можно улучшить
+// Тренировочная арена: какие карты можно улучшить. Пока только первая ступень за золото, дальше — на этапе 8
 export function getTrainableCards(gear: Gear) {
-  return gear.deck.filter((card) => !card.upgraded && canUpgradeCard(card.cardId));
+  return gear.deck.filter(canUpgradeFirstStep);
 }
 
 export function trainCard(meta: Meta, gear: Gear, uid: number): boolean {
   const card = gear.deck.find((item) => item.uid === uid);
-  if (!card || card.upgraded || !canUpgradeCard(card.cardId) || !pay(meta, CONFIG.city.prices.training)) return false;
-  card.upgraded = true;
+  if (!card || !canUpgradeFirstStep(card) || !pay(meta, CONFIG.city.prices.training)) return false;
+  upgradeCard(card);
   return true;
 }
 
@@ -123,7 +123,7 @@ export function getStudyPrice(cardId: string): number {
 // Учит карту из выбора библиотеки: она ложится в колоду, а выбор обновится при следующем визите
 export function studyCard(meta: Meta, gear: Gear, heroId: HeroId, cardId: string): boolean {
   if (!meta.library?.[heroId]?.includes(cardId) || !pay(meta, getStudyPrice(cardId))) return false;
-  gear.deck.push({ uid: gear.nextCardUid, cardId, upgraded: false });
+  gear.deck.push({ uid: gear.nextCardUid, cardId, level: 0 });
   gear.nextCardUid += 1;
   delete meta.library?.[heroId];
   if (!meta.seen.cards.includes(cardId)) meta.seen.cards.push(cardId);

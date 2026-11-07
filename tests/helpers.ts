@@ -7,7 +7,7 @@ import type { Combat, EnemyUnit, Unit } from "../js/types.ts";
 export const unit = (statuses: Record<string, number> = {}) => ({ statuses });
 
 // Колода из одинаковых карт: в руке точно окажутся именно они
-export const deckOf = (cardId: string, count = 10) => Array.from({ length: count }, () => ({ cardId, upgraded: false }));
+export const deckOf = (cardId: string, count = 10, level = 0) => Array.from({ length: count }, () => ({ cardId, level }));
 
 // Воин против Скелета со стартовой колодой из Ударов
 export function fight(options: Partial<CombatSetup> = {}): Combat {

@@ -68,7 +68,7 @@ function listActions(combat) {
     const card = getCardData(instance);
     const targets = card.target === "enemy" ? alive.map((enemy) => enemy.instanceId) : [null];
     for (const targetId of targets) {
-      const key = `card:${instance.cardId}:${instance.upgraded}:${targetId}`;
+      const key = `card:${instance.cardId}:${instance.level}:${targetId}`;
       if (seen.has(key)) continue;
       seen.add(key);
       actions.push({ kind: "card", uid: instance.uid, targetId, label: `${card.name}${targetId ? " → " + targetId : ""}` });

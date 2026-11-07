@@ -6,7 +6,7 @@ import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { RELICS } from "../data/relics.ts";
 import { createCombat } from "./combat.ts";
-import { canUpgradeCard, upgradeCard } from "./deck.ts";
+import { canUpgradeFirstStep, upgradeCard } from "./deck.ts";
 import { generateMap } from "./map.ts";
 import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.ts";
 import type {
@@ -296,7 +296,7 @@ export function createNodeCombat(run: Run): Combat {
   const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength);
 
   // Зараза: в колоду каждого боя замешаны Раны. После боя они исчезают вместе с колодой боя
-  const wounds = Array.from({ length: act.mechanic.wounds ?? 0 }, () => ({ cardId: "wound", upgraded: false }));
+  const wounds = Array.from({ length: act.mechanic.wounds ?? 0 }, () => ({ cardId: "wound", level: 0 }));
   return createCombat({
     heroId: run.heroId,
     enemyIds,
@@ -460,7 +460,7 @@ const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
 };
 
 export function addCardToDeck(run: Run, cardId: string): void {
-  run.deck.push({ uid: run.nextCardUid, cardId, upgraded: false });
+  run.deck.push({ uid: run.nextCardUid, cardId, level: 0 });
   run.nextCardUid += 1;
   markSeen(run, "cards", cardId);
 }
@@ -637,9 +637,9 @@ export function healInCity(run: Run): number {
   return healed;
 }
 
-// Карты колоды, которые можно улучшить на отдыхе
+// Карты колоды, которые можно улучшить на отдыхе и в событиях: только первая ступень
 export function getUpgradableCards(run: Run) {
-  return run.deck.filter((card) => !card.upgraded && canUpgradeCard(card.cardId));
+  return run.deck.filter(canUpgradeFirstStep);
 }
 
 export function restUpgrade(run: Run, uid: number): void {

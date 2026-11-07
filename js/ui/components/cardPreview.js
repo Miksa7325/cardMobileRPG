@@ -32,9 +32,9 @@ export function createGlossary(text) {
 
 // Что изменится после улучшения. Карте со сниженной ценой хватит строки о цене
 function createUpgradeNote(instance, hero) {
-  if (instance.upgraded || !canUpgradeCard(instance.cardId)) return null;
+  if (instance.level > 0 || !canUpgradeCard(instance.cardId)) return null;
   const normal = getCardData(instance);
-  const upgraded = getCardData({ ...instance, upgraded: true });
+  const upgraded = getCardData({ ...instance, level: instance.level + 1 });
   const parts = [];
   const text = formatDescription(upgraded, hero);
   if (text !== formatDescription(normal, hero)) parts.push(text);

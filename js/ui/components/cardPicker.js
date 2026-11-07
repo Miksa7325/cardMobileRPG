@@ -49,7 +49,7 @@ export function createCardPicker() {
   for (const card of Object.values(CARDS)) {
     const upgraded = test.addUpgraded && canUpgradeCard(card.id);
     picker.append(createRow(`${card.name}${upgraded ? "+" : ""}`, () => {
-      if (addCardToHand(state.combat, card.id, upgraded)) showScreen("combat");
+      if (addCardToHand(state.combat, card.id, upgraded ? 1 : 0)) showScreen("combat");
     }));
   }
 

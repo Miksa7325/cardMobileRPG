@@ -169,7 +169,9 @@ function artSvg(cardId) {
 // Лицо карты. Его же использует большая карта в cardPreview.js
 export function fillCardFace(element, instance, hero) {
   const card = getCardData(instance);
-  const fullName = instance.upgraded ? `${card.name}+` : card.name;
+  // Уровень улучшения: «+» за первый, «+2», «+3»… дальше
+  const plus = instance.level > 1 ? `+${instance.level}` : instance.level === 1 ? "+" : "";
+  const fullName = `${card.name}${plus}`;
 
   if (card.cost !== null) element.append(el("div", "card__cost", card.cost));
 
@@ -181,7 +183,7 @@ export function fillCardFace(element, instance, hero) {
   element.style.setProperty("--name-fit", Math.min(1, NAME_FIT_LETTERS / longestWord));
 
   const name = el("div", "card__name", fullName);
-  if (instance.upgraded) name.classList.add("card__name--upgraded");
+  if (instance.level > 0) name.classList.add("card__name--upgraded");
   element.append(name, art, createEffects(card, hero));
 }
 

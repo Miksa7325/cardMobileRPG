@@ -61,7 +61,7 @@ function getTitle(run) {
 function createCardChoices(cardIds) {
   const row = el("div", "card-row");
   cardIds.forEach((cardId, index) => {
-    const instance = { uid: index, cardId, upgraded: false };
+    const instance = { uid: index, cardId, level: 0 };
     row.append(createCardElement(instance, HERO_OUTSIDE_COMBAT, {
       playable: true,
       selected: false,
