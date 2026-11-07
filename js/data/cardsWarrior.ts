@@ -28,9 +28,9 @@ export const WARRIOR_CARDS: CardData[] = [
     [damage(5), block(5)], { effects: [damage(7), block(7)] }), "afterSkill", [damage(4)], [damage(5)]),
   card("kick", "Пинок", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(7)], { effects: [sunder(2), damage(9)] }),
   card("triple_slash", "Тройной удар", "attack", "common", 2, "enemy", "Нанести {damage} урона трижды.", hits(5, 3), { effects: hits(7, 3) }),
-  card("reckless_swing", "Безрассудный взмах", "attack", "common", 0, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.",
-    [damage(7), loseHp(3)], { effects: [damage(10), loseHp(3)] }),
-  card("hilt_bash", "Удар рукоятью", "attack", "common", 0, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(3)], { effects: [sunder(2), damage(4)] }),
+  card("reckless_swing", "Безрассудный взмах", "attack", "common", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.",
+    [damage(10), loseHp(3)], { effects: [damage(13), loseHp(3)] }),
+  card("hilt_bash", "Удар рукоятью", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(6)], { effects: [sunder(2), damage(7)] }),
   card("hamstring", "Подрезать жилы", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Наложить {weak} Слабости.",
     [sunder(1), damage(4), status("weak", 1)], { effects: [sunder(1), damage(6), status("weak", 2)] }),
   chained(card("finishing_blow", "Решающий удар", "attack", "common", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.",
@@ -46,7 +46,7 @@ export const WARRIOR_CARDS: CardData[] = [
 
   // ---------- Обычные: навыки ----------
   card("brace", "Упор", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(7), repair(1)], { effects: [block(10), repair(2)] }),
-  card("parry", "Парирование", "skill", "common", 0, "self", "Получить {block} блока.", [block(3)], { effects: [block(5)] }),
+  card("parry", "Парирование", "skill", "common", 1, "self", "Получить {block} блока.", [block(6)], { effects: [block(8)] }),
   card("taunt", "Насмешка", "skill", "common", 1, "enemy", "Наложить {vulnerable} Уязвимости. Получить {block} блока.",
     [status("vulnerable", 2), block(4)], { effects: [status("vulnerable", 3), block(6)] }),
   card("rally", "Собраться с духом", "skill", "common", 1, "self", "Взять {draw} карты.", [draw(2)], { effects: [draw(3)] }),
@@ -61,7 +61,7 @@ export const WARRIOR_CARDS: CardData[] = [
   card("bandage", "Перевязка", "skill", "common", 1, "self", "Вылечить {heal} HP. Сжечь.", [heal(6), burn], { effects: [heal(9), burn] }),
   card("intimidate", "Устрашение", "skill", "common", 1, "allEnemies", "Наложить {weak} Слабости всем врагам. Сжечь.",
     [allStatus("weak", 2), burn], { effects: [allStatus("weak", 3), burn] }),
-  card("rivets", "Клёпки", "skill", "common", 0, "self", "Получить {block} блока. Починка {repair}.", [block(2), repair(1)], { effects: [block(3), repair(2)] }),
+  card("rivets", "Клёпки", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(5), repair(1)], { effects: [block(6), repair(2)] }),
   chained(card("reforge", "Перековка", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}. После атаки: ещё {block} блока.",
     [block(5), repair(2)], { effects: [block(7), repair(2)] }), "afterAttack", [block(3)], [block(4)]),
 

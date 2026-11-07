@@ -68,13 +68,14 @@ describe("расстановка", () => {
     expect(placeCard(combat, uidAt(combat), 5, target)).toEqual({ ok: false, reason: "noCapacity" });
   });
   it("карты весом 0 — на стыке клеток, не больше 2 за ход, срабатывают на своём стыке", () => {
-    const combat = fight({ deck: deckOf("parry") }); // вес 0, 3 блока
+    const combat = fight({ deck: deckOf("tourniquet") }); // Жгут: вес 0, лечит 2 HP
     quiet(combat);
+    combat.hero.hp = 50;
     expect(placeCard(combat, uidAt(combat), 0).ok).toBe(true);
     expect(placeCard(combat, uidAt(combat), 3).ok).toBe(true);
     expect(placeCard(combat, uidAt(combat), 4)).toEqual({ ok: false, reason: "zeroLimit" });
     launch(combat);
-    expect(combat.events.filter((event) => event.type === "block").map((event) => event.cell)).toEqual([0, 3]);
+    expect(combat.events.filter((event) => event.type === "heal").map((event) => event.cell)).toEqual([0, 3]);
   });
   it("карту можно вернуть в руку и переставить", () => {
     const combat = fight();

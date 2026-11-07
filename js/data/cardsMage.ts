@@ -42,7 +42,7 @@ export const MAGE_CARDS: CardData[] = [
     { effects: [grow(block(6), "surge", 3)], description: "Получить {block} блока: +3 за каждый Прилив." }),
   chained(card("m_frost_ray", "Луч холода", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {slow} Замедление. Первая: ещё {slow} Замедление.",
     [damage(4), slow(1)], { effects: [damage(6), slow(1)] }), "first", [slow(1)]),
-  card("m_ember", "Уголёк", "attack", "common", 0, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(2), burning(2)], { effects: [damage(3), burning(3)] }),
+  card("m_ember", "Уголёк", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(5), burning(2)], { effects: [damage(6), burning(3)] }),
   card("m_shock", "Удар током", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(6)], { effects: [sunder(1), damage(8)] }),
   card("m_frost_shell", "Ледяной панцирь", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(6), repair(1)], { effects: [block(8), repair(2)] }),
   card("m_channel", "Сосредоточить поток", "skill", "common", 1, "self", "Получить {surge} Прилив. Взять {draw} карту.", [gainResource("surge", 1), draw(1)],
