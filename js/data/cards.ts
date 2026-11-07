@@ -5,12 +5,13 @@ import {
   block, burn, card, damage, draw, energy, gainResource, grow, heal, hits, allStatus, loseHp, selfStatus, spend, status, triggerPower, wound,
 } from "./cardHelpers.ts";
 import { WARLOCK_CARDS } from "./cardsWarlock.ts";
+import type { CardData } from "../types.ts";
 
 // Все карты игры. Новая карта — новая запись здесь или в таблице её героя.
 // В описании {damage}, {block}, {draw}, {energy}, {heal} и {имя статуса} заменяются на итоговые числа.
 // upgraded — поля, которые заменяются у улучшенной карты.
 // power — постоянный эффект карты-силы: при каком триггере и какие эффекты срабатывают.
-export const CARDS = {
+export const CARDS: Record<string, CardData> = {
   // Стартовые карты
   strike: {
     id: "strike",
@@ -319,7 +320,7 @@ export const CARDS = {
   },
 };
 
-const MORE_WARRIOR_CARDS = [
+const MORE_WARRIOR_CARDS: CardData[] = [
   // Ярость: копится от атак и пропущенных ударов. «Ярость N» тратит её, другие карты растут от неё
   card("rage_burst", "Выплеск ярости", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Ярость 3: ещё {damage} урона.", [damage(5), spend("rage", 3, [damage(10)])], { effects: [damage(7), spend("rage", 3, [damage(14)])] }),
   card("war_cry", "Боевой клич", "skill", "common", 0, "self", "Получить {rage} Ярости. Сжечь.", [gainResource("rage", 2), burn], { effects: [gainResource("rage", 3), burn] }),

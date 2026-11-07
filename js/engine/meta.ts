@@ -8,8 +8,9 @@ import { POTIONS } from "../data/potions.ts";
 import { QUESTS } from "../data/quests.ts";
 import { POTION_PRICE, TRADER_GOODS } from "../data/trader.ts";
 import { getEquipment } from "./run.ts";
+import type { ActData, HeroId, Meta, QuestData, Run, SeenLists, Supplies, TraderGood } from "../types.ts";
 
-export function createMeta() {
+export function createMeta(): Meta {
   return {
     gold: 0, // казна города: на золото строят дома и покупают у торговца
     essences: 0, // эссенции с монстров: в гильдии их меняют на золото
@@ -32,15 +33,15 @@ export function createMeta() {
 }
 
 // Припасы на следующий забег: зелья в сумку, карта подземелья и банка светлячков
-export function createSupplies() {
+export function createSupplies(): Supplies {
   return { potions: [], hasMap: false, fireflies: false, blessing: false };
 }
 
 // Что пока закрыто: содержимое ещё не построенных зданий. Эти списки попадают в новый забег и не меняются до его конца
-export function getLockedContent(meta) {
+export function getLockedContent(meta: Meta) {
   const unbuilt = Object.values(BUILDINGS).filter((building) => !meta.buildings.includes(building.id));
   return {
-    lockedCardIds: [],
+    lockedCardIds: [] as string[],
     lockedRelicIds: unbuilt.flatMap((building) => building.unlocks.relics ?? []),
     lockedEventIds: unbuilt.flatMap((building) => building.unlocks.events ?? []),
     lockedPotionIds: unbuilt.flatMap((building) => building.unlocks.potions ?? []),
@@ -48,7 +49,7 @@ export function getLockedContent(meta) {
 }
 
 // Покупка здания. Возвращает { ok: true } или { ok: false, reason: "..." }
-export function buyBuilding(meta, buildingId) {
+export function buyBuilding(meta: Meta, buildingId: string): { ok: true } | { ok: false; reason: string } {
   const building = BUILDINGS[buildingId];
   if (meta.buildings.includes(buildingId)) return { ok: false, reason: "owned" };
   if (meta.gold < building.price) return { ok: false, reason: "notEnoughGold" };
@@ -59,7 +60,7 @@ export function buyBuilding(meta, buildingId) {
 
 // Колодец желаний: монетка из казны в колодец. roll — случайное число от 0 до 1, его даёт интерфейс.
 // Чаще всего это просто загаданное желание, иногда колодец отвечает эссенциями или возвращает золото вдвое
-export function throwWishCoin(meta, roll) {
+export function throwWishCoin(meta: Meta, roll: number) {
   const price = CONFIG.city.wellPrice;
   if (meta.gold < price) return { ok: false, reason: "notEnoughGold" };
   meta.gold -= price;
@@ -74,38 +75,38 @@ export function throwWishCoin(meta, roll) {
   return { ok: true, outcome: "wish" };
 }
 
-export function selectHero(meta, heroId) {
+export function selectHero(meta: Meta, heroId: HeroId): void {
   if (!isHeroDead(meta, heroId)) meta.selectedHero = heroId;
 }
 
 // Погиб ли герой в подземелье: тогда его больше нельзя выбрать
-export function isHeroDead(meta, heroId) {
+export function isHeroDead(meta: Meta, heroId: HeroId): boolean {
   return meta.heroes[heroId]?.dead === true;
 }
 
 // Снаряжение героя с прошлых забегов или null, если он ещё не спускался
-export function getHeroEquipment(meta, heroId) {
+export function getHeroEquipment(meta: Meta, heroId: HeroId) {
   return meta.heroes[heroId]?.equipment ?? null;
 }
 
-export function getAliveHeroIds(meta) {
-  return Object.keys(HEROES).filter((heroId) => !isHeroDead(meta, heroId));
+export function getAliveHeroIds(meta: Meta): HeroId[] {
+  return (Object.keys(HEROES) as HeroId[]).filter((heroId) => !isHeroDead(meta, heroId));
 }
 
 // Герой вернулся из подземелья живым: всё, что при нём, остаётся у него до следующего забега
-export function keepEquipment(meta, run) {
+export function keepEquipment(meta: Meta, run: Run): void {
   meta.heroes[run.heroId] = { dead: false, equipment: getEquipment(run) };
 }
 
 // Герой погиб навсегда: снаряжение пропадает вместе с ним. Если он был выбран, выбираем первого живого
-function buryHero(meta, heroId) {
+function buryHero(meta: Meta, heroId: HeroId): void {
   meta.heroes[heroId] = { dead: true };
   if (meta.selectedHero === heroId) meta.selectedHero = getAliveHeroIds(meta)[0] ?? heroId;
 }
 
 // Обмен в гильдии: все эссенции, которых хватает на целое золото, превращаются в золото.
 // Остаток меньше курса остаётся. Возвращает, сколько золота получено
-export function exchangeEssences(meta) {
+export function exchangeEssences(meta: Meta): number {
   const { essencesPerGold } = CONFIG.city;
   const gold = Math.floor(meta.essences / essencesPerGold);
   meta.essences -= gold * essencesPerGold;
@@ -114,24 +115,24 @@ export function exchangeEssences(meta) {
 }
 
 // Запоминает, что герой дошёл до этого акта
-function reachAct(meta, act) {
+function reachAct(meta: Meta, act: number): void {
   meta.bestAct = Math.max(meta.bestAct, act);
 }
 
 // С каких актов можно начать забег: с первого и со всех, до которых уже доходил
-export function getStartableActs(meta) {
+export function getStartableActs(meta: Meta): (ActData & { number: number })[] {
   return ACTS.slice(0, meta.bestAct).map((act, index) => ({ number: index + 1, ...act }));
 }
 
 // Начало забега с акта: первый бесплатно, остальные за золото из казны. Возвращает false, если нельзя или не хватает
 // Возвращение в подземелье через комнату сохранения стоит золота из казны. Возвращает false, если не хватает
-export function payForReturn(meta, price) {
+export function payForReturn(meta: Meta, price: number): boolean {
   if (meta.gold < price) return false;
   meta.gold -= price;
   return true;
 }
 
-export function payForActStart(meta, actNumber) {
+export function payForActStart(meta: Meta, actNumber: number): boolean {
   const act = ACTS[actNumber - 1];
   if (!act || actNumber > meta.bestAct || meta.gold < act.startPrice) return false;
   meta.gold -= act.startPrice;
@@ -139,7 +140,7 @@ export function payForActStart(meta, actNumber) {
 }
 
 // Сдаёт в казну добычу, которую герой несёт из подземелья. Возвращает, сколько сдано
-export function bankLoot(meta, run) {
+export function bankLoot(meta: Meta, run: Run): { gold: number; essences: number } {
   reachAct(meta, run.act);
   const loot = { gold: run.gold, essences: run.essences };
   meta.gold += run.gold;
@@ -150,27 +151,27 @@ export function bankLoot(meta, run) {
 }
 
 // Что продаёт торговец: карту подземелья и банку светлячков
-export function getTraderGoods() {
+export function getTraderGoods(): TraderGood[] {
   return TRADER_GOODS;
 }
 
 // Что продаёт лавка алхимика: все открытые зелья
-export function getPotionGoods(meta) {
+export function getPotionGoods(meta: Meta): TraderGood[] {
   const { lockedPotionIds } = getLockedContent(meta);
   return Object.values(POTIONS)
     .filter((potion) => !lockedPotionIds.includes(potion.id))
-    .map((potion) => ({
+    .map((potion): TraderGood => ({
       id: potion.id, kind: "potion", potionId: potion.id, icon: potion.icon, name: potion.name, description: potion.description, price: POTION_PRICE,
     }));
 }
 
 // Куда уйдёт покупка у торговца: в текущий забег, если он идёт, иначе в припасы на следующий
-function getHolder(meta, run) {
+function getHolder(meta: Meta, run: Run | null): Run | Supplies {
   return run ?? meta.supplies;
 }
 
 // Есть ли уже этот товар: карту и банку второй раз не купить
-export function isTraderGoodOwned(meta, run, good) {
+export function isTraderGoodOwned(meta: Meta, run: Run | null, good: TraderGood): boolean {
   const holder = getHolder(meta, run);
   if (good.kind === "map") return holder.hasMap;
   if (good.kind === "fireflies") return Boolean(holder.fireflies);
@@ -178,7 +179,7 @@ export function isTraderGoodOwned(meta, run, good) {
 }
 
 // Покупка у торговца. Возвращает { ok: true } или { ok: false, reason: "..." }
-export function buyFromTrader(meta, run, good) {
+export function buyFromTrader(meta: Meta, run: Run | null, good: TraderGood): { ok: true } | { ok: false; reason: string } {
   const holder = getHolder(meta, run);
   if (isTraderGoodOwned(meta, run, good)) return { ok: false, reason: "owned" };
   // Припасы пойдут герою, который спустится следующим: у Алхимика сумка больше
@@ -187,41 +188,44 @@ export function buyFromTrader(meta, run, good) {
   if (meta.gold < good.price) return { ok: false, reason: "notEnoughGold" };
 
   meta.gold -= good.price;
-  if (good.kind === "potion") {
+  if (good.kind === "potion" && good.potionId) {
     holder.potions.push(good.potionId);
     if (run && !run.seen.potions.includes(good.potionId)) run.seen.potions.push(good.potionId);
   }
   if (good.kind === "map") holder.hasMap = true;
   // В забеге банка сразу заряжена, в припасах это просто отметка, что она куплена
-  if (good.kind === "fireflies") holder.fireflies = run ? { charged: true } : true;
+  if (good.kind === "fireflies") {
+    if (run) run.fireflies = { charged: true };
+    else meta.supplies.fireflies = true;
+  }
   return { ok: true };
 }
 
 // Забирает припасы в новый забег: в казне их больше нет
-export function takeSupplies(meta) {
+export function takeSupplies(meta: Meta): Supplies {
   const supplies = meta.supplies;
   meta.supplies = createSupplies();
   return supplies;
 }
 
-export function getQuestProgress(meta, quest) {
+export function getQuestProgress(meta: Meta, quest: QuestData): number {
   return Math.min(meta.totals[quest.stat] ?? 0, quest.goal);
 }
 
-export function isQuestClaimed(meta, quest) {
+export function isQuestClaimed(meta: Meta, quest: QuestData): boolean {
   return meta.claimedQuests.includes(quest.id);
 }
 
-export function isQuestReady(meta, quest) {
+export function isQuestReady(meta: Meta, quest: QuestData): boolean {
   return !isQuestClaimed(meta, quest) && getQuestProgress(meta, quest) >= quest.goal;
 }
 
-export function countReadyQuests(meta) {
+export function countReadyQuests(meta: Meta): number {
   return QUESTS.filter((quest) => isQuestReady(meta, quest)).length;
 }
 
 // Забирает награду за выполненное задание. Возвращает false, если забирать нечего
-export function claimQuest(meta, questId) {
+export function claimQuest(meta: Meta, questId: string): boolean {
   const quest = QUESTS.find((item) => item.id === questId);
   if (!quest || !isQuestReady(meta, quest)) return false;
   meta.claimedQuests.push(questId);
@@ -230,21 +234,21 @@ export function claimQuest(meta, questId) {
 }
 
 // Этаж с учётом всех актов: босс не считается отдельным этажом
-export function getTotalFloor(run, currentFloor) {
+export function getTotalFloor(run: Run, currentFloor: number): number {
   const { floors } = CONFIG.map;
   return (run.act - 1) * floors + Math.min(currentFloor, floors);
 }
 
 // Переносит встреченное в забеге в коллекцию
-export function mergeSeen(meta, run) {
-  for (const kind of ["cards", "enemies", "relics", "potions"]) {
+export function mergeSeen(meta: Meta, run: Run): void {
+  for (const kind of ["cards", "enemies", "relics", "potions"] as (keyof SeenLists)[]) {
     meta.seen[kind] = [...new Set([...meta.seen[kind], ...run.seen[kind]])];
   }
 }
 
 // Записывает итог законченного забега. Победивший герой сдаёт добычу в казну и оставляет снаряжение себе.
 // Погибший пропадает навсегда вместе со снаряжением и всем, что нёс. Возвращает, что игрок получил
-export function applyRunToMeta(meta, run, currentFloor) {
+export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
   const died = run.status === "lost";
   reachAct(meta, run.act);
@@ -253,7 +257,7 @@ export function applyRunToMeta(meta, run, currentFloor) {
   else keepEquipment(meta, run);
 
   // Счётчики заданий: то, что набралось в забеге, плюс сам забег
-  const add = (key, amount) => {
+  const add = (key: string, amount: number) => {
     meta.totals[key] = (meta.totals[key] ?? 0) + amount;
   };
   for (const [key, amount] of Object.entries(run.stats.totals ?? {})) add(key, amount);

@@ -4,7 +4,8 @@
 // district — где стоит здание: center — старый город посередине (360×780), east и west — слободы по бокам.
 // Все дома можно строить с самого начала: слободы стоят по бокам старого города сразу.
 // x и y — место в своём районе. Рисунок здания — assets/images/city/id.png (3D-модель, авторы — на экране «Авторы»), до постройки — plot.png.
-export const BUILDINGS = {
+import type { BuildingData } from "../types.ts";
+export const BUILDINGS: Record<string, BuildingData> = {
   home: {
     id: "home",
     district: "center",

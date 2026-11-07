@@ -1,28 +1,29 @@
 // Все враги игры. hp — диапазон, pattern — порядок ходов по кругу.
+import type { Effect, EnemyData, EnemyMove, Statuses } from "../types.ts";
 
 // Короткие записи для одинаковых ходов. Числа врагов меняй прямо в таблице ниже.
-const attack = (damage, hits = 1) => ({
+const attack = (damage: number, hits = 1): EnemyMove => ({
   intent: "attack",
   effects: Array.from({ length: hits }, () => ({ type: "damage", amount: damage })),
 });
-const guard = (block) => ({ intent: "defend", effects: [{ type: "block", amount: block, target: "self" }] });
-const buff = (strength, block = 0) => ({
+const guard = (block: number): EnemyMove => ({ intent: "defend", effects: [{ type: "block", amount: block, target: "self" }] });
+const buff = (strength: number, block = 0): EnemyMove => ({
   intent: "buff",
   effects: [
     { type: "applyStatus", status: "strength", amount: strength, target: "self" },
-    ...(block > 0 ? [{ type: "block", amount: block, target: "self" }] : []),
+    ...(block > 0 ? [{ type: "block", amount: block, target: "self" } as Effect] : []),
   ],
 });
 // statuses: { weak: 2, frail: 1 }; wounds — сколько Ран добавить в сброс героя
-const debuff = (statuses, wounds = 0) => ({
+const debuff = (statuses: Statuses, wounds = 0): EnemyMove => ({
   intent: "debuff",
   effects: [
-    ...Object.entries(statuses).map(([status, amount]) => ({ type: "applyStatus", status, amount })),
-    ...Array.from({ length: wounds }, () => ({ type: "addCard", cardId: "wound", pile: "discard" })),
+    ...(Object.entries(statuses) as [keyof Statuses, number][]).map(([status, amount]): Effect => ({ type: "applyStatus", status, amount })),
+    ...Array.from({ length: wounds }, (): Effect => ({ type: "addCard", cardId: "wound", pile: "discard" })),
   ],
 });
 
-export const ENEMIES = {
+export const ENEMIES: Record<string, EnemyData> = {
   // Акт 1: обычные
   cultist: {
     id: "cultist",

@@ -3,8 +3,9 @@ import {
   allStatus, block, burn, card, cheaperPower, damage, draw, energy, exhaustWounds, fixedDamageToAll, gainResource, grow, heal, hits,
   loseHp, selfStatus, spend, status, triggerPower, wound,
 } from "./cardHelpers.ts";
+import type { CardData } from "../types.ts";
 
-export const WARLOCK_CARDS = [
+export const WARLOCK_CARDS: CardData[] = [
   // Тьма: копится от платы здоровьем и сожжённых Ран, тёмные карты растут от неё или тратят её
   card("w_dark_bolt", "Сгусток тьмы", "attack", "starter", 1, "enemy", "Нанести {damage} урона, +3 за каждую Тьму.", [grow(damage(5), "darkness", 3)], { effects: [grow(damage(7), "darkness", 4)] }),
   card("w_blood_offering", "Кровавое подношение", "skill", "common", 0, "self", "Потерять {loseHp} HP. Получить {darkness} Тьмы. Сжечь.", [loseHp(3), gainResource("darkness", 2), burn], { effects: [loseHp(3), gainResource("darkness", 3), burn] }),

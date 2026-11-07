@@ -9,6 +9,26 @@ import { createCombat } from "./combat.ts";
 import { canUpgradeCard, upgradeCard } from "./deck.ts";
 import { generateMap } from "./map.ts";
 import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.ts";
+import type {
+  CardData, CardRarity, Combat, Effect, EffectOf, EffectType, Equipment, Gain, HeroId, MapNode, RelicData, RelicRarity, Reward, Rng, Run,
+  SeenLists, Trigger,
+} from "../types.ts";
+
+export interface RunSetup {
+  heroId: HeroId;
+  seed: number;
+  startAct?: number;
+  lockedCardIds?: string[];
+  lockedRelicIds?: string[];
+  lockedEventIds?: string[];
+  lockedPotionIds?: string[];
+  tutorialFight?: boolean;
+  equipment?: Equipment | null;
+  potions?: string[];
+  hasMap?: boolean;
+  fireflies?: boolean;
+  blessing?: boolean;
+}
 
 // startAct — с какого акта начинается забег: пройденные акты можно пропустить за золото.
 // locked...Ids — что ещё не открыто постройками: это не выпадет в забеге.
@@ -18,10 +38,10 @@ import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, sh
 export function createRun({
   heroId, seed, startAct = 1, lockedCardIds = [], lockedRelicIds = [], lockedEventIds = [], lockedPotionIds = [], tutorialFight = false,
   equipment = null, potions = [], hasMap = false, fireflies = false, blessing = false,
-}) {
+}: RunSetup): Run {
   const hero = HEROES[heroId];
   const maxHp = hero.maxHp;
-  const run = {
+  const run: Run = {
     seed,
     heroId,
     startAct, // с какого акта начался забег
@@ -75,7 +95,7 @@ export function createRun({
 
 // Снаряжение героя, которое остаётся у него между забегами: колода с улучшениями, реликвии, зелья,
 // запас здоровья и банка светлячков. Здоровье не сохраняется: в город герой возвращается отдохнувшим
-export function getEquipment(run) {
+export function getEquipment(run: Run): Equipment {
   return {
     deck: run.deck.map((card) => ({ ...card })),
     nextCardUid: run.nextCardUid,
@@ -89,7 +109,7 @@ export function getEquipment(run) {
 
 // Герой берёт снаряжение с прошлых забегов. Эффекты получения реликвий уже сработали, второй раз они не нужны.
 // Карты, реликвии и зелья, которых больше нет в игре, отбрасываем: иначе испорченные данные сломали бы бой
-function takeEquipment(run, equipment) {
+function takeEquipment(run: Run, equipment: Equipment): void {
   run.deck = equipment.deck.filter((card) => CARDS[card.cardId]).map((card) => ({ ...card }));
   run.nextCardUid = equipment.nextCardUid;
   run.relics = equipment.relics.filter((relicId) => RELICS[relicId]);
@@ -103,61 +123,62 @@ function takeEquipment(run, equipment) {
 }
 
 // Акт, в котором сейчас герой: его враги, особенность и награды
-export function getAct(run) {
+export function getAct(run: Run) {
   return ACTS[run.act - 1];
 }
 
-function markSeen(run, kind, id) {
+function markSeen(run: Run, kind: keyof SeenLists, id: string): void {
   if (!run.seen[kind].includes(id)) run.seen[kind].push(id);
 }
 
 // У каждого акта своя карта, а особенность акта может её менять: больше тупиков, нет отдыха
-function generateActMap(seed, act) {
+function generateActMap(seed: number, act: number) {
   return generateMap(createRng(deriveSeed(seed, `map:${act}`)), ACTS[act - 1].mechanic);
 }
 
 // У каждого узла свой генератор: результат зависит только от seed забега, акта и самого узла
-export function nodeRng(run, purpose) {
+export function nodeRng(run: Run, purpose: string): Rng {
   return createRng(deriveSeed(run.seed, `${purpose}:${run.act}:${run.currentNodeId}`));
 }
 
-export function getCurrentNode(run) {
-  return run.map.nodes[run.currentNodeId];
+// Вызывать, только когда герой в комнате (currentNodeId не null)
+export function getCurrentNode(run: Run): MapNode {
+  return run.map.nodes[run.currentNodeId as string];
 }
 
 // Этаж, на котором сейчас игрок; до первого узла это 0
-export function getCurrentFloor(run) {
+export function getCurrentFloor(run: Run): number {
   return run.currentNodeId ? getCurrentNode(run).floor : 0;
 }
 
 // Подняться в город можно из комнаты сохранения и из начальной комнаты акта: у входа, пока забег не начался,
 // и после победы над боссом прошлого акта — это награда за босса
-export function canReturnToCity(run) {
+export function canReturnToCity(run: Run): boolean {
   if (!run.currentNodeId) return true;
   return getCurrentNode(run).type === "save";
 }
 
 // На какие узлы можно перейти: в начале это весь нижний ряд
-export function getAvailableNodeIds(run) {
+export function getAvailableNodeIds(run: Run): string[] {
   return run.currentNodeId ? getCurrentNode(run).next : run.map.rows[0];
 }
 
 // Комнаты этажом ниже, из которых туннель ведёт в эту: туннели двусторонние, по ним можно спуститься.
 // Для первого ряда нижняя комната — начальная (null), у самой начальной нижних нет
-export function getLowerNodeIds(run, nodeId = run.currentNodeId) {
+export function getLowerNodeIds(run: Run, nodeId: string | null = run.currentNodeId): (string | null)[] {
   if (nodeId === null) return [];
   if (run.map.rows[0].includes(nodeId)) return [null];
   return Object.values(run.map.nodes).filter((node) => node.next.includes(nodeId)).map((node) => node.id);
 }
 
 // Сколько HP стоит шаг в эту комнату: в акте с ледяной водой ранит каждый шаг в неизведанную
-export function getStepCost(run, nodeId) {
+export function getStepCost(run: Run, nodeId: string | null): number {
   return isNodeCleared(run, nodeId) ? 0 : getAct(run).mechanic.coldWater ?? 0;
 }
 
 // Переходит в соседнюю комнату: вверх по туннелю или вниз по спуску, null — в начальную.
 // Возвращает false, если туда нельзя
-export function enterNode(run, nodeId) {
+export function enterNode(run: Run, nodeId: string | null): boolean {
   if (![...getAvailableNodeIds(run), ...getLowerNodeIds(run)].includes(nodeId)) return false;
   // Шаг не убивает: ниже 1 HP не опускаемся
   run.hp = Math.max(1, run.hp - getStepCost(run, nodeId));
@@ -175,40 +196,40 @@ export function enterNode(run, nodeId) {
 }
 
 // Пройдена ли комната: тогда в ней ничего не случается заново. Начальная пройдена всегда
-export function isNodeCleared(run, nodeId) {
+export function isNodeCleared(run: Run, nodeId: string | null): boolean {
   return nodeId === null || run.visitedNodeIds.includes(nodeId);
 }
 
 // Откуда герой пришёл: комната, null — начальная. undefined — он в начальной, позади ничего
 // Вернуться туда — обычный переход: enterNode укоротит путь до этой комнаты
-export function getPreviousNodeId(run) {
+export function getPreviousNodeId(run: Run): string | null | undefined {
   return run.trail.length > 0 ? run.trail.at(-2) ?? null : undefined;
 }
 
 // Путь от начальной комнаты до пройденной комнаты только по пройденным: по нему герой быстро переходит по карте.
 // Туннели двусторонние, поэтому путь может идти и вверх, и вниз. Возвращает список комнат или null, если дороги нет
-function findKnownPath(run, nodeId) {
-  const known = new Set(run.visitedNodeIds);
-  const parents = new Map();
+function findKnownPath(run: Run, nodeId: string): string[] | null {
+  const known = new Set<string | null>(run.visitedNodeIds);
+  const parents = new Map<string, string | null>();
   const queue = run.map.rows[0].filter((id) => known.has(id));
   for (const id of queue) parents.set(id, null);
   for (let head = 0; head < queue.length && !parents.has(nodeId); head++) {
     const neighbours = [...run.map.nodes[queue[head]].next, ...getLowerNodeIds(run, queue[head])];
     for (const nextId of neighbours) {
-      if (!known.has(nextId) || parents.has(nextId)) continue;
+      if (nextId === null || !known.has(nextId) || parents.has(nextId)) continue;
       parents.set(nextId, queue[head]);
       queue.push(nextId);
     }
   }
   if (!parents.has(nodeId)) return null;
-  const path = [];
-  for (let id = nodeId; id !== null; id = parents.get(id)) path.unshift(id);
+  const path: string[] = [];
+  for (let id: string | null = nodeId; id !== null; id = parents.get(id) ?? null) path.unshift(id);
   return path;
 }
 
 // Быстрый переход в пройденную комнату или в начальную (nodeId — null). Он бесплатный, но изредка в пути
 // случается встреча (engine/events.js, startTravelEvent). Возвращает { ok: true, event } или { ok: false, reason: "..." }
-export function travelTo(run, nodeId) {
+export function travelTo(run: Run, nodeId: string | null): { ok: true; event: boolean } | { ok: false; reason: string } {
   const path = nodeId === null ? [] : isNodeCleared(run, nodeId) && findKnownPath(run, nodeId);
   if (!path) return { ok: false, reason: "noPath" };
   run.trail = path;
@@ -221,14 +242,14 @@ export function travelTo(run, nodeId) {
 
 // Сколько золота из казны стоит вернуться в подземелье. Из начальной комнаты акта — бесплатно,
 // из комнаты сохранения — плата растёт с актом
-export function getReturnPrice(run) {
+export function getReturnPrice(run: Run): number {
   if (!run.currentNodeId || getCurrentNode(run).type !== "save") return 0;
   return CONFIG.returnPrice.base + CONFIG.returnPrice.perAct * run.act;
 }
 
 // Светлячки из банки освещают одну неизведанную соседнюю комнату: видно, что там, хотя герой туда не ходил.
 // После этого банка пуста до следующего отдыха или комнаты сохранения. Возвращает false, если светить нечего или нечем
-export function releaseFireflies(run, nodeId) {
+export function releaseFireflies(run: Run, nodeId: string | null): boolean {
   if (!run.fireflies?.charged || nodeId === null || isNodeCleared(run, nodeId)) return false;
   if (![...getAvailableNodeIds(run), ...getLowerNodeIds(run)].includes(nodeId)) return false;
   run.fireflies.charged = false;
@@ -237,22 +258,22 @@ export function releaseFireflies(run, nodeId) {
 }
 
 // На отдыхе и в комнате сохранения светлячки снова собираются в банку
-export function rechargeFireflies(run) {
+export function rechargeFireflies(run: Run): void {
   if (run.fireflies) run.fireflies.charged = true;
 }
 
 // Освещена ли светлячками неизведанная комната
-export function isNodeRevealed(run, nodeId) {
+export function isNodeRevealed(run: Run, nodeId: string | null): boolean {
   return nodeId !== null && run.revealedNodeIds.includes(nodeId);
 }
 
 // Самый глубокий этаж акта, куда дошёл герой: по нему считаются опыт и кроны, даже если он вернулся назад
-export function getDeepestFloor(run) {
+export function getDeepestFloor(run: Run): number {
   return Math.max(0, ...run.visitedNodeIds.map((id) => run.map.nodes[id].floor));
 }
 
 // Создаёт бой для текущего узла с HP, колодой, реликвиями и зельями забега. Враги и особенность — из акта
-export function createNodeCombat(run) {
+export function createNodeCombat(run: Run): Combat {
   const rng = nodeRng(run, "encounter");
   const type = getCurrentNode(run).type;
   const act = getAct(run);
@@ -298,7 +319,7 @@ export function createNodeCombat(run) {
 }
 
 // Переносит итог боя в забег: HP, зелья, реликвии конца боя и награду
-export function finishCombat(run, combat) {
+export function finishCombat(run: Run, combat: Combat): void {
   run.savedCombat = null;
   recordCombat(run, combat);
   run.hp = combat.hero.hp;
@@ -323,10 +344,10 @@ export function finishCombat(run, combat) {
 }
 
 // Записывает бой в статистику: сколько длился и сколько HP стоил. Счётчики идут в задания
-function recordCombat(run, combat) {
+function recordCombat(run: Run, combat: Combat): void {
   const node = getCurrentNode(run);
   const totals = (run.stats.totals ??= {});
-  const add = (key, amount) => {
+  const add = (key: string, amount: number) => {
     totals[key] = (totals[key] ?? 0) + amount;
   };
   for (const [key, amount] of Object.entries(combat.tally ?? {})) add(key, amount);
@@ -346,7 +367,7 @@ function recordCombat(run, combat) {
 }
 
 // Реликвии, которые срабатывают вне боя
-function applyRelicTrigger(run, trigger) {
+function applyRelicTrigger(run: Run, trigger: Trigger): void {
   for (const relicId of run.relics) {
     const relic = RELICS[relicId];
     if (relic.trigger === trigger) applyRunEffects(run, relic.effects, nodeRng(run, `relic:${relicId}`));
@@ -355,16 +376,23 @@ function applyRelicTrigger(run, trigger) {
 
 // Эффекты вне боя: от событий и реликвий. Возвращает список того, что игрок получил,
 // чтобы интерфейс мог это показать: [{ kind: "card", id: "strike" }, ...]
-export function applyRunEffects(run, effects, rng) {
-  const gains = [];
+export function applyRunEffects(run: Run, effects: Effect[], rng: Rng): Gain[] {
+  const gains: Gain[] = [];
   for (const effect of effects) {
-    const gain = RUN_EFFECT_HANDLERS[effect.type](run, effect, rng);
+    const handler = RUN_EFFECT_HANDLERS[effect.type as RunEffectType] as RunHandler<EffectType> | undefined;
+    if (!handler) throw new Error(`Эффект «${effect.type}» не работает вне боя`);
+    const gain = handler(run, effect, rng);
     if (gain) gains.push(...gain);
   }
   return gains;
 }
 
-const RUN_EFFECT_HANDLERS = {
+// Обработчик эффекта вне боя. Возвращает, что игрок получил, или ничего
+type RunHandler<T extends EffectType> = (run: Run, effect: EffectOf<T>, rng: Rng) => Gain[] | void;
+type RunEffectType = "heal" | "loseHp" | "gainGold" | "loseGold" | "losePotion" | "gainMaxHp" | "loseMaxHp" | "addCard"
+  | "removeRandomCard" | "upgradeRandomCards" | "gainRelic" | "gainPotion";
+
+const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
   heal(run, effect) {
     run.hp = Math.min(run.maxHp, run.hp + effect.amount);
   },
@@ -431,18 +459,18 @@ const RUN_EFFECT_HANDLERS = {
   },
 };
 
-export function addCardToDeck(run, cardId) {
+export function addCardToDeck(run: Run, cardId: string): void {
   run.deck.push({ uid: run.nextCardUid, cardId, upgraded: false });
   run.nextCardUid += 1;
   markSeen(run, "cards", cardId);
 }
 
-export function removeCardFromDeck(run, uid) {
+export function removeCardFromDeck(run: Run, uid: number): void {
   run.deck = run.deck.filter((card) => card.uid !== uid);
 }
 
 // Добавляет реликвию и сразу применяет её эффект получения, если он есть
-export function addRelic(run, relicId) {
+export function addRelic(run: Run, relicId: string): void {
   run.relics.push(relicId);
   markSeen(run, "relics", relicId);
   const relic = RELICS[relicId];
@@ -450,29 +478,29 @@ export function addRelic(run, relicId) {
 }
 
 // Новые реликвии заданных редкостей, которых у игрока ещё нет
-export function getRelicPool(run, rarities) {
+export function getRelicPool(run: Run, rarities: RelicRarity[]): RelicData[] {
   return Object.values(RELICS).filter((relic) => (
     rarities.includes(relic.rarity) && !run.relics.includes(relic.id) && !run.lockedRelicIds.includes(relic.id)
   ));
 }
 
 // Показанная в магазине реликвия тоже считается встреченной
-export function markRelicSeen(run, relicId) {
+export function markRelicSeen(run: Run, relicId: string): void {
   markSeen(run, "relics", relicId);
 }
 
 // То же для зелий: и показанное в магазине, и полученное
-export function markPotionSeen(run, potionId) {
+export function markPotionSeen(run: Run, potionId: string): void {
   markSeen(run, "potions", potionId);
 }
 
 // Эссенции за бой: в каждом следующем акте их больше
-function rollEssences(run, rng, range) {
-  return Math.round(nextInt(rng, ...range) * getAct(run).rewards.essences);
+function rollEssences(run: Run, rng: Rng, range: number[]): number {
+  return Math.round(nextInt(rng, range[0], range[1]) * getAct(run).rewards.essences);
 }
 
 // Даёт случайную новую реликвию. Если новых нет, вместо неё золото. Без rarities — какие положены в этом акте
-function grantRandomRelic(run, rng, rarities = getAct(run).rewards.relics) {
+function grantRandomRelic(run: Run, rng: Rng, rarities: RelicRarity[] = getAct(run).rewards.relics): { relicId: string | null; relicFallbackGold: number } {
   const pool = getRelicPool(run, rarities);
   if (pool.length === 0) {
     run.gold += CONFIG.rewards.relicFallbackGold;
@@ -484,16 +512,16 @@ function grantRandomRelic(run, rng, rarities = getAct(run).rewards.relics) {
 }
 
 // Зелья, которые могут выпасть: без тех, что ещё не открыты постройками
-export function getPotionPool(run) {
+export function getPotionPool(run: Run): string[] {
   return Object.keys(POTIONS).filter((potionId) => !run.lockedPotionIds.includes(potionId));
 }
 
-export function canCarryPotion(run) {
+export function canCarryPotion(run: Run): boolean {
   return run.potions.length < getMaxPotions(run.heroId);
 }
 
 // Даёт случайное зелье и возвращает его id; если места нет, возвращает null
-function grantRandomPotion(run, rng) {
+function grantRandomPotion(run: Run, rng: Rng): string | null {
   if (!canCarryPotion(run)) return null;
   const potionId = pickRandom(rng, getPotionPool(run));
   run.potions.push(potionId);
@@ -502,21 +530,21 @@ function grantRandomPotion(run, rng) {
 }
 
 // Зелье в награду за бой выпадает с шансом; если места нет, игрок об этом узнает
-function rollPotionReward(run, rng) {
+function rollPotionReward(run: Run, rng: Rng): { potionId: string | null; potionsFull: boolean } {
   if (nextFloat(rng) >= getAct(run).rewards.potionChance) return { potionId: null, potionsFull: false };
   const potionId = grantRandomPotion(run, rng);
   return { potionId, potionsFull: potionId === null };
 }
 
 // С монстров падают эссенции, а не золото
-function createBattleReward(run) {
+function createBattleReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.battleEssences);
   run.essences += essences;
   return { essences, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
-function createEliteReward(run) {
+function createEliteReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.eliteEssences);
   run.essences += essences;
@@ -524,7 +552,7 @@ function createEliteReward(run) {
 }
 
 // После босса: эссенции, реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
-function createBossReward(run) {
+function createBossReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.bossEssences);
   run.essences += essences;
@@ -538,23 +566,23 @@ function createBossReward(run) {
 }
 
 // Открывает сундук на текущем узле: внутри реликвия
-export function openChest(run) {
+export function openChest(run: Run): void {
   const rng = nodeRng(run, "chest");
   run.pendingReward = { essences: 0, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
 }
 
 // Карты, которые можно получить в награду и купить: только карты своего героя и только открытые.
 // Статусы, проклятия и стартовые сюда не попадают
-function getCardPool(run) {
+function getCardPool(run: Run): CardData[] {
   return Object.values(CARDS).filter((card) => (
     card.hero === run.heroId && card.rarity !== "starter" && !run.lockedCardIds.includes(card.id)
   ));
 }
 
 // Выбирает разные карты с учётом редкости. onlyRarity оставляет только одну редкость
-export function rollCardChoices(run, rng, onlyRarity = null, count = CONFIG.rewards.cardChoices) {
+export function rollCardChoices(run: Run, rng: Rng, onlyRarity: CardRarity | null = null, count: number = CONFIG.rewards.cardChoices): string[] {
   const pool = getCardPool(run);
-  const choices = [];
+  const choices: string[] = [];
 
   while (choices.length < count) {
     const free = pool.filter((card) => !choices.includes(card.id));
@@ -569,14 +597,14 @@ export function rollCardChoices(run, rng, onlyRarity = null, count = CONFIG.rewa
 }
 
 // Завершает награду: cardId — выбранная карта или null, если игрок пропустил
-export function completeReward(run, cardId) {
+export function completeReward(run: Run, cardId: string | null): void {
   if (cardId) addCardToDeck(run, cardId);
   run.pendingReward = null;
   if (getCurrentNode(run).type === "boss") finishAct(run);
 }
 
 // После босса начинается следующий акт с новой картой, а после последнего босса — победа
-function finishAct(run) {
+function finishAct(run: Run): void {
   if (run.act >= ACTS.length) {
     run.status = "won";
     return;
@@ -592,28 +620,29 @@ function finishAct(run) {
 }
 
 // Сколько HP вылечит отдых прямо сейчас
-export function getRestHealAmount(run) {
+export function getRestHealAmount(run: Run): number {
   const heal = Math.floor(run.maxHp * CONFIG.restHealShare);
   return Math.min(heal, run.maxHp - run.hp);
 }
 
-export function restHeal(run) {
+export function restHeal(run: Run): void {
   run.hp += getRestHealAmount(run);
 }
 
 // В городе герой отдыхает и полностью залечивает раны. Без конца этим не воспользоваться:
 // вернуться в подземелье из комнаты сохранения стоит золота (getReturnPrice). Возвращает, сколько HP вылечено
-export function healInCity(run) {
+export function healInCity(run: Run): number {
   const healed = run.maxHp - run.hp;
   run.hp = run.maxHp;
   return healed;
 }
 
 // Карты колоды, которые можно улучшить на отдыхе
-export function getUpgradableCards(run) {
+export function getUpgradableCards(run: Run) {
   return run.deck.filter((card) => !card.upgraded && canUpgradeCard(card.cardId));
 }
 
-export function restUpgrade(run, uid) {
-  upgradeCard(run.deck.find((card) => card.uid === uid));
+export function restUpgrade(run: Run, uid: number): void {
+  const card = run.deck.find((item) => item.uid === uid);
+  if (card) upgradeCard(card);
 }

@@ -1,6 +1,7 @@
 // Все зелья игры. Зелье пьётся только в бою, target работает как у карт.
 // fixed: true у урона — число не меняется от Силы, Слабости и Уязвимости.
-export const POTIONS = {
+import type { PotionData } from "../types.ts";
+export const POTIONS: Record<string, PotionData> = {
   fire_potion: {
     id: "fire_potion",
     name: "Зелье огня",

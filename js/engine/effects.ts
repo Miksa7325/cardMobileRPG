@@ -3,12 +3,19 @@
 import { CONFIG } from "../config.ts";
 import { CARDS } from "../data/cards.ts";
 import { RELICS } from "../data/relics.ts";
+import type {
+  CardType, Combat, CombatEvent, Effect, EffectContext, EffectOf, EffectType, EnemyUnit, HeroUnit, RelicData, StatusId,
+  Trigger, Unit,
+} from "../types.ts";
 import { createCardInstance, drawCards } from "./deck.ts";
 import { nextInt } from "./rng.ts";
 
+// Для формул хватает статусов: так можно посчитать урон и для «пустого» бойца из предпросмотра
+type HasStatuses = Pick<Unit, "statuses">;
+
 // Формула урона: (база + Сила) × 0.75 при Слабости × 1.5 при Уязвимости цели, округление вниз.
 // target может быть null: тогда это число для описания карты, без учёта цели.
-export function calculateDamage(base, attacker, target) {
+export function calculateDamage(base: number, attacker: HasStatuses, target: HasStatuses | null): number {
   let damage = base + (attacker.statuses.strength ?? 0);
   if (attacker.statuses.weak) damage *= CONFIG.weakMultiplier;
   if (target && target.statuses.vulnerable) damage *= CONFIG.vulnerableMultiplier;
@@ -16,7 +23,7 @@ export function calculateDamage(base, attacker, target) {
 }
 
 // Ловкость прибавляется только к блоку от карт, Хрупкость уменьшает любой блок
-export function calculateBlock(base, unit, fromCard) {
+export function calculateBlock(base: number, unit: HasStatuses, fromCard: boolean): number {
   let block = base + (fromCard ? unit.statuses.dexterity ?? 0 : 0);
   if (unit.statuses.frail) block *= CONFIG.frailMultiplier;
   return Math.floor(block);
@@ -24,23 +31,25 @@ export function calculateBlock(base, unit, fromCard) {
 
 // Исполняет эффекты по очереди; после каждого проверяет победу и поражение.
 // context: source — кто действует, targets — цели, fromCard — эффект идёт от разыгранной карты
-export function executeEffects(combat, effects, context) {
+export function executeEffects(combat: Combat, effects: Effect[], context: EffectContext): void {
   for (const effect of effects) {
     if (combat.status !== "playerTurn") return;
-    EFFECT_HANDLERS[effect.type](combat, effect, context);
+    const handler = EFFECT_HANDLERS[effect.type] as Handler<EffectType> | undefined;
+    if (!handler) throw new Error(`Эффект «${effect.type}» не работает в бою`);
+    handler(combat, effect, context);
     checkCombatEnd(combat);
   }
 }
 
 // Прибавка к числу эффекта за ресурс героя: bonus: { status: "rage", per: 2 } — +2 за каждую Ярость.
 // Так работают карты, которые растут от Ярости, Комбо, Тьмы и Реагентов
-export function getBonus(effect, unit) {
+export function getBonus(effect: { bonus?: { status: StatusId; per: number } }, unit: HasStatuses): number {
   return effect.bonus ? effect.bonus.per * (unit.statuses[effect.bonus.status] ?? 0) : 0;
 }
 
 // Запускает силы, реликвии и врождённую особенность класса героя с этим триггером.
 // details.cardType — тип разыгранной карты
-export function fireTrigger(combat, trigger, details = {}) {
+export function fireTrigger(combat: Combat, trigger: Trigger, details: { cardType?: CardType } = {}): void {
   for (const power of [...combat.hero.powers, ...(combat.hero.passives ?? [])]) {
     const typeMatches = !power.cardType || power.cardType === details.cardType;
     if (power.trigger === trigger && typeMatches) runTriggerEffects(combat, power.effects);
@@ -53,12 +62,12 @@ export function fireTrigger(combat, trigger, details = {}) {
   }
 }
 
-function runTriggerEffects(combat, effects) {
+function runTriggerEffects(combat: Combat, effects: Effect[]): void {
   executeEffects(combat, effects, { source: combat.hero, targets: [], fromCard: false });
 }
 
 // Проверяет условия реликвии: нужный тип карты и «каждый N-й раз»
-function relicConditionMet(combat, relic, details) {
+function relicConditionMet(combat: Combat, relic: RelicData, details: { cardType?: CardType }): boolean {
   if (relic.cardType && relic.cardType !== details.cardType) return false;
   if (!relic.everyN) return true;
   const count = (combat.relicCounters[relic.id] ?? 0) + 1;
@@ -68,22 +77,22 @@ function relicConditionMet(combat, relic, details) {
 
 // Записывает, что произошло в бою. Логика считается мгновенно, а интерфейс потом
 // проигрывает эти события по очереди: удары, числа урона, изменение HP
-export function recordEvent(combat, event) {
+export function recordEvent(combat: Combat, event: CombatEvent): void {
   (combat.events ??= []).push(event);
 }
 
 // Счётчики боя для заданий: сколько карт разыграно, урона нанесено и зелий выпито
-export function addTally(combat, key, amount = 1) {
+export function addTally(combat: Combat, key: string, amount = 1): void {
   combat.tally ??= {};
   combat.tally[key] = (combat.tally[key] ?? 0) + amount;
 }
 
-function unitId(combat, unit) {
-  return unit === combat.hero ? "hero" : unit.instanceId;
+function unitId(combat: Combat, unit: HeroUnit | EnemyUnit): string {
+  return unit === combat.hero ? "hero" : (unit as EnemyUnit).instanceId;
 }
 
 // Яд: урон равен числу стаков, игнорирует блок, потом стаков становится на 1 меньше
-export function applyPoison(combat, unit) {
+export function applyPoison(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   const stacks = unit.statuses.poison;
   if (!stacks) return;
   // В задания идут только реально снятые HP: удар сильнее, чем осталось у врага, не накручивает счётчик
@@ -97,7 +106,7 @@ export function applyPoison(combat, unit) {
 
 // Печать крови на враге: он теряет HP по числу стаков мимо блока, а герой лечится на столько же.
 // Стаки складываются, а после каждого срабатывания их становится на 1 меньше — как у Яда
-export function applyLeech(combat, unit) {
+export function applyLeech(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   const stacks = unit.statuses.leech;
   if (!stacks || unit === combat.hero) return;
   const drained = Math.min(unit.hp, stacks);
@@ -113,13 +122,14 @@ export function applyLeech(combat, unit) {
   checkCombatEnd(combat);
 }
 
-export function reduceStatus(unit, status) {
-  if (!unit.statuses[status]) return;
-  unit.statuses[status] -= 1;
-  if (unit.statuses[status] === 0) delete unit.statuses[status];
+export function reduceStatus(unit: HasStatuses, status: StatusId): void {
+  const stacks = unit.statuses[status];
+  if (!stacks) return;
+  if (stacks === 1) delete unit.statuses[status];
+  else unit.statuses[status] = stacks - 1;
 }
 
-function checkCombatEnd(combat) {
+function checkCombatEnd(combat: Combat): void {
   if (combat.hero.hp <= 0) {
     combat.status = "lost";
   } else if (combat.enemies.every((enemy) => enemy.hp <= 0)) {
@@ -127,19 +137,19 @@ function checkCombatEnd(combat) {
   }
 }
 
-function notifyIfEnemyDied(combat, unit) {
+function notifyIfEnemyDied(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   if (unit !== combat.hero && unit.hp === 0) fireTrigger(combat, "onEnemyDeath");
 }
 
 // target в эффекте главнее целей карты: "self" — сам действующий, "allEnemies" — все живые враги
-function getTargets(combat, effect, context) {
+function getTargets(combat: Combat, effect: { target?: string }, context: EffectContext): (HeroUnit | EnemyUnit)[] {
   if (effect.target === "self") return [context.source];
   if (effect.target === "allEnemies") return combat.enemies.filter((enemy) => enemy.hp > 0);
   return context.targets.filter((target) => target.hp > 0);
 }
 
 // Урон сначала снимает блок, остаток — HP
-function dealDamage(combat, source, target, damage) {
+function dealDamage(combat: Combat, source: HeroUnit | EnemyUnit, target: HeroUnit | EnemyUnit, damage: number): void {
   const absorbed = Math.min(target.block, damage);
   const hpLost = damage - absorbed;
   target.block -= absorbed;
@@ -158,7 +168,13 @@ function dealDamage(combat, source, target, damage) {
   notifyIfEnemyDied(combat, target);
 }
 
-const EFFECT_HANDLERS = {
+// Обработчик эффекта одного вида: получает эффект именно этого вида
+type Handler<T extends EffectType> = (combat: Combat, effect: EffectOf<T>, context: EffectContext) => void;
+// Эффекты вне боя (золото, реликвии) здесь не обрабатываются: их исполняет engine/run.ts
+type CombatEffectType = Exclude<EffectType,
+  "gainGold" | "loseGold" | "losePotion" | "gainMaxHp" | "loseMaxHp" | "removeRandomCard" | "upgradeRandomCards" | "gainRelic" | "gainPotion">;
+
+const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<EffectType, unknown>> = {
   damage(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
       const base = effect.amount + getBonus(effect, context.source);
@@ -184,9 +200,10 @@ const EFFECT_HANDLERS = {
   // Тратит ресурс героя (Ярость, Комбо, Тьму, Реагенты) на сильный эффект. Если ресурса не хватает, ничего не происходит
   spend(combat, effect, context) {
     const unit = context.source;
-    if ((unit.statuses[effect.status] ?? 0) < effect.amount) return;
-    unit.statuses[effect.status] -= effect.amount;
-    if (unit.statuses[effect.status] === 0) delete unit.statuses[effect.status];
+    const stacks = unit.statuses[effect.status] ?? 0;
+    if (stacks < effect.amount) return;
+    if (stacks === effect.amount) delete unit.statuses[effect.status];
+    else unit.statuses[effect.status] = stacks - effect.amount;
     executeEffects(combat, effect.effects, context);
   },
   // Алхимик варит случайное зелье прямо в бою, если в сумке есть место
@@ -219,6 +236,7 @@ const EFFECT_HANDLERS = {
     combat.energy += effect.amount + getBonus(effect, context.source);
   },
   addCard(combat, effect) {
+    if (!effect.cardId || !effect.pile) throw new Error("addCard в бою: нужны cardId и pile");
     combat.piles[effect.pile].push(createCardInstance(combat.piles, effect.cardId));
   },
   // Сжигает разыгранную карту: куда её положить, решает playCard, когда эффекты закончатся
@@ -228,7 +246,8 @@ const EFFECT_HANDLERS = {
   // Умножает статус цели: например, удваивает Яд. Если статуса нет, ничего не происходит
   multiplyStatus(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
-      if (target.statuses[effect.status]) target.statuses[effect.status] *= effect.factor;
+      const stacks = target.statuses[effect.status];
+      if (stacks) target.statuses[effect.status] = stacks * effect.factor;
     }
   },
   // Сжигает все Раны и другие карты, которые нельзя разыграть, из руки

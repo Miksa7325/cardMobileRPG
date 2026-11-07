@@ -2,10 +2,11 @@
 // mechanic — то, что отличает класс: resource — статус-ресурс героя, passives — как он его копит
 // (триггер и эффекты, как у карт-сил). Ресурс тратят и усиливают карты класса.
 import { CONFIG } from "../config.ts";
+import type { Effect, HeroData, HeroId, StatusId } from "../types.ts";
 
-const gain = (status, amount = 1) => [{ type: "applyStatus", status, amount, target: "self" }];
+const gain = (status: StatusId, amount = 1): Effect[] => [{ type: "applyStatus", status, amount, target: "self" }];
 
-export const HEROES = {
+export const HEROES: Record<HeroId, HeroData> = {
   warrior: {
     id: "warrior",
     name: "Воин",
@@ -111,6 +112,6 @@ export const HEROES = {
 };
 
 // Сколько зелий носит герой: Алхимик больше остальных
-export function getMaxPotions(heroId) {
+export function getMaxPotions(heroId: HeroId): number {
   return HEROES[heroId]?.maxPotions ?? CONFIG.maxPotions;
 }

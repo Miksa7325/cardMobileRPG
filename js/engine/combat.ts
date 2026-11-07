@@ -7,26 +7,47 @@ import { RELICS } from "../data/relics.ts";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.ts";
 import { addTally, applyLeech, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.ts";
 import { createRng, nextInt } from "./rng.ts";
+import type {
+  ActionResult, CardInstance, CardTarget, Combat, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent, Power, Rng, RunCard, StatusId, Statuses,
+} from "../types.ts";
 
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
-const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];
+const DECAYING_STATUSES: StatusId[] = ["vulnerable", "weak", "frail"];
 // Статусы, которые сгорают целиком в конце хода: Комбо Убийцы живёт один ход
-const TURN_STATUSES = ["combo"];
+const TURN_STATUSES: StatusId[] = ["combo"];
 
 // Создаёт бой. hp, maxHp, deck, relics и potions приходят из забега; в тестовом режиме их нет,
 // тогда берём стартовые значения героя, а реликвий и зелий у него нет.
 // enemyHpMultiplier, enemyStrength и enemyBlock усиливают врагов, enemyRamp — сколько Силы враг набирает за каждый свой ход,
 // heroStatuses — статусы героя с начала боя, extraPassives — триггеры, которые акт навешивает на героя (жар).
 // Так работают особенности актов
+export interface CombatSetup {
+  heroId: HeroId;
+  enemyIds: string[];
+  seed: number;
+  hp?: number;
+  maxHp?: number;
+  deck?: (RunCard | { cardId: string; upgraded: boolean })[];
+  relics?: string[];
+  potions?: string[];
+  enemyHpMultiplier?: number;
+  enemyStrength?: number;
+  enemyBlock?: number;
+  enemyRamp?: number;
+  heroStatuses?: Statuses;
+  extraPassives?: Power[];
+  potionPool?: string[];
+}
+
 export function createCombat({
   heroId, enemyIds, seed, hp, maxHp, deck, relics = [], potions = [], enemyHpMultiplier = 1, enemyStrength = 0, enemyBlock = 0,
   enemyRamp = 0, heroStatuses = {}, extraPassives = [], potionPool = Object.keys(POTIONS),
-}) {
+}: CombatSetup): Combat {
   const rng = createRng(seed);
   const heroData = HEROES[heroId];
   const startingDeck = heroData.deck.map((cardId) => ({ cardId, upgraded: false }));
 
-  const combat = {
+  const combat: Combat = {
     rng,
     status: "playerTurn", // playerTurn | won | lost
     turn: 0,
@@ -58,7 +79,7 @@ export function createCombat({
   return combat;
 }
 
-function createEnemy(enemyId, index, rng, hpMultiplier, strength, block) {
+function createEnemy(enemyId: string, index: number, rng: Rng, hpMultiplier: number, strength: number, block: number): EnemyUnit {
   const data = ENEMIES[enemyId];
   const hp = Math.floor(nextInt(rng, data.hp[0], data.hp[1]) * hpMultiplier);
   return {
@@ -73,13 +94,20 @@ function createEnemy(enemyId, index, rng, hpMultiplier, strength, block) {
 }
 
 // Можно ли разыграть карту: статусы и проклятия нельзя (у них cost: null), на остальные нужна энергия
-export function canPlayCard(combat, cardInstance) {
+export function canPlayCard(combat: Combat, cardInstance: CardInstance): boolean {
   const { cost } = getCardData(cardInstance);
   return cost !== null && cost <= combat.energy;
 }
 
 // Что показать над врагом: тип намерения, урон за удар, количество ударов и блок
-export function getEnemyIntent(combat, enemy) {
+export interface EnemyIntent {
+  intent: Intent;
+  hits: number;
+  damage: number;
+  block: number;
+}
+
+export function getEnemyIntent(combat: Combat, enemy: EnemyUnit): EnemyIntent {
   const move = getCurrentMove(enemy);
   const attacks = move.effects.filter((effect) => effect.type === "damage");
   const blockEffect = move.effects.find((effect) => effect.type === "block");
@@ -95,7 +123,7 @@ export function getEnemyIntent(combat, enemy) {
 }
 
 // Разыгрывает карту из руки. Возвращает { ok: true } или { ok: false, reason: "..." }
-export function playCard(combat, uid, targetId) {
+export function playCard(combat: Combat, uid: number, targetId?: string | null): ActionResult {
   if (combat.status !== "playerTurn") return { ok: false, reason: "notPlayerTurn" };
 
   const instance = combat.piles.hand.find((card) => card.uid === uid);
@@ -108,7 +136,7 @@ export function playCard(combat, uid, targetId) {
 
   combat.events = [];
   addTally(combat, "cardsPlayed");
-  combat.energy -= card.cost;
+  combat.energy -= card.cost ?? 0; // null не пройдёт canPlayCard
   takeFromHand(combat.piles, uid);
 
   // Сила остаётся до конца боя, поэтому её карта не попадает ни в одну стопку
@@ -128,7 +156,7 @@ export function playCard(combat, uid, targetId) {
 }
 
 // Выпивает зелье. Возвращает { ok: true } или { ok: false, reason: "..." }
-export function usePotion(combat, index, targetId) {
+export function usePotion(combat: Combat, index: number, targetId?: string | null): ActionResult {
   if (combat.status !== "playerTurn") return { ok: false, reason: "notPlayerTurn" };
 
   const potion = POTIONS[combat.potions[index]];
@@ -146,7 +174,7 @@ export function usePotion(combat, index, targetId) {
 }
 
 // Игрок нажал «Конец хода»: срабатывают эффекты конца хода, рука уходит в сброс, ходят враги
-export function endTurn(combat) {
+export function endTurn(combat: Combat): void {
   if (combat.status !== "playerTurn") return;
 
   combat.events = [];
@@ -159,27 +187,27 @@ export function endTurn(combat) {
 }
 
 // Для тестового режима: кладёт любую карту в руку. Возвращает false, если рука полна
-export function addCardToHand(combat, cardId, upgraded) {
+export function addCardToHand(combat: Combat, cardId: string, upgraded = false): boolean {
   if (combat.piles.hand.length >= CONFIG.maxHandSize) return false;
   combat.piles.hand.push(createCardInstance(combat.piles, cardId, upgraded));
   return true;
 }
 
 // Для тестового режима: даёт реликвию посреди боя. Эффект начала боя срабатывает сразу
-export function addRelicToCombat(combat, relicId) {
+export function addRelicToCombat(combat: Combat, relicId: string): void {
   combat.relics.push(relicId);
   if (RELICS[relicId].trigger !== "onCombatStart") return;
   executeEffects(combat, RELICS[relicId].effects, { source: combat.hero, targets: [], fromCard: false });
 }
 
 // Для тестового режима: даёт зелье. Возвращает false, если места нет
-export function addPotionToCombat(combat, potionId) {
+export function addPotionToCombat(combat: Combat, potionId: string): boolean {
   if (combat.potions.length >= combat.maxPotions) return false;
   combat.potions.push(potionId);
   return true;
 }
 
-function startPlayerTurn(combat) {
+function startPlayerTurn(combat: Combat): void {
   combat.turn += 1;
   combat.hero.block = 0;
   combat.energy = CONFIG.energyPerTurn;
@@ -191,7 +219,7 @@ function startPlayerTurn(combat) {
   drawCards(combat.piles, CONFIG.cardsPerTurn, combat.rng);
 }
 
-function runEnemyTurn(combat) {
+function runEnemyTurn(combat: Combat): void {
   for (const enemy of combat.enemies) {
     if (enemy.hp <= 0) continue;
 
@@ -219,26 +247,26 @@ function runEnemyTurn(combat) {
   }
 }
 
-function getCurrentMove(enemy) {
+function getCurrentMove(enemy: EnemyUnit): EnemyMove {
   const data = ENEMIES[enemy.enemyId];
   return data.moves[data.pattern[enemy.patternIndex]];
 }
 
 // Намерения идут по кругу
-function chooseNextIntent(enemy) {
+function chooseNextIntent(enemy: EnemyUnit): void {
   const pattern = ENEMIES[enemy.enemyId].pattern;
   enemy.patternIndex = (enemy.patternIndex + 1) % pattern.length;
 }
 
 // Кого затронет карта или зелье: одного врага, всех врагов или самого героя
-function findTargets(combat, targetType, targetId) {
+function findTargets(combat: Combat, targetType: CardTarget, targetId?: string | null): (HeroUnit | EnemyUnit)[] {
   const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
   if (targetType === "enemy") return alive.filter((enemy) => enemy.instanceId === targetId);
   if (targetType === "allEnemies") return alive;
   return [combat.hero];
 }
 
-function decayStatuses(unit) {
+function decayStatuses(unit: { statuses: Statuses }): void {
   for (const status of DECAYING_STATUSES) reduceStatus(unit, status);
   for (const status of TURN_STATUSES) delete unit.statuses[status];
 }

@@ -1,5 +1,16 @@
 // Состояние игры: единственный источник правды. Интерфейс читает данные отсюда.
-export const state = {
+import type { Combat, HeroId, Run } from "./types.ts";
+
+export interface GameState {
+  run: Run | null;
+  combat: Combat | null;
+  selectedPotionIndex: number | null;
+  tutorialStep: number | null;
+  arena: { fightId: string; rewarded: boolean } | null;
+  test: { enabled: boolean; heroId: HeroId; enemyIds: string[]; pickerOpen: boolean; addUpgraded: boolean };
+}
+
+export const state: GameState = {
   run: null, // текущий забег, его создаёт createRun из engine/run.js
   combat: null, // текущий бой, его создаёт createCombat из engine/combat.js
   selectedPotionIndex: null, // какое зелье игрок выбрал

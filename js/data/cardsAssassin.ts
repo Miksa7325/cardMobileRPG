@@ -3,8 +3,9 @@ import {
   allStatus, block, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, gainResource, grow, heal, hits,
   multiplyStatus, selfStatus, spend, status, triggerPower, wound,
 } from "./cardHelpers.ts";
+import type { CardData } from "../types.ts";
 
-export const ASSASSIN_CARDS = [
+export const ASSASSIN_CARDS: CardData[] = [
   // Комбо: каждая карта за ход даёт Комбо, добивания растут от него, а приёмы «Комбо N» тратят его
   card("a_finisher", "Добивание", "attack", "starter", 1, "enemy", "Добивание: {damage} урона, +3 за каждое Комбо.", [grow(damage(3), "combo", 3)], { effects: [grow(damage(5), "combo", 4)] }),
   card("a_flourish", "Росчерк", "skill", "common", 0, "self", "Получить {combo} Комбо.", [gainResource("combo", 2)], { effects: [gainResource("combo", 3)] }),

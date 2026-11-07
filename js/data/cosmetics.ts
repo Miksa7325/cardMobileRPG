@@ -1,6 +1,7 @@
 // Окраски героев из лавки красок. filter — как перекрасить рисунок героя (CSS filter), price — цена в золоте.
 // Купленную окраску можно надеть любому герою. Обычный вид — без окраски.
-export const COSMETICS = {
+import type { CosmeticData } from "../types.ts";
+export const COSMETICS: Record<string, CosmeticData> = {
   crimson: { id: "crimson", name: "Багровая", filter: "hue-rotate(-40deg) saturate(1.8)", price: 30 },
   emerald: { id: "emerald", name: "Изумрудная", filter: "hue-rotate(90deg) saturate(1.5)", price: 30 },
   azure: { id: "azure", name: "Лазурная", filter: "hue-rotate(190deg) saturate(1.4)", price: 30 },

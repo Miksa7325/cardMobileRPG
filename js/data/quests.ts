@@ -1,6 +1,7 @@
 // Задания. stat — какой счётчик считаем за все забеги, goal — сколько нужно, reward — награда в золоте.
 // Счётчики обновляются в конце забега: их список — в applyRunToMeta из engine/meta.js.
-export const QUESTS = [
+import type { QuestData } from "../types.ts";
+export const QUESTS: QuestData[] = [
   { id: "kills_1", title: "Первая кровь", description: "Убей 10 врагов", stat: "kills", goal: 10, reward: 5 },
   { id: "kills_2", title: "Гроза подземелья", description: "Убей 50 врагов", stat: "kills", goal: 50, reward: 12 },
   { id: "kills_3", title: "Истребитель", description: "Убей 150 врагов", stat: "kills", goal: 150, reward: 30 },

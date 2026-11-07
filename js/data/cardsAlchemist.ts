@@ -3,8 +3,9 @@
 import {
   block, brew, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, gainResource, grow, heal, hits, selfStatus, spend, status, triggerPower,
 } from "./cardHelpers.ts";
+import type { CardData } from "../types.ts";
 
-export const ALCHEMIST_CARDS = [
+export const ALCHEMIST_CARDS: CardData[] = [
   // Стартовые
   card("al_toss", "Бросок склянки", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
   card("al_guard", "Стеклянный щит", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)], { effects: [block(8)] }),

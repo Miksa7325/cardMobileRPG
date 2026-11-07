@@ -3,7 +3,8 @@
 // поэтому в text чисел нет: так надпись не разойдётся с тем, что случится на самом деле.
 // EVENTS — события в комнатах подземелья. TRAVEL_EVENTS — редкие встречи при быстром переходе по карте:
 // они короче, и почти все неприятные — герой выбирает, чем заплатить за спешку.
-export const EVENTS = {
+import type { EventData } from "../types.ts";
+export const EVENTS: Record<string, EventData> = {
   abandoned_altar: {
     id: "abandoned_altar",
     title: "Заброшенный алтарь",
@@ -254,7 +255,7 @@ export const EVENTS = {
 
 // Встречи в пути: случаются изредка, когда герой быстро переходит по карте (CONFIG.teleportEventChance).
 // Спешка в подземелье наказуема: почти всегда выбор только в том, чем заплатить
-export const TRAVEL_EVENTS = {
+export const TRAVEL_EVENTS: Record<string, EventData> = {
   rat_swarm: {
     id: "rat_swarm",
     title: "Крысиная стая",

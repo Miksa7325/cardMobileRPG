@@ -1,6 +1,7 @@
 // Все реликвии игры. trigger — когда срабатывает, effects — что происходит.
 // Необязательно: everyN — срабатывает каждый N-й раз, cardType — только на карты этого типа.
-export const RELICS = {
+import type { RelicData } from "../types.ts";
+export const RELICS: Record<string, RelicData> = {
   // Стартовая
   burning_blood: {
     id: "burning_blood",

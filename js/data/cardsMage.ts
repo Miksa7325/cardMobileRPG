@@ -4,8 +4,9 @@
 import {
   allStatus, block, burn, card, cheaperPower, damage, draw, gainResource, grow, hits, selfStatus, status, triggerPower,
 } from "./cardHelpers.ts";
+import type { CardData } from "../types.ts";
 
-export const MAGE_CARDS = [
+export const MAGE_CARDS: CardData[] = [
   // Стартовые
   card("m_spark", "Искра", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(5)], { effects: [damage(8)] }),
   card("m_barrier", "Барьер", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)], { effects: [block(8)] }),

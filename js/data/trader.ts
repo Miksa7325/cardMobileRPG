@@ -1,7 +1,8 @@
 // Товары торговца в городе. price — цена в золоте.
 // kind: map — карта подземелья на один забег, fireflies — банка светлячков на один забег.
 // Зелья продаёт лавка алхимика: все, что уже открыты (список — в data/potions.js), по цене POTION_PRICE
-export const TRADER_GOODS = [
+import type { TraderGood } from "../types.ts";
+export const TRADER_GOODS: TraderGood[] = [
   {
     id: "map",
     kind: "map",

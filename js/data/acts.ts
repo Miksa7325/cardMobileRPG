@@ -15,7 +15,8 @@
 // rewards: essences — множитель эссенций за бои, rarityWeights — шансы редкости карт в наградах,
 //   relics — какой редкости реликвии у элит и в сундуках, potionChance — шанс зелья после боя.
 // startPrice — сколько золота из казны стоит начать забег с этого акта: так можно не проходить уже пройденные
-export const ACTS = [
+import type { ActData } from "../types.ts";
+export const ACTS: ActData[] = [
   {
     name: "Катакомбы",
     mechanic: { name: "Лабиринт", text: "Боковых туннелей с тупиками здесь больше обычного.", deadEnds: 6 },
