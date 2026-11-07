@@ -3,75 +3,36 @@
 // Смерть стирает только забег. Браузер может запретить хранилище, поэтому всё обёрнуто в try.
 import { CONFIG } from "./config.ts";
 import { ACTS } from "./data/acts.ts";
-import { BUILDINGS } from "./data/buildings.ts";
 import { CARDS } from "./data/cards.ts";
 import { ENEMIES } from "./data/enemies.ts";
 import { POTIONS } from "./data/potions.ts";
 import { RELICS } from "./data/relics.ts";
 import { createMeta } from "./engine/meta.ts";
-import type { Combat, Meta, Run, RunCard, Settings } from "./types.ts";
+import type { Combat, LaneItem, Meta, PreparedSpell, Run, RunCard, Settings } from "./types.ts";
 
 // Данные из хранилища или из текста сохранения: они могли быть испорчены или прийти из старой версии,
 // поэтому до проверки (isValidRun, isValidMeta) их форма неизвестна
 type Untrusted = any;
 
 // Свои ключи у «Такта клинка»: старая игра хранит сохранения под cardRpg.* и на одном сайте
-// (тот же адрес github.io) их не задевает
+// (тот же адрес github.io) их не задевает. Ячейка — bladeTempo.<номер>.run и bladeTempo.<номер>.meta
 const SLOT_KEY = "bladeTempo.slot"; // номер выбранной ячейки
 const SETTINGS_KEY = "bladeTempo.settings";
 const DEFAULT_SETTINGS: Settings = { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true, graphics: "auto" };
 
 function runKey(slot: number): string {
-  return `bladeTempo.run.${slot}`;
+  return `bladeTempo.${slot}.run`;
 }
 
 function metaKey(slot: number): string {
-  return `bladeTempo.meta.${slot}`;
+  return `bladeTempo.${slot}.meta`;
 }
 
-// Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
+// Формат сохранения «Такта клинка» начинается с версии 1: старые сохранения он не читает.
+// Меняешь формат: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
-export const SAVE_VERSION = 9;
-const MIGRATIONS: Record<number, (save: Untrusted) => Untrusted> = {
-  // Версия 2: появились акты и статистика забега. Старый забег продолжается в акте 1
-  1: (save: Untrusted) => (save.run ? { ...save, run: { ...save.run, act: 1, stats: { combats: [], playMs: 0 } } } : save),
-  // Версия 3: появились герои, сложность и коллекция. Старый забег идёт на сложности 0 со всеми картами
-  2: (save: Untrusted) => (save.run ? {
-    ...save,
-    run: {
-      ...save.run,
-      difficulty: 0,
-      lockedCardIds: [],
-      lockedRelicIds: [],
-      seen: { cards: save.run.deck.map((card: RunCard) => card.cardId), enemies: [], relics: [...save.run.relics] },
-    },
-  } : save),
-  // Версия 4: появились сохранение посреди боя и обучающий бой
-  3: (save: Untrusted) => (save.run ? { ...save, run: { ...save.run, savedCombat: null, tutorialFight: false } } : save),
-  // Версия 5: появились город и задания. Содержимое зданий в старый забег не попадает: город ещё пуст
-  4: (save: Untrusted) => (save.run ? {
-    ...save,
-    run: {
-      ...save.run,
-      lockedEventIds: Object.values(BUILDINGS).flatMap((building) => building.unlocks.events ?? []),
-      lockedPotionIds: Object.values(BUILDINGS).flatMap((building) => building.unlocks.potions ?? []),
-      lockedRelicIds: [...save.run.lockedRelicIds, ...Object.values(BUILDINGS).flatMap((building) => building.unlocks.relics ?? [])],
-      stats: { ...save.run.stats, totals: {} },
-    },
-  } : save),
-  // Версия 6: зелья попали в коллекцию. Те, что уже в сумке, считаем встреченными
-  5: (save: Untrusted) => (save.run ? { ...save, run: { ...save.run, seen: { ...save.run.seen, potions: [...save.run.potions] } } } : save),
-  // Версия 7: появились возвраты назад. Раньше назад не ходили, поэтому путь — это все пройденные комнаты по порядку
-  6: (save: Untrusted) => (save.run ? { ...save, run: { ...save.run, trail: [...save.run.visitedNodeIds], cityHeals: [] } } : save),
-  // Версия 8: магазины ушли в город, с монстров падают эссенции, карту и светлячков покупают у торговца.
-  // Старый забег начинался с картой, поэтому она у него остаётся
-  7: (save: Untrusted) => (save.run ? {
-    ...save,
-    run: { ...save.run, shop: undefined, essences: 0, hasMap: true, fireflies: null, revealedNodeIds: [] },
-  } : save),
-  // Версия 9: в подземелье снова есть лавка, и в каждой от карты избавляют один раз
-  8: (save: Untrusted) => (save.run ? { ...save, run: { ...save.run, shopRemovals: [] } } : save),
-};
+export const SAVE_VERSION = 1;
+const MIGRATIONS: Record<number, (save: Untrusted) => Untrusted> = {};
 
 // Просит браузер не удалять данные сайта при нехватке места. Браузер может отказать, это не ошибка
 export function requestPersistentStorage() {
@@ -141,9 +102,9 @@ export function deleteSlot(slot: number): void {
   removeKey(metaKey(slot));
 }
 
-// Настройки. До появления ячеек они лежали в мета-прогрессе: если своих ещё нет, берём оттуда
+// Настройки общие для всех ячеек
 export function loadSettings(): Settings {
-  const saved = parseJson(readKey(SETTINGS_KEY)) ?? parseJson(readKey(metaKey(1)))?.settings;
+  const saved = parseJson(readKey(SETTINGS_KEY));
   return { ...DEFAULT_SETTINGS, ...saved };
 }
 
@@ -184,12 +145,21 @@ function isValidRun(run: Untrusted): run is Run {
     && run.potions.every((potionId: string) => POTIONS[potionId]);
 }
 
-// Проверяет бой из сохранения: те же причины, что и у забега
+// Проверяет бой из сохранения: те же причины, что и у забега. Бой сохраняется посреди планирования целиком:
+// расстановка на шкале, подготовка Мага, переброс, отмеченные карты и выбор варки
 function isValidCombat(combat: Untrusted): combat is Combat {
   if (combat.status !== "planning" || !combat.rng || !combat.hero || !Array.isArray(combat.enemies)) return false;
+  if (!Array.isArray(combat.lane) || !Array.isArray(combat.prepared) || !Array.isArray(combat.keep) || !Array.isArray(combat.brewChoices)) return false;
+  if (!Number.isInteger(combat.clock) || !Number.isFinite(combat.capacity) || !Array.isArray(combat.hero.blocks)) return false;
+  if (!combat.enemies.every((enemy: Untrusted) => Array.isArray(enemy.lane) && Array.isArray(enemy.carry) && Array.isArray(enemy.blocks))) return false;
   const { draw, hand, discard, exhaust } = combat.piles ?? {};
   if (![draw, hand, discard, exhaust].every(Array.isArray)) return false;
-  return [...draw, ...hand, ...discard, ...exhaust].every((card: RunCard) => CARDS[card.cardId])
+  const onLane = [
+    ...combat.lane.filter((item: LaneItem) => item.card).map((item: LaneItem) => item.card),
+    ...combat.prepared.map((spell: PreparedSpell) => spell.card),
+  ];
+  if (!combat.lane.every((item: LaneItem) => !item.potionId || POTIONS[item.potionId])) return false;
+  return [...draw, ...hand, ...discard, ...exhaust, ...onLane].every((card: RunCard) => CARDS[card?.cardId])
     && combat.enemies.every((enemy: { enemyId: string }) => ENEMIES[enemy.enemyId])
     && combat.relics.every((relicId: string) => RELICS[relicId])
     && combat.potions.every((potionId: string) => POTIONS[potionId]);
@@ -216,19 +186,16 @@ export function clearRun(): void {
 
 // Возвращает мета-прогресс. Недостающие поля берутся из значений по умолчанию. Без номера — из выбранной ячейки
 export function loadMeta(slot = activeSlot): Meta {
-  // До золота валютой города были кроны, а героев открывал опыт: кроны становятся золотом, опыт больше не нужен
-  const { crowns, xp, settings, ...save } = migrateSave(parseJson(readKey(metaKey(slot)))) ?? {};
+  const save = migrateSave(parseJson(readKey(metaKey(slot)))) ?? {};
   const defaults = createMeta();
   return {
     ...defaults,
     ...save,
-    gold: save.gold ?? crowns ?? 0,
     seen: { ...defaults.seen, ...save?.seen },
     supplies: { ...defaults.supplies, ...save?.supplies },
     // Дом есть всегда, даже если сохранение испорчено
     buildings: [...new Set(["home", ...(save?.buildings ?? [])])],
-    // Кто уже играл до появления обучения, тому оно не нужно
-    tutorialDone: save?.tutorialDone ?? (save?.runsPlayed ?? 0) > 0,
+    tutorialDone: save?.tutorialDone ?? false,
   };
 }
 
