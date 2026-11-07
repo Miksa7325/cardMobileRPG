@@ -27,7 +27,7 @@ export const HEROES: Record<HeroId, HeroData> = {
     },
     deck: [
       "strike", "strike", "strike", "strike",
-      "defend", "defend", "defend", "defend",
+      "defend", "defend", "defend", "patch",
       "bash", "rage_burst",
     ],
     relics: ["burning_blood"],

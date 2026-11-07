@@ -26,6 +26,10 @@ export function formatDescription(card: CardData, hero: Hero): string {
   for (const effect of flattenEffects(card.effects)) {
     text = fillEffect(text, effect, hero, true);
   }
+  // Бонус цепочки: его числа идут в описании после основных
+  for (const effect of flattenEffects(card.chain?.effects ?? [])) {
+    text = fillEffect(text, effect, hero, true);
+  }
   // Эффекты силы идут не от разыгранной карты, поэтому Ловкость на них не влияет
   for (const effect of card.power?.effects ?? []) {
     text = fillEffect(text, effect, hero, false);

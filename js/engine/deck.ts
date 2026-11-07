@@ -45,28 +45,44 @@ export function getCardStars(instance: Leveled): number {
   return Math.max(0, instance.level - stepsToLegendary(instance.cardId));
 }
 
-// Числа карты × (1 + 10% за звезду), с округлением до целого
-function starEffects(effects: Effect[], stars: number): Effect[] {
-  const scale = (amount: number) => Math.round((amount * (100 + stars * CONFIG.starPercent)) / 100);
+// Какие числа растут от ступеней и звёзд: урон, блок, статусы, Сокрушение, Починка, лечение.
+// Добор, вместимость, варка и плата HP не растут: иначе карта с каждой ступенью забирала бы больше HP
+const SCALED: ReadonlySet<string> = new Set(["damage", "block", "applyStatus", "sunder", "repair", "heal"]);
+
+function scaleEffects(effects: Effect[], percent: number, round: (value: number) => number): Effect[] {
   return effects.map((effect) => {
-    if (effect.type === "spend") return { ...effect, effects: starEffects(effect.effects, stars) };
-    if ("amount" in effect && typeof effect.amount === "number" && effect.type !== "brewPotion") return { ...effect, amount: scale(effect.amount) };
+    if (effect.type === "spend") return { ...effect, effects: scaleEffects(effect.effects, percent, round) };
+    if (SCALED.has(effect.type) && "amount" in effect) return { ...effect, amount: round((effect.amount * (100 + percent)) / 100 - 1e-9) };
     return effect;
   });
 }
 
-// Данные карты с учётом уровня: уровень 1 — поля из upgraded, дальше — из levels, после легендарной — звёзды
+// Все списки эффектов карты сразу: основные, силы и бонуса цепочки
+function scaleCard(data: CardData, percent: number, round: (value: number) => number): CardData {
+  return {
+    ...data,
+    effects: scaleEffects(data.effects, percent, round),
+    ...(data.power ? { power: { ...data.power, effects: scaleEffects(data.power.effects, percent, round) } } : {}),
+    ...(data.chain ? { chain: { ...data.chain, effects: scaleEffects(data.chain.effects, percent, round) } } : {}),
+  };
+}
+
+// Данные карты с учётом уровня: уровень 1 — поля из upgraded. Уровни 2… до легендарной — из levels, а где их нет —
+// по формуле: +20% к числам за каждую такую ступень (округление вверх). После легендарной — звёзды (+10%, до целого)
 export function getCardData(instance: Leveled): CardData {
   const card = CARDS[instance.cardId];
   if (instance.level <= 0) return card;
   let data: CardData = { ...card, ...card.upgraded };
   const leveled = Math.min(instance.level, stepsToLegendary(instance.cardId));
-  for (let level = 2; level <= leveled; level++) data = { ...data, ...card.levels?.[level - 2] };
-  const stars = getCardStars(instance);
-  if (stars > 0) {
-    data = { ...data, effects: starEffects(data.effects, stars) };
-    if (data.power) data.power = { ...data.power, effects: starEffects(data.power.effects, stars) };
+  let formulaSteps = 0;
+  for (let level = 2; level <= leveled; level++) {
+    const explicit = card.levels?.[level - 2];
+    if (explicit) data = { ...data, ...explicit };
+    else formulaSteps += 1;
   }
+  if (formulaSteps > 0) data = scaleCard(data, formulaSteps * CONFIG.levelPercent, Math.ceil);
+  const stars = getCardStars(instance);
+  if (stars > 0) data = scaleCard(data, stars * CONFIG.starPercent, (value) => Math.round(value + 1e-9));
   return data;
 }
 

@@ -321,3 +321,12 @@ const THEMES = {
 
 export const CARD_THEME = {};
 for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_THEME[id] = theme;
+
+// Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
+const BORROWED_ART = {
+  patch: "bandage", pierce_armor: "sunder", rivets: "iron_skin", reforge: "brace", forged_armor: "iron_wall", counter_blow: "counterattack",
+};
+for (const [id, source] of Object.entries(BORROWED_ART)) {
+  CARD_ART[id] = CARD_ART[source];
+  CARD_THEME[id] = CARD_THEME[source];
+}

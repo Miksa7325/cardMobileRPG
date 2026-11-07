@@ -21,11 +21,20 @@ describe("уровни улучшений", () => {
     expect(stepsToLegendary("rampage")).toBe(3); // необычная
     expect(stepsToLegendary("execution")).toBe(2); // редкая
   });
+  it("ступени выше первой без своей версии: +20% к числам первой за каждую, вверх", () => {
+    expect(damageOf(strike(2))).toBe(11); // 9 × 1.2 = 10.8
+    expect(damageOf(strike(3))).toBe(13); // 9 × 1.4 = 12.6
+    expect(damageOf(strike(4))).toBe(15); // 9 × 1.6 = 14.4
+  });
   it("после легендарной каждое улучшение — звезда: +10% к числам", () => {
     expect(getCardStars(strike(4))).toBe(0);
     expect(getCardStars(strike(6))).toBe(2);
-    expect(damageOf(strike(5))).toBe(10); // 9 × 1.1 = 9.9
-    expect(damageOf(strike(6))).toBe(11); // 9 × 1.2 = 10.8
+    expect(damageOf(strike(5))).toBe(17); // 15 × 1.1 = 16.5
+    expect(damageOf(strike(6))).toBe(18); // 15 × 1.2
+  });
+  it("плата HP и добор от ступеней не растут", () => {
+    const swing = getCardData({ cardId: "reckless_swing", level: 4 });
+    expect(swing.effects.find((e) => e.type === "loseHp")).toMatchObject({ amount: 3 });
   });
   it("улучшать можно без ограничения", () => {
     const card = strike(0);

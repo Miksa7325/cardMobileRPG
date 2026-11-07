@@ -18,6 +18,7 @@ export const CONFIG = {
   drawPerTurn: { warrior: 7, assassin: 8, warlock: 7, alchemist: 7, mage: 7 },
   potionWeight: 1, // вес зелья на шкале; у Алхимика 0
   starPercent: 10, // каждая звезда после легендарной: +10% к числам карты
+  levelPercent: 20, // ступень выше первой без своей версии: +20% к числам первой ступени за каждую, округление вверх
   maxHandSize: 10, // больше карт в руке быть не может
   maxEnemiesInCombat: 3, // больше врагов в одном бою быть не может
   warriorMaxHp: 80, // здоровье Воина

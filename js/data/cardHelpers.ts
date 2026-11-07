@@ -1,6 +1,6 @@
 // Короткие записи для карт: большие таблицы карт героев собираются из них.
 import type {
-  CardData, CardRarity, CardTarget, CardType, Effect, EffectOf, Power, StatusId, Trigger,
+  CardData, ChainKind, CardRarity, CardTarget, CardType, Effect, EffectOf, Power, StatusId, Trigger,
 } from "../types.ts";
 
 export const damage = (amount: number): EffectOf<"damage"> => ({ type: "damage", amount });
@@ -36,6 +36,14 @@ export const gainResource = (resource: StatusId, amount: number) => selfStatus(r
 export const brew = (amount = 1): EffectOf<"brewPotion"> => ({ type: "brewPotion", amount });
 
 type Upgrade = CardData["upgraded"];
+
+// Бонус цепочки на карте: chained(card(...), "final", [damage(8)], [damage(10)]) — второй список для улучшенной версии.
+// n — для «Цепь N»
+export function chained(base: CardData, kind: ChainKind, effects: Effect[], upgradedEffects: Effect[] = effects, n?: number): CardData {
+  const chain = { kind, effects, ...(n ? { n } : {}) };
+  const upgradedChain = { kind, effects: upgradedEffects, ...(n ? { n } : {}) };
+  return { ...base, chain, upgraded: { ...base.upgraded, chain: upgradedChain } };
+}
 
 // Порядок: id, название, тип, редкость, стоимость, цель, описание, эффекты, улучшение, сила
 export function card(

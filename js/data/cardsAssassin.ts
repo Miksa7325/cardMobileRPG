@@ -104,4 +104,12 @@ export const ASSASSIN_CARDS: CardData[] = [
   card("a_shadow_form", "Форма тени", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости. Каждый ход +{draw} карта.", [selfStatus("strength", 2), selfStatus("dexterity", 2)], { cost: 2 }, { trigger: "onTactStart", effects: [draw(1)] }),
   cheaperPower("a_quickness", "Быстрота", "rare", 1, "В начале хода взять {draw} карту.", "onTactStart", [draw(1)], 0),
   cheaperPower("a_thousand_blades", "Тысяча клинков", "rare", 1, "Каждая карта: {damage} урона всем.", "onCardPlayed", [fixedDamageToAll(2)], 0),
+  // Бывшие ядовитые карты Воина: по плану Яд — стихия Убийцы. Переделаем вместе с его таблицей «было → стало»
+  card("poison_blade", "Отравленный клинок", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(3), status("poison", 4)], { effects: [damage(4), status("poison", 6)] }),
+  card("deep_cut", "Ржавый клинок", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(4), status("poison", 3)], { effects: [damage(5), status("poison", 5)] }),
+  card("poison_cloud", "Ядовитое облако", "skill", "common", 1, "allEnemies", "Наложить {poison} Яда всем врагам.", [status("poison", 3)], { effects: [status("poison", 5)] }),
+  card("venom_strike", "Ядовитое лезвие", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(6), status("poison", 8)], { effects: [damage(8), status("poison", 11)] }),
+  card("plague_blade", "Чумная склянка", "skill", "uncommon", 2, "allEnemies", "Наложить {poison} Яда всем врагам.", [status("poison", 6)], { effects: [status("poison", 9)] }),
+  triggerPower("venom_mastery", "Знаток ядов", "uncommon", 1, "В конце такта {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
+  card("plague", "Чума", "skill", "rare", 2, "allEnemies", "Наложить {poison} Яда всем. Сжечь.", [status("poison", 10), burn], { effects: [status("poison", 14), burn] }),
 ];
