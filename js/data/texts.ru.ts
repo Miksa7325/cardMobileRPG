@@ -379,6 +379,7 @@ export const TEXTS = {
     hintPotion: "Нажми клетку шкалы, куда поставить зелье",
     hintPaused: (cell: number) => `Пауза: можно доложить карты с клетки ${cell}`,
     hintResolving: "Розыгрыш. Нажми на экран, чтобы промотать",
+    phase: "Новая фаза!",
     hintLocked: "Добор уже сработал: эту карту не вернуть",
     brewTitle: "Выбери одно зелье",
     errors: {
@@ -396,6 +397,7 @@ export const TEXTS = {
       chooseBrew: "Сначала выбери зелье",
       tooMany: "Оставить можно не больше 2 карт",
       noRoom: "На шкале нет места",
+      frozen: "Клетка заморожена: в неё нельзя ставить",
     } as Record<string, string>,
   },
   floor: "Этаж",

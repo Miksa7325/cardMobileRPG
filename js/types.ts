@@ -67,7 +67,8 @@ export interface Bonus {
 // Каждый эффект — отдельный вид со своими полями. type говорит, какой это эффект
 export type Effect =
   // Бой
-  | { type: "damage"; amount: number; fixed?: boolean; target?: EffectTarget; bonus?: Bonus }
+  // lifesteal — доля урона по HP, на которую лечится тот, кто бьёт (вампиризм)
+  | { type: "damage"; amount: number; fixed?: boolean; target?: EffectTarget; bonus?: Bonus; lifesteal?: number }
   | { type: "block"; amount: number; target?: EffectTarget; bonus?: Bonus }
   | { type: "applyStatus"; status: StatusId; amount: number; target?: EffectTarget; bonus?: Bonus }
   | { type: "spend"; status: StatusId; amount: number; effects: Effect[] }
@@ -82,6 +83,8 @@ export type Effect =
   | { type: "exhaust" }
   | { type: "multiplyStatus"; status: StatusId; factor: number; target?: EffectTarget }
   | { type: "exhaustWounds" }
+  // Враг призывает помощника: он встаёт рядом со своей дорожкой (если живых помощников меньше max)
+  | { type: "summon"; enemyId: string; max?: number }
   // addCard в бою кладёт карту в стопку (pile), в событии — в колоду: конкретную (cardId) или случайную (rarity)
   | { type: "addCard"; cardId?: string; pile?: PileName; rarity?: CardRarity }
   // Вне боя: события и реликвии
@@ -145,6 +148,14 @@ export interface EnemyMove {
   intent: Intent;
   effects: Effect[];
   weight: number; // сколько клеток шкалы занимает ход
+  hidden?: boolean; // скрытый ход: виден как «?» и раскрывается за 2 клетки до срабатывания
+}
+
+// Фаза босса: когда HP падает до доли below, враг переходит на новый набор ходов; onEnter — что он делает сразу
+export interface EnemyPhase {
+  below: number;
+  pattern: string[];
+  onEnter?: Effect[];
 }
 
 export interface EnemyData {
@@ -153,6 +164,8 @@ export interface EnemyData {
   hp: [number, number]; // от и до
   moves: Record<string, EnemyMove>;
   pattern: string[]; // порядок ходов по кругу: имена из moves
+  phases?: EnemyPhase[]; // фазы босса по порядку
+  freezeCell?: boolean; // приём: в начале каждого хода замораживает клетку дорожки героя
 }
 
 export interface HeroData {
@@ -348,6 +361,8 @@ export interface EnemyUnit extends Unit {
   patternIndex: number; // какой ход из pattern встанет на дорожку следующим
   lane: EnemyAction[]; // ходы этого хода
   carry: string[]; // ходы, которые не влезли в прошлый ход: встают первыми
+  laneStart: number; // с какого стыка начинается дорожка: у призванного посреди хода — с момента призыва
+  phase: number; // фаза босса: 0 — начальная
 }
 
 // Карта или зелье на дорожке героя
@@ -405,6 +420,7 @@ export interface Combat {
   carried: number[]; // карты, вытолкнутые со шкалы: остаются в руке
   brewChoices: BrewChoice[];
   launchGains: boolean; // во время розыгрыша пришли карты или вместимость: может быть пауза
+  frozenCells: number[]; // замороженные клетки дорожки героя в этом ходу: в них нельзя ставить
   acting?: string; // чьё действие сейчас идёт: «lane:3», «prep:5», «enemy:skeleton-0:1», «tact». Попадает в события как by
   hero: HeroUnit;
   enemies: EnemyUnit[];
@@ -415,6 +431,7 @@ export interface Combat {
   maxPotions: number;
   potionPool: string[];
   enemyRamp: number;
+  enemyHpMultiplier: number; // во сколько раз крепче враги этого боя: так же крепки и призванные помощники
   events: CombatEvent[];
   tally?: Record<string, number>; // счётчики для заданий
 }

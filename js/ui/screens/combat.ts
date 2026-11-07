@@ -217,8 +217,13 @@ function createEnemy(current: Combat, enemy: EnemyUnit, compact: boolean, select
 
 // Ближайший ход врага над головой: «[меч] 9», «[меч] 6×2», «[щит] 9»
 function createIntent(current: Combat, enemy: EnemyUnit): HTMLElement {
-  const { intent, damage, hits, block } = getEnemyIntent(current, enemy);
+  const { intent, damage, hits, block, hidden } = getEnemyIntent(current, enemy);
   const element = el("div", "unit__intent");
+  // Скрытый ход Лорда вампиров: до раскрытия видно только «?»
+  if (hidden) {
+    element.append("?");
+    return element;
+  }
   element.append(createIcon(INTENT_ICONS[intent]));
   if (intent === "attack") element.append(` ${damage}${hits > 1 ? `×${hits}` : ""}`);
   if (intent === "defend") element.append(` ${block}`);

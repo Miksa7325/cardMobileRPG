@@ -19,7 +19,7 @@ import type {
 import { createCardInstance, createPiles, drawCards, getCardData, takeFromHand } from "./deck.ts";
 import {
   PLANNING_EFFECTS, absoluteTime, addTally, applyBurning, applyLeech, applyPoison, boostEffects, calculateBlock,
-  calculateDamage, executeEffects, expireBlocks, fireTrigger, isOver, recordEvent, reduceStatus,
+  calculateDamage, executeEffects, expireBlocks, fireTrigger, isOver, recordEvent, reduceStatus, setSummonHandler,
 } from "./effects.ts";
 import { createRng, nextInt } from "./rng.ts";
 
@@ -82,6 +82,7 @@ export function createCombat({
     carried: [],
     brewChoices: [],
     launchGains: false,
+    frozenCells: [],
     hero: {
       heroId,
       hp: hp ?? heroData.maxHp,
@@ -102,6 +103,7 @@ export function createCombat({
     maxPotions: getMaxPotions(heroId),
     potionPool, // какие зелья может сварить Алхимик: только открытые
     enemyRamp,
+    enemyHpMultiplier,
     events: [], // что произошло за последнее действие игрока: интерфейс проигрывает это как анимацию
   };
 
@@ -126,7 +128,24 @@ function createEnemy(enemyId: string, index: number, rng: Rng, hpMultiplier: num
     patternIndex: 0,
     lane: [],
     carry: [],
+    laneStart: 0,
+    phase: 0,
   };
+}
+
+// Помощник, призванный посреди хода: встаёт рядом, его дорожка начинается с этого момента
+setSummonHandler((combat, enemyId) => {
+  const enemy = createEnemy(enemyId, combat.enemies.length, combat.rng, combat.enemyHpMultiplier, 0, 0);
+  combat.enemies.push(enemy);
+  enemy.laneStart = combat.clock;
+  fillEnemyLane(combat, enemy, []);
+  recordEvent(combat, { type: "summon", targetId: enemy.instanceId, enemyId });
+});
+
+// Набор ходов врага сейчас: у босса во второй фазе — свой
+function currentPattern(enemy: EnemyUnit): string[] {
+  const data = ENEMIES[enemy.enemyId];
+  return enemy.phase > 0 ? data.phases![enemy.phase - 1].pattern : data.pattern;
 }
 
 // ---------- Расписание: где на шкале что стоит ----------
@@ -207,12 +226,13 @@ function chainLane(combat: Combat, lane: LaneItem[], marks: Map<string, { slowed
 export function enemySchedule(combat: Combat, enemy: EnemyUnit, lane: EnemyAction[] = enemy.lane) {
   const slow = enemy.statuses.slow ?? 0;
   const haste = enemy.statuses.haste ?? 0;
-  let prevEnd = 0;
+  let prevEnd = enemy.laneStart;
   let index = 0;
   return lane.map((action) => {
     if (action.resolved) {
-      prevEnd = action.end ?? prevEnd;
-      return { action, start: prevEnd - action.weight + 1, end: prevEnd, weight: action.weight, slowed: false, hasted: false };
+      const end = action.end ?? prevEnd;
+      prevEnd = Math.max(prevEnd, end);
+      return { action, start: end - action.weight + 1, end, weight: action.weight, slowed: false, hasted: false };
     }
     const slowed = index < slow;
     const hasted = index < haste;
@@ -227,26 +247,64 @@ export function enemySchedule(combat: Combat, enemy: EnemyUnit, lane: EnemyActio
 
 // В начале хода враг ставит ходы по своему кругу, пока влезают в шкалу. Сначала — те, что не влезли в прошлый ход
 function scheduleEnemy(combat: Combat, enemy: EnemyUnit): void {
-  const data = ENEMIES[enemy.enemyId];
   enemy.lane = [];
+  enemy.laneStart = 0;
   const queue = [...enemy.carry];
   enemy.carry = [];
+  fillEnemyLane(combat, enemy, queue);
+}
+
+// Добавляет ходы в конец дорожки, пока влезают в шкалу: сначала из queue, потом по кругу набора ходов
+function fillEnemyLane(combat: Combat, enemy: EnemyUnit, queue: string[]): void {
+  const data = ENEMIES[enemy.enemyId];
   for (;;) {
+    const pattern = currentPattern(enemy);
     let move = queue.shift();
     let fromPattern = false;
     if (move === undefined) {
-      move = data.pattern[enemy.patternIndex];
+      move = pattern[enemy.patternIndex % pattern.length];
       fromPattern = true;
     }
     const candidate = [...enemy.lane, { move, weight: data.moves[move].weight, resolved: false }];
     const schedule = enemySchedule(combat, enemy, candidate);
-    if (schedule[schedule.length - 1].end > T.cells && enemy.lane.length > 0) {
+    const pending = enemy.lane.some((action) => !action.resolved);
+    if (schedule[schedule.length - 1].end > T.cells && (pending || enemy.laneStart === 0)) {
       // Не влез: подождёт следующего хода
       if (!fromPattern) enemy.carry.push(move, ...queue);
       return;
     }
+    if (schedule[schedule.length - 1].end > T.cells) return;
     enemy.lane = candidate;
-    if (fromPattern) enemy.patternIndex = (enemy.patternIndex + 1) % data.pattern.length;
+    if (fromPattern) enemy.patternIndex = (enemy.patternIndex + 1) % pattern.length;
+  }
+}
+
+// Фазы боссов: HP упало до доли below — новый набор ходов. Несыгранные ходы старой фазы пропадают
+function checkPhases(combat: Combat): void {
+  for (const enemy of combat.enemies) {
+    const phases = ENEMIES[enemy.enemyId].phases;
+    const next = phases?.[enemy.phase];
+    if (!next || enemy.hp <= 0 || enemy.hp > enemy.maxHp * next.below) continue;
+    enemy.phase += 1;
+    enemy.patternIndex = 0;
+    enemy.lane = enemy.lane.filter((action) => action.resolved);
+    enemy.carry = [];
+    recordEvent(combat, { type: "phase", targetId: enemy.instanceId, phase: enemy.phase });
+    if (next.onEnter) executeEffects(combat, next.onEnter, { source: enemy, targets: [combat.hero], fromCard: false });
+    enemy.laneStart = Math.max(combat.clock, ...enemy.lane.map((action) => action.end ?? 0));
+    fillEnemyLane(combat, enemy, []);
+  }
+}
+
+// Король-лич: в начале хода замораживает случайную клетку дорожки героя
+function freezeCells(combat: Combat): void {
+  combat.frozenCells = [];
+  for (const enemy of aliveEnemies(combat)) {
+    if (!ENEMIES[enemy.enemyId].freezeCell) continue;
+    const free = [1, 2, 3, 4, 5, 6].filter((cell) => !combat.frozenCells.includes(cell));
+    const cell = free[nextInt(combat.rng, 0, free.length - 1)];
+    combat.frozenCells.push(cell);
+    recordEvent(combat, { type: "freeze", targetId: enemy.instanceId, cell });
   }
 }
 
@@ -284,6 +342,7 @@ function checkLane(combat: Combat, lane: LaneItem[]): string | null {
     if (item.start <= combat.clock) return "pastCell";
     if (slot.start !== item.start) return "overlap";
     if (slot.end > T.cells) return "outOfTimeline";
+    if (combat.frozenCells.some((cell) => cell >= slot.start && cell <= slot.end)) return "frozen";
   }
   if (usedCapacity(combat, lane) > totalCapacity(combat)) return "noCapacity";
   return null;
@@ -570,6 +629,7 @@ export function launch(combat: Combat): ActionResult {
 
   // Карты весом 0, поставленные на текущий стык (в том числе на паузе)
   resolveZeroWeight(combat, combat.clock);
+  checkPhases(combat);
   for (let boundary = combat.clock + 1; boundary <= T.cells && !isOver(combat); boundary++) {
     resolveBoundary(combat, boundary);
     if (isOver(combat)) break;
@@ -590,9 +650,13 @@ function resolveBoundary(combat: Combat, boundary: number): void {
   combat.clock = boundary;
   for (const unit of [combat.hero, ...combat.enemies]) expireBlocks(combat, unit);
 
-  for (let next = pickNextAction(combat); next && !isOver(combat); next = pickNextAction(combat)) next();
+  for (let next = pickNextAction(combat); next && !isOver(combat); next = pickNextAction(combat)) {
+    next();
+    checkPhases(combat);
+  }
   if (isOver(combat)) return;
   resolveZeroWeight(combat, boundary);
+  checkPhases(combat);
   if (isOver(combat)) return;
 
   if (boundary % T.tactCells === 0) {
@@ -780,6 +844,7 @@ function startTact(combat: Combat): void {
   }
   if (!isOver(combat)) fireTrigger(combat, "onTactStart");
   combat.acting = undefined;
+  checkPhases(combat);
 }
 
 function startTurn(combat: Combat): void {
@@ -793,6 +858,7 @@ function startTurn(combat: Combat): void {
   combat.keep = [];
   for (const unit of [combat.hero, ...combat.enemies]) expireBlocks(combat, unit);
   for (const enemy of aliveEnemies(combat)) scheduleEnemy(combat, enemy);
+  freezeCells(combat);
 
   drawCards(combat.piles, HEROES[combat.hero.heroId].drawPerTurn, combat.rng);
   fireTrigger(combat, "onTurnStart");
@@ -864,6 +930,7 @@ export interface EnemyIntent {
 }
 
 export interface EnemyLaneEntry extends EnemyIntent {
+  hidden: boolean; // скрытый ход ещё не раскрыт: показывать «?»
   move: string;
   start: number;
   end: number;
@@ -888,6 +955,7 @@ export function getEnemyLane(combat: Combat, enemy: EnemyUnit): EnemyLaneEntry[]
   const moves = ENEMIES[enemy.enemyId].moves;
   return enemySchedule(combat, enemy).map((slot) => ({
     ...describeMove(combat, enemy, moves[slot.action.move]),
+    hidden: isHidden(combat, moves[slot.action.move], slot.end, slot.action.resolved),
     move: slot.action.move,
     start: slot.start,
     end: slot.end,
@@ -896,11 +964,18 @@ export function getEnemyLane(combat: Combat, enemy: EnemyUnit): EnemyLaneEntry[]
   }));
 }
 
-// Ближайший ход врага: его показывают над головой
-export function getEnemyIntent(combat: Combat, enemy: EnemyUnit): EnemyIntent {
+// Скрытый ход раскрывается за 2 клетки до срабатывания
+const REVEAL_CELLS = 2;
+function isHidden(combat: Combat, move: EnemyMove, end: number, resolved: boolean): boolean {
+  return Boolean(move.hidden) && !resolved && combat.clock < end - REVEAL_CELLS;
+}
+
+// Ближайший ход врага: его показывают над головой. hidden — пока не раскрыт
+export function getEnemyIntent(combat: Combat, enemy: EnemyUnit): EnemyIntent & { hidden: boolean } {
   const data = ENEMIES[enemy.enemyId];
-  const next = enemy.lane.find((action) => !action.resolved);
-  return describeMove(combat, enemy, data.moves[next?.move ?? data.pattern[enemy.patternIndex]]);
+  const slot = enemySchedule(combat, enemy).find((entry) => !entry.action.resolved);
+  const move = data.moves[slot?.action.move ?? currentPattern(enemy)[enemy.patternIndex % currentPattern(enemy).length]];
+  return { ...describeMove(combat, enemy, move), hidden: slot ? isHidden(combat, move, slot.end, false) : false };
 }
 
 // ---------- Для старого экрана боя (до этапа 3) и тестового режима ----------

@@ -391,3 +391,24 @@
 
 .card__joint--left { left: -0.7em; }
 .card__joint--right { right: -0.7em; }
+
+/* Скрытый ход врага: «?» до раскрытия */
+.lane-chip--hidden {
+  background: repeating-linear-gradient(135deg, #3a2a44 0 6px, #2a1e33 6px 12px);
+  font-size: 14px;
+}
+
+/* Замороженная клетка дорожки героя */
+.lane-frozen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  background: rgba(140, 200, 255, 0.25);
+  color: #cdeeff;
+  font-size: 16px;
+  pointer-events: none;
+}

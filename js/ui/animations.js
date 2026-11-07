@@ -321,6 +321,9 @@ function showEvent(event, before) {
   } else if (event.type === "repair") {
     showNumber(target.rect, `🔧−${event.amount}`, "number--block");
     playSound("gem"); // временный звук Починки
+  } else if (event.type === "phase") {
+    showNumber(target.rect, TEXTS.timeline.phase, "number--status");
+    playSound("enemyCast");
   } else if (event.type === "stunned") {
     showNumber(target.rect, "💫", "number--status");
     playSound("stone");

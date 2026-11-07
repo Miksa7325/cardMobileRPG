@@ -203,14 +203,13 @@ describe("новые статусы", () => {
   });
   it("Замедление героя посреди розыгрыша сдвигает его карты, вылезшие возвращаются в руку", () => {
     const combat = fight({ enemyIds: ["spider"] });
-    setLane(combat.enemies[0], ["web"]); // клетки 1–2: Слабость 2 и Замедление 2 герою
+    setLane(combat.enemies[0], ["web"]); // клетка 1: Слабость 1 и Замедление 1 герою
     const uids = [0, 1, 2, 3].map((index) => uidAt(combat, index));
     uids.forEach((uid, index) => placeCard(combat, uid, 3 + index, firstEnemy(combat)));
     launch(combat);
-    // Удары в 3 и 4 стали весом 2: клетки 3–4 и 5–6. Два последних не влезли
+    // Удар в клетке 3 стал весом 2 (клетки 3–4), остальные сдвинулись в 5 и 6, последний не влез
     const played = combat.events.filter((event) => event.type === "cardPlayed");
-    expect(played.map((event) => event.cell)).toEqual([4, 6]);
-    expect(combat.piles.hand.some((card) => card.uid === uids[2])).toBe(true);
+    expect(played.map((event) => event.cell)).toEqual([4, 5, 6]);
     expect(combat.piles.hand.some((card) => card.uid === uids[3])).toBe(true);
   });
   it("Ускорение героя: карта весит на 1 меньше", () => {

@@ -258,6 +258,12 @@ function getTargets(combat: Combat, effect: { target?: string }, context: Effect
   return context.targets.filter((target) => target.hp > 0);
 }
 
+// Призыв помощника умеет только бой (engine/combat.ts): он передаёт сюда свою функцию при загрузке
+let summonEnemy: (combat: Combat, enemyId: string) => void = () => {};
+export function setSummonHandler(handler: (combat: Combat, enemyId: string) => void): void {
+  summonEnemy = handler;
+}
+
 // Из чего сложился урон: для журнала расчёта в тестовом режиме
 export interface DamageBreakdown {
   base: number;
@@ -271,7 +277,7 @@ export interface DamageBreakdown {
 // Урон сначала снимает блок, остаток — HP
 function dealDamage(
   combat: Combat, source: HeroUnit | EnemyUnit, target: HeroUnit | EnemyUnit, damage: number, breakdown?: DamageBreakdown,
-): void {
+): number {
   const absorbed = absorbBlock(target, damage);
   const hpLost = damage - absorbed;
   if (target !== combat.hero) addTally(combat, "damageDealt", Math.min(target.hp, hpLost));
@@ -289,6 +295,7 @@ function dealDamage(
   });
   if (target === combat.hero && hpLost > 0) fireTrigger(combat, "onDamageTaken");
   notifyIfEnemyDied(combat, target);
+  return Math.min(hpLost, target.hp + hpLost);
 }
 
 // Обработчик эффекта одного вида: получает эффект именно этого вида
@@ -310,7 +317,14 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
         reduction: (target as HeroUnit).damageReduction ?? 0,
         fixed: Boolean(effect.fixed),
       };
-      dealDamage(combat, context.source, target, amount, breakdown);
+      const hpLost = dealDamage(combat, context.source, target, amount, breakdown);
+      // Вампиризм: бьющий лечится на долю урона, снятого с HP
+      if (effect.lifesteal && hpLost > 0) {
+        const source = context.source;
+        const before = source.hp;
+        source.hp = Math.min(source.maxHp, source.hp + Math.floor(hpLost * effect.lifesteal));
+        if (source.hp > before) recordEvent(combat, { type: "heal", targetId: unitId(combat, source), amount: source.hp - before, hp: source.hp, block: source.block });
+      }
     }
   },
   block(combat, effect, context) {
@@ -402,6 +416,13 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
       const stacks = target.statuses[effect.status];
       if (stacks) target.statuses[effect.status] = stacks * effect.factor;
     }
+  },
+  // Враг зовёт помощника: если живых помощников этого вида меньше max (по умолчанию 1) и есть место
+  summon(combat, effect) {
+    const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
+    const helpers = alive.filter((enemy) => enemy.enemyId === effect.enemyId).length;
+    if (helpers >= (effect.max ?? 1) || alive.length >= CONFIG.maxEnemiesInCombat) return;
+    summonEnemy(combat, effect.enemyId);
   },
   // Сжигает все Раны и другие карты, которые нельзя разыграть, из руки
   exhaustWounds(combat) {

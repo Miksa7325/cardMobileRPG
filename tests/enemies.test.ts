@@ -1,0 +1,77 @@
+// Автотесты приёмов врагов: Сокрушение и Починка, фазы боссов, призыв, вампиризм, скрытые ходы, замороженная клетка.
+// Запуск: npm test
+import { describe, expect, it } from "vitest";
+import { createCombat, getEnemyLane, launch, placeCard } from "../js/engine/combat.ts";
+import { executeEffects } from "../js/engine/effects.ts";
+import { deckOf, quiet, setLane } from "./helpers.ts";
+
+const fightWith = (enemyId: string) => createCombat({ heroId: "mage", enemyIds: [enemyId], seed: 3, deck: deckOf("m_barrier") });
+
+describe("Сокрушение и Починка у врагов", () => {
+  it("удар Падшего рыцаря ломает броню героя до урона: 13 × 1.2 = 15", () => {
+    const combat = fightWith("fallen_knight");
+    setLane(combat.enemies[0], ["slam"]);
+    const hp = combat.hero.hp;
+    launch(combat);
+    expect(combat.hero.statuses.vulnerable).toBe(2);
+    expect(combat.hero.hp).toBe(hp - 15);
+  });
+  it("защита Скелета чинит его доспех", () => {
+    const combat = fightWith("skeleton");
+    const skeleton = combat.enemies[0];
+    skeleton.statuses.vulnerable = 3;
+    setLane(skeleton, ["guard"]);
+    launch(combat);
+    expect(skeleton.statuses.vulnerable).toBe(2);
+  });
+});
+
+describe("фазы боссов", () => {
+  it("Хранитель склепа на половине HP зовёт Скелета и меняет ходы", () => {
+    const combat = fightWith("crypt_warden");
+    quiet(combat);
+    const warden = combat.enemies[0];
+    executeEffects(combat, [{ type: "damage", amount: 80, fixed: true }], { source: combat.hero, targets: [warden], fromCard: true });
+    launch(combat); // фаза проверяется во время розыгрыша
+    expect(warden.phase).toBe(1);
+    expect(combat.enemies.map((enemy) => enemy.enemyId)).toContain("skeleton");
+    expect(warden.lane.every((action) => ["flurry", "scythe", "call"].includes(action.move))).toBe(true);
+  });
+  it("второй Скелет не призывается, пока первый жив", () => {
+    const combat = fightWith("crypt_warden");
+    const warden = combat.enemies[0];
+    warden.phase = 1;
+    executeEffects(combat, [{ type: "summon", enemyId: "skeleton" }], { source: warden, targets: [], fromCard: false });
+    executeEffects(combat, [{ type: "summon", enemyId: "skeleton" }], { source: warden, targets: [], fromCard: false });
+    expect(combat.enemies.filter((enemy) => enemy.enemyId === "skeleton")).toHaveLength(1);
+  });
+});
+
+describe("Лорд вампиров", () => {
+  it("скрытый ход виден как «?», пока до него больше 2 клеток", () => {
+    const combat = fightWith("vampire_lord");
+    setLane(combat.enemies[0], ["drain", "bite"]); // иссушение 1–2, укус 3–5
+    const lane = getEnemyLane(combat, combat.enemies[0]);
+    expect(lane.map((entry) => entry.hidden)).toEqual([false, true]);
+  });
+  it("во второй фазе укус лечит его на половину урона по HP", () => {
+    const combat = fightWith("vampire_lord");
+    const lord = combat.enemies[0];
+    lord.phase = 1;
+    lord.hp = 100;
+    setLane(lord, ["thirstBite"]);
+    combat.hero.block = 0;
+    combat.hero.blocks = [];
+    launch(combat);
+    expect(lord.hp).toBe(108); // 16 урона по HP → +8
+  });
+});
+
+describe("Король-лич", () => {
+  it("в начале хода замораживает клетку дорожки героя: туда не поставить", () => {
+    const combat = fightWith("lich_king");
+    expect(combat.frozenCells).toHaveLength(1);
+    const cell = combat.frozenCells[0];
+    expect(placeCard(combat, combat.piles.hand[0].uid, cell)).toEqual({ ok: false, reason: "frozen" });
+  });
+});

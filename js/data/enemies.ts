@@ -2,29 +2,63 @@
 import type { Effect, EnemyData, EnemyMove, Statuses } from "../types.ts";
 
 // Короткие записи для одинаковых ходов. Числа врагов меняй прямо в таблице ниже.
-// Стартовые веса ходов (клеток шкалы): атака 3, защита, усиление и ослабление 2. Точные подберём на этапе 5
-const attack = (damage: number, hits = 1): EnemyMove => ({
+// options у каждого хода: w — вес (сколько клеток шкалы он занимает), sunder — Сокрушение N (Уязвимость герою до удара),
+// repair — Починка N (враг снимает с себя Уязвимость), lifesteal — вампиризм (доля урона по HP, на которую враг лечится),
+// hidden — скрытый ход: виден как «?», пока до срабатывания больше 2 клеток.
+// Если w не указан: атака 3, защита, усиление и ослабление 2 (так было на этапе 2; у врагов из актов 2–10 уточним на этапе 6)
+interface MoveOptions {
+  w?: number;
+  sunder?: number;
+  repair?: number;
+  lifesteal?: number;
+  hidden?: boolean;
+}
+
+const extras = ({ sunder = 0, repair = 0 }: MoveOptions): Effect[] => [
+  ...(sunder > 0 ? [{ type: "sunder", amount: sunder } as Effect] : []),
+  ...(repair > 0 ? [{ type: "repair", amount: repair } as Effect] : []),
+];
+
+const attack = (damage: number, hits = 1, options: MoveOptions = {}): EnemyMove => ({
   intent: "attack",
-  weight: 3,
-  effects: Array.from({ length: hits }, () => ({ type: "damage", amount: damage })),
+  weight: options.w ?? 3,
+  hidden: options.hidden,
+  effects: [
+    ...Array.from({ length: hits }, (): Effect => ({ type: "damage", amount: damage, ...(options.lifesteal ? { lifesteal: options.lifesteal } : {}) })),
+    ...extras(options),
+  ],
 });
-const guard = (block: number): EnemyMove => ({ intent: "defend", weight: 2, effects: [{ type: "block", amount: block, target: "self" }] });
-const buff = (strength: number, block = 0): EnemyMove => ({
+const guard = (block: number, options: MoveOptions = {}): EnemyMove => ({
+  intent: "defend",
+  weight: options.w ?? 2,
+  hidden: options.hidden,
+  effects: [{ type: "block", amount: block, target: "self" }, ...extras(options)],
+});
+const buff = (strength: number, block = 0, options: MoveOptions = {}): EnemyMove => ({
   intent: "buff",
-  weight: 2,
+  weight: options.w ?? 2,
+  hidden: options.hidden,
   effects: [
     { type: "applyStatus", status: "strength", amount: strength, target: "self" },
     ...(block > 0 ? [{ type: "block", amount: block, target: "self" } as Effect] : []),
+    ...extras(options),
   ],
 });
 // statuses: { weak: 2, poison: 1 }; wounds — сколько Ран добавить в сброс героя
-const debuff = (statuses: Statuses, wounds = 0): EnemyMove => ({
+const debuff = (statuses: Statuses, wounds = 0, options: MoveOptions = {}): EnemyMove => ({
   intent: "debuff",
-  weight: 2,
+  weight: options.w ?? 2,
+  hidden: options.hidden,
   effects: [
     ...(Object.entries(statuses) as [keyof Statuses, number][]).map(([status, amount]): Effect => ({ type: "applyStatus", status, amount })),
     ...Array.from({ length: wounds }, (): Effect => ({ type: "addCard", cardId: "wound", pile: "discard" })),
   ],
+});
+// Призыв помощника (если живых помощников этого вида нет)
+const summon = (enemyId: string, options: MoveOptions = {}): EnemyMove => ({
+  intent: "buff",
+  weight: options.w ?? 2,
+  effects: [{ type: "summon", enemyId }],
 });
 
 export const ENEMIES: Record<string, EnemyData> = {
@@ -33,21 +67,24 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "cultist",
     name: "Культист",
     hp: [48, 54],
-    moves: { ritual: buff(3), slash: attack(6) },
+    // За ход успевает три действия: копит Силу и быстро режет
+    moves: { ritual: buff(3, 0, { w: 2 }), slash: attack(6, 1, { w: 2 }) },
     pattern: ["ritual", "slash", "slash"],
   },
   skeleton: {
     id: "skeleton",
     name: "Скелет",
     hp: [36, 42],
-    moves: { hack: attack(9), guard: guard(9), flurry: attack(4, 2) },
+    // Чинит доспех защитой: ломать броню стоит после его защиты
+    moves: { hack: attack(9, 1, { w: 3 }), guard: guard(9, { w: 2, repair: 1 }), flurry: attack(4, 2, { w: 2 }) },
     pattern: ["hack", "guard", "flurry"],
   },
   spider: {
     id: "spider",
     name: "Паук",
     hp: [18, 24],
-    moves: { bite: attack(5), venom: debuff({ poison: 3 }), web: debuff({ weak: 2, slow: 2 }) },
+    // Быстрый: 4–6 лёгких ходов за шкалу. Против него нужен ранний блок
+    moves: { bite: attack(4, 1, { w: 1 }), venom: debuff({ poison: 2 }, 0, { w: 1 }), web: debuff({ weak: 1, slow: 1 }, 0, { w: 1 }) },
     pattern: ["bite", "venom", "web"],
   },
 
@@ -56,14 +93,21 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "fallen_knight",
     name: "Падший рыцарь",
     hp: [72, 78],
-    moves: { curse: debuff({ vulnerable: 2 }, 1), slam: attack(13), combo: attack(6, 2), fortify: buff(2, 8) },
+    // Ломает броню героя и чинит свою
+    moves: {
+      curse: debuff({ vulnerable: 2 }, 1, { w: 2 }),
+      slam: attack(13, 1, { w: 3, sunder: 2 }),
+      combo: attack(6, 2, { w: 3 }),
+      fortify: buff(2, 8, { w: 2, repair: 2 }),
+    },
     pattern: ["curse", "slam", "combo", "fortify"],
   },
   grave_hound: {
     id: "grave_hound",
     name: "Могильный пёс",
     hp: [62, 68],
-    moves: { maul: attack(5, 3), howl: buff(3), rend: attack(15) },
+    // Медленный тяжёлый рывок в конце шкалы: есть время закрыться
+    moves: { maul: attack(4, 3, { w: 2 }), howl: buff(3, 0, { w: 1 }), rend: attack(15, 1, { w: 4, sunder: 2 }) },
     pattern: ["maul", "howl", "rend"],
   },
 
@@ -72,8 +116,16 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "crypt_warden",
     name: "Хранитель склепа",
     hp: [150, 150],
-    moves: { hex: debuff({ weak: 2, slow: 2 }, 1), scythe: attack(15), flurry: attack(5, 3), fortify: buff(2, 12) },
-    pattern: ["hex", "scythe", "flurry", "fortify"],
+    moves: {
+      hex: debuff({ weak: 2, slow: 1 }, 1, { w: 2 }),
+      scythe: attack(15, 1, { w: 3, sunder: 1 }),
+      fortify: buff(2, 12, { w: 2, repair: 2 }),
+      flurry: attack(5, 3, { w: 2 }),
+      call: summon("skeleton", { w: 2 }),
+    },
+    pattern: ["hex", "scythe", "fortify"],
+    // На половине HP «Склеп пробуждается»: зовёт Скелета и ходит быстрее
+    phases: [{ below: 0.5, pattern: ["flurry", "scythe", "call"], onEnter: [{ type: "summon", enemyId: "skeleton" }] }],
   },
 
   // Акт 2: обычные
@@ -116,7 +168,8 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "rat_swarm",
     name: "Стая крыс",
     hp: [21, 24],
-    moves: { gnaw: attack(2, 3), plague: debuff({ poison: 3 }) },
+    // Самый быстрый враг: 6 ходов за шкалу. Кровотечение по ней бьёт при каждом ходе
+    moves: { gnaw: attack(2, 2, { w: 1 }), plague: debuff({ poison: 2 }, 0, { w: 1 }) },
     pattern: ["gnaw", "gnaw", "plague"],
   },
 
@@ -141,8 +194,18 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "vampire_lord",
     name: "Лорд вампиров",
     hp: [204, 204],
-    moves: { drain: debuff({ weak: 2, vulnerable: 2 }, 1), bite: attack(16), swarm: attack(5, 4), feast: buff(3, 18) },
+    // Приём — скрытые ходы: видны как «?» и раскрываются за 2 клетки до срабатывания
+    moves: {
+      drain: debuff({ weak: 2, vulnerable: 2 }, 1, { w: 2 }),
+      bite: attack(16, 1, { w: 3, hidden: true }),
+      swarm: attack(5, 4, { w: 3, hidden: true }),
+      feast: buff(3, 18, { w: 2 }),
+      thirstBite: attack(16, 1, { w: 3, hidden: true, lifesteal: 0.5 }),
+      thirstSwarm: attack(5, 4, { w: 3, hidden: true, lifesteal: 0.5 }),
+    },
     pattern: ["drain", "bite", "swarm", "feast"],
+    // На половине HP «Жажда»: укусы лечат его на половину урона по HP
+    phases: [{ below: 0.5, pattern: ["thirstBite", "thirstSwarm", "feast"] }],
   },
 
   // Акт 3: обычные
@@ -194,7 +257,13 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "death_knight",
     name: "Рыцарь смерти",
     hp: [128, 139],
-    moves: { cleave: attack(19), dread: debuff({ vulnerable: 2, slow: 2 }, 1), combo: attack(8, 3), oath: buff(3, 22) },
+    // Медленный и тяжёлый, чинится
+    moves: {
+      cleave: attack(19, 1, { w: 4, sunder: 2 }),
+      dread: debuff({ vulnerable: 2, slow: 1 }, 1, { w: 2 }),
+      combo: attack(8, 3, { w: 3 }),
+      oath: buff(3, 22, { w: 2, repair: 3 }),
+    },
     pattern: ["dread", "cleave", "combo", "oath"],
   },
   demon: {
@@ -210,13 +279,18 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "lich_king",
     name: "Король-лич",
     hp: [272, 272],
+    // Приём — ледяная печать: в начале каждого хода замораживает клетку дорожки героя
+    freezeCell: true,
     moves: {
-      doom: debuff({ vulnerable: 2, weak: 2, slow: 2 }, 2),
-      soulfire: attack(20),
-      barrage: attack(6, 4),
-      phylactery: buff(4, 26),
-      plague: debuff({ poison: 12 }),
+      doom: debuff({ vulnerable: 2, weak: 2, slow: 1 }, 2, { w: 2 }),
+      soulfire: attack(20, 1, { w: 3, sunder: 2 }),
+      barrage: attack(6, 4, { w: 3 }),
+      phylactery: buff(4, 26, { w: 2, repair: 3 }),
+      plague: debuff({ poison: 6 }, 0, { w: 2 }),
+      howl: debuff({ stun: 1 }, 0, { w: 2 }),
     },
     pattern: ["doom", "soulfire", "barrage", "plague", "phylactery"],
+    // На половине HP «Вечная зима»: добавляет оглушающий вой
+    phases: [{ below: 0.5, pattern: ["howl", "soulfire", "barrage", "phylactery"] }],
   },
 };

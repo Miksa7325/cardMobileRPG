@@ -72,6 +72,13 @@ function createEnemyTrack(combat: Combat, enemy: EnemyUnit, preview: Map<string,
     const end = Math.min(entry.end, CELLS);
     place(chip, entry.start, end - entry.start + 1);
     if (entry.end > CELLS) chip.classList.add("lane-chip--overflow");
+    // Скрытый ход: «?», пока до него больше 2 клеток
+    if (entry.hidden) {
+      chip.className = "lane-chip lane-chip--enemy lane-chip--hidden";
+      chip.append(el("span", "lane-chip__value", "?"));
+      track.append(chip);
+      return;
+    }
     const predicted = preview.get(`enemy:${enemy.instanceId}:${index}`);
     let value = "";
     if (entry.intent === "attack") value = `${predicted?.damage ?? entry.damage}${entry.hits > 1 ? ` (${entry.hits})` : ""}`;
@@ -84,6 +91,12 @@ function createEnemyTrack(combat: Combat, enemy: EnemyUnit, preview: Map<string,
 
 function createHeroTrack(combat: Combat, preview: Map<string, ActionPreview>, handlers: TimelineHandlers): HTMLElement {
   const track = createTrack("hero");
+  // Замороженные клетки (приём Короля-лича): в них нельзя ставить
+  for (const cell of combat.frozenCells) {
+    const ice: HTMLElement = el("div", "lane-frozen", "❄");
+    place(ice, cell, 1);
+    track.append(ice);
+  }
   const slots = heroSchedule(combat).lane;
   for (const item of combat.lane) {
     const slot = slots.get(item.id)!;
