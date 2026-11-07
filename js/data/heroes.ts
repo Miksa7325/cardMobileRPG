@@ -98,7 +98,7 @@ export const HEROES: Record<HeroId, HeroData> = {
     },
     deck: [
       "al_toss", "al_toss", "al_toss", "al_toss",
-      "al_guard", "al_guard", "al_guard", "al_guard",
+      "al_guard", "al_guard", "al_guard", "al_resin",
       "al_brew", "al_catalyst",
     ],
     relics: ["field_cauldron"],

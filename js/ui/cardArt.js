@@ -331,6 +331,11 @@ const BORROWED_ART = {
   m_channel: "m_mana_tap", m_arcane_bolt: "m_arcane_blast", m_frost_wall: "m_frost_nova", m_kindle: "m_ignite", m_spark_chain: "m_missiles",
   m_mirror: "m_arcane_veil", m_heat: "m_flame_wave", m_frozen_spike: "m_ice_shards", m_split: "m_thunderclap", m_firewall: "m_pyroblast",
   m_time_skip: "m_time_warp", m_ice_prison: "m_absolute_zero",
+  al_resin: "al_guard", al_sticky: "al_smoke", al_glass_shards: "al_bomb", al_acid_splash: "al_acid", al_reagent_kit: "al_pouch",
+  al_flash: "al_spark", al_mortar: "al_catalyst", al_antidote: "al_tincture", al_glass_armor: "al_flask_wall", al_hot_flask: "al_firebomb",
+  al_spray: "al_fumes", al_deft: "al_distill", al_haste_elixir: "al_strength_elixir", al_acid_bath: "al_corrosion", al_explosive: "al_mixture",
+  al_reactive_armor: "al_stoneskin", al_distillery: "al_lab", al_volatile_mix: "al_volatile", al_brew_master: "al_brew", al_panacea: "al_philosopher",
+  al_grand_catalysis: "al_fermentation",
 };
 for (const [id, source] of Object.entries(BORROWED_ART)) {
   CARD_ART[id] = CARD_ART[source];

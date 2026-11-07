@@ -1,45 +1,96 @@
-// Карты Алхимика: варка зелий прямо в бою и Реагенты.
-// Сваренное зелье даёт 1 Реагент, выпитое — 2. Смеси «Реагенты N» тратят их, катализаторы растут от них.
+// Карты Алхимика: варит зелья с выбором (из двух случайных — одно) и пьёт их в нужную клетку: его зелья весят 0.
+// Реагенты: +1 за сваренное зелье, +2 за выпитое. Смеси их тратят, катализаторы растут от них.
+// Стихии: Горение, кислота (Сокрушение), немного Яда. Таблица «было → стало» — в docs/cards/alchemist.md
 import {
-  block, brew, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, gainResource, grow, heal, hits, selfStatus, spend, status, triggerPower,
+  allStatus, block, brew, burn, card, chained, damage, draw, energy, gainResource, grow, heal, hits, repair, selfStatus, spend, status, sunder,
+  triggerPower,
 } from "./cardHelpers.ts";
 import type { CardData } from "../types.ts";
 
+const burning = (amount: number) => status("burning", amount);
+
 export const ALCHEMIST_CARDS: CardData[] = [
-  // Стартовые
+  // ---------- Стартовые ----------
   card("al_toss", "Бросок склянки", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
-  card("al_guard", "Стеклянный щит", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)], { effects: [block(8)] }),
-  card("al_brew", "Варка зелья", "skill", "starter", 1, "self", "Сварить зелье.", [brew(1)], { cost: 0 }),
-  card("al_catalyst", "Катализатор", "attack", "starter", 1, "enemy", "Нанести {damage} урона, +1 за каждый Реагент.", [grow(damage(4), "reagents", 1)], { effects: [grow(damage(6), "reagents", 2)] }),
+  card("al_guard", "Стеклянный щит", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)],
+    { effects: [block(8), repair(1)], description: "Получить {block} блока. Починка {repair}." }),
+  card("al_brew", "Варка зелья", "skill", "starter", 1, "self", "Сварить зелье: из двух на выбор.", [brew(1)], { cost: 0 }),
+  card("al_catalyst", "Катализатор", "attack", "starter", 1, "enemy", "Нанести {damage} урона: +1 за каждый Реагент.", [grow(damage(4), "reagents", 1)],
+    { effects: [grow(damage(6), "reagents", 2)], description: "Нанести {damage} урона: +2 за каждый Реагент." }),
+  card("al_resin", "Смола", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(4), repair(2)], { effects: [block(6), repair(3)] }),
 
-  // Обычные
-  card("al_acid", "Кислота", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {vulnerable} Уязвимости.", [damage(5), status("vulnerable", 1)], { effects: [damage(7), status("vulnerable", 2)] }),
+  // ---------- Обычные ----------
+  card("al_acid", "Кислота", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(5)], { effects: [sunder(2), damage(7)] }),
   card("al_bomb", "Бомба", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(5)], { effects: [damage(7)] }),
-  card("al_spark", "Вспышка пороха", "attack", "common", 0, "enemy", "Нанести {damage} урона. Взять {draw} карту.", [damage(3), draw(1)], { effects: [damage(5), draw(1)] }),
-  card("al_fumes", "Едкий дым", "skill", "common", 1, "allEnemies", "Наложить {poison} Яда и {weak} Слабости всем.", [status("poison", 3), status("weak", 1)], { effects: [status("poison", 4), status("weak", 2)] }),
-  card("al_flask_wall", "Стена колб", "skill", "common", 1, "self", "Получить {block} блока, +1 за каждый Реагент.", [grow(block(5), "reagents", 1)], { effects: [grow(block(7), "reagents", 2)] }),
-  card("al_quick_brew", "Быстрая варка", "skill", "common", 1, "self", "Сварить зелье. Сжечь.", [brew(1), burn], { cost: 0 }),
-  card("al_distill", "Перегонка", "skill", "common", 1, "self", "Получить {reagents} Реагента. Взять {draw} карту.", [gainResource("reagents", 3), draw(1)], { effects: [gainResource("reagents", 4), draw(1)] }),
+  card("al_spark", "Вспышка пороха", "attack", "common", 0, "enemy", "Нанести {damage} урона. Получить {reagents} Реагент.", [damage(3), gainResource("reagents", 1)],
+    { effects: [damage(5), gainResource("reagents", 1)] }),
+  card("al_fumes", "Едкий дым", "skill", "common", 1, "allEnemies", "Наложить {poison} Яда и {weak} Слабость всем врагам.", [status("poison", 2), status("weak", 1)],
+    { effects: [status("poison", 3), status("weak", 2)], description: "Наложить {poison} Яда и {weak} Слабости всем врагам." }),
+  card("al_flask_wall", "Стена колб", "skill", "common", 1, "self", "Получить {block} блока: +1 за каждый Реагент.", [grow(block(5), "reagents", 1)],
+    { effects: [grow(block(7), "reagents", 2)], description: "Получить {block} блока: +2 за каждый Реагент." }),
+  card("al_quick_brew", "Быстрая варка", "skill", "common", 1, "self", "Сварить зелье: из двух на выбор. Сжечь.", [brew(1), burn], { cost: 0 }),
+  card("al_distill", "Перегонка", "skill", "common", 1, "self", "Получить {reagents} Реагента. Взять {draw} карту.", [gainResource("reagents", 3), draw(1)],
+    { effects: [gainResource("reagents", 4), draw(1)] }),
   card("al_tincture", "Настойка", "skill", "common", 1, "self", "Вылечить {heal} HP. Сжечь.", [heal(6), burn], { effects: [heal(9), burn] }),
-  card("al_caustic", "Едкая склянка", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(4), status("poison", 3)], { effects: [damage(6), status("poison", 4)] }),
-  card("al_firebomb", "Зажигательная смесь", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем. Наложить {burning} Горения всем.", [damage(3), status("burning", 2)], { effects: [damage(4), status("burning", 3)] }),
-  card("al_smoke", "Дымовая шашка", "skill", "common", 1, "allEnemies", "Получить {block} блока. Наложить {weak} Слабости всем.", [block(5), status("weak", 1)], { effects: [block(7), status("weak", 2)] }),
+  card("al_caustic", "Едкая склянка", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(4), status("poison", 2)], { effects: [damage(6), status("poison", 3)] }),
+  card("al_firebomb", "Зажигательная смесь", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем. Наложить {burning} Горения всем.",
+    [damage(3), burning(2)], { effects: [damage(4), burning(3)] }),
+  card("al_smoke", "Дымовая шашка", "skill", "common", 1, "allEnemies", "Получить {block} блока. Наложить {weak} Слабость всем врагам.", [block(5), status("weak", 1)],
+    { effects: [block(7), status("weak", 2)], description: "Получить {block} блока. Наложить {weak} Слабости всем врагам." }),
   card("al_pouch", "Мешочек реагентов", "skill", "common", 0, "self", "Получить {reagents} Реагента.", [gainResource("reagents", 2)], { effects: [gainResource("reagents", 3)] }),
+  card("al_sticky", "Липкая смола", "skill", "common", 1, "enemy", "Получить {block} блока. Наложить {slow} Замедление.", [block(4), status("slow", 1)], { effects: [block(6), status("slow", 1)] }),
+  card("al_glass_shards", "Осколки стекла", "attack", "common", 1, "enemy", "Нанести {damage} урона дважды. Наложить {bleed} Кровотечение.",
+    [...hits(3, 2), status("bleed", 1)], { effects: [...hits(4, 2), status("bleed", 2)], description: "Нанести {damage} урона дважды. Наложить {bleed} Кровотечения." }),
+  card("al_acid_splash", "Брызги кислоты", "attack", "common", 1, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам.",
+    [{ ...sunder(1), target: "allEnemies" }, damage(2)], { effects: [{ ...sunder(1), target: "allEnemies" }, damage(4)] }),
+  card("al_reagent_kit", "Набор реагентов", "skill", "common", 1, "self", "Получить {reagents} Реагента. Взять {draw} карту.", [gainResource("reagents", 2), draw(1)],
+    { effects: [gainResource("reagents", 3), draw(1)] }),
+  card("al_flash", "Вспышка", "skill", "common", 0, "enemy", "Наложить {weak} Слабость. Сжечь.", [status("weak", 1), burn],
+    { effects: [status("weak", 2), burn], description: "Наложить {weak} Слабости. Сжечь." }),
+  chained(card("al_mortar", "Ступка", "attack", "common", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона, +1 за каждый Реагент.",
+    [damage(9)], { effects: [damage(12)] }), "final", [grow(damage(4), "reagents", 1)], [grow(damage(5), "reagents", 1)]),
+  card("al_antidote", "Противоядие", "skill", "common", 1, "self", "Починка {repair}. Вылечить {heal} HP.", [repair(2), heal(3)], { effects: [repair(3), heal(4)] }),
+  card("al_glass_armor", "Закалённое стекло", "skill", "common", 2, "self", "Получить {block} блока. Починка {repair}.", [block(11), repair(1)], { effects: [block(15), repair(2)] }),
+  card("al_hot_flask", "Горячая колба", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(5), burning(2)], { effects: [damage(7), burning(3)] }),
+  card("al_spray", "Распыление", "skill", "common", 1, "allEnemies", "Наложить {poison} Яд и {burning} Горения всем врагам.", [allStatus("poison", 1), allStatus("burning", 2)],
+    { effects: [allStatus("poison", 1), allStatus("burning", 3)] }),
+  chained(card("al_deft", "Проворство", "skill", "common", 1, "self", "Взять {draw} карту. После навыка: получить {reagents} Реагента.",
+    [draw(1)], { effects: [draw(1)] }), "afterSkill", [gainResource("reagents", 2)], [gainResource("reagents", 3)]),
 
-  // Необычные
-  card("al_mixture", "Гремучая смесь", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем. Реагенты 4: ещё 2 раза по {damage}.", [damage(6), spend("reagents", 4, hits(8, 2))], { effects: [damage(8), spend("reagents", 4, hits(10, 2))] }),
-  card("al_double_brew", "Двойная варка", "skill", "uncommon", 2, "self", "Сварить 2 зелья. Сжечь.", [brew(2), burn], { cost: 1 }),
-  card("al_transmute", "Трансмутация", "skill", "uncommon", 0, "self", "Реагенты 4: получить {energy} энергии.", [spend("reagents", 4, [energy(2)])], { effects: [spend("reagents", 3, [energy(2)])], description: "Реагенты 3: получить {energy} энергии." }),
-  card("al_stoneskin", "Каменная кожа", "skill", "uncommon", 2, "self", "Получить {block} блока. Реагенты 5: ещё {block} блока.", [block(8), spend("reagents", 5, [block(16)])], { effects: [block(10), spend("reagents", 5, [block(20)])] }),
-  cheaperPower("al_lab", "Походная лаборатория", "uncommon", 3, "В начале хода сварить зелье.", "onTactStart", [brew(1)], 2),
-  card("al_volatile", "Нестабильный раствор", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Реагенты 2: ещё {damage} урона.", [damage(7), spend("reagents", 2, [damage(7)])], { effects: [damage(9), spend("reagents", 2, [damage(9)])] }),
-  card("al_corrosion", "Коррозия", "skill", "uncommon", 1, "enemy", "Наложить {vulnerable} Уязвимости и {poison} Яда.", [status("vulnerable", 2), status("poison", 3)], { effects: [status("vulnerable", 3), status("poison", 4)] }),
-  card("al_strength_elixir", "Эликсир силы", "skill", "uncommon", 1, "self", "Реагенты 4: получить {strength} Силы. Сжечь.", [spend("reagents", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("reagents", 4, [selfStatus("strength", 3)]), burn] }),
-  triggerPower("al_fermentation", "Брожение", "uncommon", 1, "В начале хода Реагенты +{reagents}.", "onTactStart", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
+  // ---------- Необычные ----------
+  card("al_mixture", "Гремучая смесь", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем. Реагенты 4: ещё 2 удара по {damage} всем.",
+    [damage(6), spend("reagents", 4, hits(8, 2))], { effects: [damage(8), spend("reagents", 4, hits(10, 2))] }),
+  card("al_double_brew", "Двойная варка", "skill", "uncommon", 2, "self", "Сварить 2 зелья: каждое из двух на выбор. Сжечь.", [brew(2), burn], { cost: 1 }),
+  card("al_transmute", "Трансмутация", "skill", "uncommon", 0, "self", "Реагенты 4: +{energy} вместимости в этом ходу.", [spend("reagents", 4, [energy(2)])],
+    { effects: [spend("reagents", 3, [energy(2)])], description: "Реагенты 3: +{energy} вместимости в этом ходу." }),
+  card("al_stoneskin", "Каменная кожа", "skill", "uncommon", 2, "self", "Получить {block} блока. Реагенты 5: ещё {block} блока.",
+    [block(8), spend("reagents", 5, [block(16)])], { effects: [block(10), spend("reagents", 5, [block(20)])] }),
+  card("al_lab", "Походная лаборатория", "power", "uncommon", 3, "self", "В начале такта сварить случайное зелье.", [], { cost: 2 }, { trigger: "onTactStart", effects: [brew(1)] }),
+  card("al_volatile", "Нестабильный раствор", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Реагенты 2: ещё {damage} урона.",
+    [damage(7), spend("reagents", 2, [damage(7)])], { effects: [damage(9), spend("reagents", 2, [damage(9)])] }),
+  card("al_corrosion", "Коррозия", "skill", "uncommon", 1, "enemy", "Сокрушение {sunder}. Наложить {poison} Яда.", [sunder(2), status("poison", 2)], { effects: [sunder(3), status("poison", 3)] }),
+  card("al_strength_elixir", "Эликсир силы", "skill", "uncommon", 1, "self", "Реагенты 4: получить {strength} Силы. Сжечь.",
+    [spend("reagents", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("reagents", 4, [selfStatus("strength", 3)]), burn] }),
+  triggerPower("al_fermentation", "Брожение", "uncommon", 1, "В начале такта +{reagents} Реагент.", "onTactStart", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
+  card("al_haste_elixir", "Эликсир скорости", "skill", "uncommon", 1, "self", "Получить {haste} Ускорение. Реагенты 3: ещё {haste} Ускорения.",
+    [selfStatus("haste", 1), spend("reagents", 3, [selfStatus("haste", 2)])], { effects: [selfStatus("haste", 2), spend("reagents", 3, [selfStatus("haste", 2)])], description: "Получить {haste} Ускорения. Реагенты 3: ещё {haste} Ускорения." }),
+  card("al_acid_bath", "Кислотная ванна", "skill", "uncommon", 2, "enemy", "Сокрушение {sunder}.", [sunder(3)], { effects: [sunder(4)] }),
+  chained(card("al_explosive", "Взрывчатка", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем врагам. Финал: ещё {damage} урона всем.",
+    [damage(12)], { effects: [damage(16)] }), "final", [damage(6)], [damage(8)]),
+  triggerPower("al_reactive_armor", "Реактивная броня", "uncommon", 1, "Когда выпито зелье, {block} блока.", "onPotionUsed", [block(4)], [block(6)]),
+  triggerPower("al_distillery", "Перегонный куб", "uncommon", 2, "Когда сварено зелье, Починка {repair}.", "onPotionBrewed", [repair(1)], [repair(2)]),
+  chained(card("al_volatile_mix", "Летучая смесь", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения. После навыка: ещё {burning} Горения.",
+    [damage(6), burning(2)], { effects: [damage(8), burning(3)] }), "afterSkill", [burning(3)], [burning(4)]),
+  card("al_brew_master", "Мастер варки", "skill", "uncommon", 1, "self", "Сварить зелье: из двух на выбор. Получить {reagents} Реагент.",
+    [brew(1), gainResource("reagents", 1)], { cost: 0 }),
 
-  // Редкие
-  triggerPower("al_philosopher", "Философский камень", "rare", 2, "Каждое выпитое зелье: Реагенты ещё +{reagents}.", "onPotionUsed", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
-  card("al_grand_brew", "Великая варка", "skill", "rare", 3, "self", "Сварить 3 зелья. Сжечь.", [brew(3), burn], { cost: 2 }),
-  triggerPower("al_chain_reaction", "Цепная реакция", "rare", 2, "Каждое сваренное зелье: {damage} урона всем врагам.", "onPotionBrewed", [fixedDamageToAll(5)], [fixedDamageToAll(7)]),
-  card("al_elixir_blast", "Взрыв эликсира", "attack", "rare", 3, "enemy", "Нанести {damage} урона, +3 за каждый Реагент.", [grow(damage(8), "reagents", 3)], { effects: [grow(damage(12), "reagents", 3)] }),
+  // ---------- Редкие ----------
+  triggerPower("al_philosopher", "Философский камень", "rare", 2, "Когда выпито зелье, +{reagents} Реагент.", "onPotionUsed", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
+  card("al_grand_brew", "Великая варка", "skill", "rare", 3, "self", "Сварить 3 зелья: каждое из двух на выбор. Сжечь.", [brew(3), burn], { cost: 2 }),
+  triggerPower("al_chain_reaction", "Цепная реакция", "rare", 2, "Когда сварено зелье, {damage} урона всем врагам.", "onPotionBrewed",
+    [{ type: "damage", amount: 5, fixed: true, target: "allEnemies" }], [{ type: "damage", amount: 7, fixed: true, target: "allEnemies" }]),
+  card("al_elixir_blast", "Взрыв эликсира", "attack", "rare", 3, "enemy", "Нанести {damage} урона: +3 за каждый Реагент.", [grow(damage(8), "reagents", 3)], { effects: [grow(damage(12), "reagents", 3)] }),
+  card("al_panacea", "Панацея", "skill", "rare", 2, "self", "Вылечить {heal} HP. Починка {repair}. Сжечь.", [heal(10), repair(10), burn], { effects: [heal(14), repair(10), burn] }),
+  card("al_grand_catalysis", "Великий катализ", "power", "rare", 3, "self", "В начале такта +{reagents} Реагента.", [], { cost: 2 },
+    { trigger: "onTactStart", effects: [gainResource("reagents", 2)] }),
 ];
