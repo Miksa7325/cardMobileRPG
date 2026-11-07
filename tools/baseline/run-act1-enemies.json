@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "date": "2026-11-07",
+    "act": 1,
+    "runs": 50
+  },
+  "results": [
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "winRate": 0.06,
+      "reachedBossRate": 0.08,
+      "avgHpBeforeBoss": 70,
+      "avgFights": 3.1,
+      "avgDeck": 12.1,
+      "died": {
+        "battle": 46,
+        "elite": 0,
+        "boss": 1
+      }
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "winRate": 0.06,
+      "reachedBossRate": 0.14,
+      "avgHpBeforeBoss": 43,
+      "avgFights": 3.2,
+      "avgDeck": 12.3,
+      "died": {
+        "battle": 43,
+        "elite": 0,
+        "boss": 4
+      }
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "winRate": 0,
+      "reachedBossRate": 0.02,
+      "avgHpBeforeBoss": 70,
+      "avgFights": 1.9,
+      "avgDeck": 10.9,
+      "died": {
+        "battle": 48,
+        "elite": 1,
+        "boss": 1
+      }
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "winRate": 0.08,
+      "reachedBossRate": 0.1,
+      "avgHpBeforeBoss": 44.8,
+      "avgFights": 2.6,
+      "avgDeck": 11.7,
+      "died": {
+        "battle": 45,
+        "elite": 0,
+        "boss": 1
+      }
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "winRate": 0.16,
+      "reachedBossRate": 0.38,
+      "avgHpBeforeBoss": 37.4,
+      "avgFights": 5,
+      "avgDeck": 14.2,
+      "died": {
+        "battle": 30,
+        "elite": 1,
+        "boss": 11
+      }
+    }
+  ]
+}

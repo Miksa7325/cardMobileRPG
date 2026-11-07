@@ -82,9 +82,9 @@ export const ENEMIES: Record<string, EnemyData> = {
   spider: {
     id: "spider",
     name: "Паук",
-    hp: [18, 24],
-    // Быстрый: 4–6 лёгких ходов за шкалу. Против него нужен ранний блок
-    moves: { bite: attack(4, 1, { w: 1 }), venom: debuff({ poison: 2 }, 0, { w: 1 }), web: debuff({ weak: 1, slow: 1 }, 0, { w: 1 }) },
+    hp: [14, 18],
+    // Быстрый: 3 хода за шкалу, против него нужен ранний блок. Ходы весом 1 давали тройке Пауков 15–18 действий за ход
+    moves: { bite: attack(4, 1, { w: 2 }), venom: debuff({ poison: 2 }, 0, { w: 2 }), web: debuff({ weak: 1, slow: 1 }, 0, { w: 2 }) },
     pattern: ["bite", "venom", "web"],
   },
 
