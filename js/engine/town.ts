@@ -79,18 +79,20 @@ export function blessHero(meta: Meta, gear: Gear): boolean {
   return true;
 }
 
-// Кузница: реликвии, которые можно выковать. Без тех, что срабатывают при получении: им не на чем сработать в городе
-function getForgePool(meta: Meta, gear: Gear) {
+// Кузница: реликвии, которые можно выковать. Без тех, что срабатывают при получении: им не на чем сработать в городе.
+// Классовые — только для своего героя
+function getForgePool(meta: Meta, gear: Gear, heroId: HeroId) {
   const { lockedRelicIds } = getLockedContent(meta);
   return Object.values(RELICS).filter((relic) => (
     ["common", "uncommon"].includes(relic.rarity) && relic.trigger !== "onPickup"
     && !gear.relics.includes(relic.id) && !lockedRelicIds.includes(relic.id)
+    && (!relic.hero || relic.hero === heroId)
   ));
 }
 
 // Выковывает случайную реликвию. Возвращает её id или null, если ковать нечего или нечем платить
-export function forgeRelic(meta: Meta, gear: Gear, rng: Rng): string | null {
-  const pool = getForgePool(meta, gear);
+export function forgeRelic(meta: Meta, gear: Gear, heroId: HeroId, rng: Rng): string | null {
+  const pool = getForgePool(meta, gear, heroId);
   if (pool.length === 0 || !pay(meta, CONFIG.city.prices.forge)) return null;
   const relic = pickRandom(rng, pool);
   gear.relics.push(relic.id);

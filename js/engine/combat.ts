@@ -12,6 +12,9 @@ import { ENEMIES } from "../data/enemies.ts";
 import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { RELICS } from "../data/relics.ts";
+import {
+  brewOptionCount, capacityBonus, finalTwice, openDrawCount, prepCapacity, rerollsPerTurn, zeroWeightPerTurn,
+} from "./rules.ts";
 import type {
   ActionResult, CardData, CardInstance, CardTarget, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent,
   LaneItem, Power, PreparedSpell, Rng, RunCard, StatusId, Statuses,
@@ -326,7 +329,7 @@ export function usedCapacity(combat: Combat, lane: LaneItem[] = combat.lane): nu
 }
 
 export function totalCapacity(combat: Combat): number {
-  return combat.capacity + combat.capacityBonus;
+  return combat.capacity + capacityBonus(combat) + combat.capacityBonus;
 }
 
 // Проверяет расстановку: все карты стоят там, куда их поставили, не вылезают за шкалу и влезают во вместимость
@@ -377,7 +380,7 @@ function offerBrew(combat: Combat): void {
   const pool = [...combat.potionPool];
   if (pool.length === 0) return;
   const options: string[] = [];
-  while (options.length < 2 && pool.length > 0) options.push(pool.splice(nextInt(combat.rng, 0, pool.length - 1), 1)[0]);
+  while (options.length < brewOptionCount(combat) && pool.length > 0) options.push(pool.splice(nextInt(combat.rng, 0, pool.length - 1), 1)[0]);
   combat.brewChoices.push({ options });
 }
 
@@ -398,7 +401,7 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   if (targetError) return fail(targetError);
   if (options.prepare) return prepareSpell(combat, instance, card, weight, targetId);
 
-  if (weight === 0 && combat.zeroUsed >= T.maxZeroWeight) return fail("zeroLimit");
+  if (weight === 0 && combat.zeroUsed >= zeroWeightPerTurn(combat)) return fail("zeroLimit");
   const item: LaneItem = {
     id: combat.nextLaneId, kind: "card", card: instance, start, weight, targetId, locked: false, resolved: false,
   };
@@ -416,7 +419,7 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
 
 // Маг ставит заклинание на подготовку: оно сработает само через 2 × вес клеток (Прилив сокращает), на 50% сильнее
 function prepareSpell(combat: Combat, instance: CardInstance, card: CardData, weight: number, targetId: string | null): ActionResult {
-  const capacity = HEROES[combat.hero.heroId].prepCapacity;
+  const capacity = prepCapacity(combat);
   if (!capacity) return fail("noPreparation");
   const waiting = combat.prepared.reduce((sum, spell) => sum + spell.weight, 0);
   if (waiting + weight > capacity) return fail("noPrepCapacity");
@@ -527,12 +530,12 @@ export function chooseBrew(combat: Combat, choiceIndex: number, potionId: string
 
 // Верхние карты добора: их видно заранее
 export function getUpcomingDraws(combat: Combat): CardInstance[] {
-  return combat.piles.draw.slice(-T.openDraws).reverse();
+  return combat.piles.draw.slice(-openDrawCount(combat)).reverse();
 }
 
 // Куда можно поставить карту такого веса: первая подходящая клетка или null
 export function findFreeStart(combat: Combat, weight: number): number | null {
-  if (weight === 0) return combat.zeroUsed < T.maxZeroWeight ? combat.clock : null;
+  if (weight === 0) return combat.zeroUsed < zeroWeightPerTurn(combat) ? combat.clock : null;
   for (let start = combat.clock + 1; start + weight - 1 <= T.cells; start++) {
     const probe: LaneItem = { id: -1, kind: "card", start, weight, targetId: null, locked: false, resolved: false };
     if (!checkLane(combat, [...combat.lane, probe])) return start;
@@ -613,7 +616,8 @@ function chainBonusEffects(combat: Combat, item: LaneItem): Effect[] {
   if (index < 0 || !chainBonusMet(combat, links, index)) return [];
   const bonus = links[index].card.chain!;
   recordEvent(combat, { type: "chainBonus", laneId: item.id, kind: bonus.kind, cardId: links[index].card.id });
-  return bonus.effects;
+  // Сердце бездны: «Финал» срабатывает дважды
+  return bonus.kind === "final" && finalTwice(combat) ? [...bonus.effects, ...bonus.effects] : bonus.effects;
 }
 
 // ---------- Розыгрыш ----------
@@ -854,7 +858,7 @@ function startTurn(combat: Combat): void {
   combat.clock = 0;
   combat.capacityBonus = 0;
   combat.zeroUsed = 0;
-  combat.rerollsLeft = T.rerolls;
+  combat.rerollsLeft = rerollsPerTurn(combat);
   combat.lane = [];
   combat.keep = [];
   for (const unit of [combat.hero, ...combat.enemies]) expireBlocks(combat, unit);

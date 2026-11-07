@@ -14,7 +14,7 @@
 //   --heroes=warrior,mage   только эти герои
 //   --strength-scale=2   умножить все числа Силы — для подбора чисел
 //   --patch=вариант.js   поменять данные только в памяти перед прогоном: export default (data) => { data.ENEMIES… }
-//                        (data: ENEMIES, CARDS, ACTS, CONFIG, HEROES) — для подбора чисел, файлы игры не меняются
+//                        (data: ENEMIES, CARDS, ACTS, CONFIG, HEROES, RELICS, POTIONS) — для подбора чисел, файлы игры не меняются
 //   --out=tools/baseline/run-act1   сохранить итог в .json и .md
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -24,6 +24,8 @@ import { ENEMIES } from "../js/data/enemies.ts";
 import { CARDS } from "../js/data/cards.ts";
 import { ACTS } from "../js/data/acts.ts";
 import { HEROES } from "../js/data/heroes.ts";
+import { RELICS } from "../js/data/relics.ts";
+import { POTIONS } from "../js/data/potions.ts";
 import { chooseEventOption, finishEvent, getEventData, startEvent } from "../js/engine/events.ts";
 import {
   completeReward, createNodeCombat, createRun, enterNode, finishCombat, getAvailableNodeIds, getCurrentNode, getUpgradableCards,
@@ -41,7 +43,7 @@ const FIRST = Number(args.first ?? 0);
 const ACT = Number(args.act ?? 1);
 const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 setBeam(Number(args.beam ?? 32));
-if (args.patch) (await import(pathToFileURL(resolve(args.patch)).href)).default({ ENEMIES, CARDS, ACTS, CONFIG, HEROES });
+if (args.patch) (await import(pathToFileURL(resolve(args.patch)).href)).default({ ENEMIES, CARDS, ACTS, CONFIG, HEROES, RELICS, POTIONS });
 applyStrengthScale(Number(args["strength-scale"] ?? 1));
 
 // ---------- Выбор пути ----------

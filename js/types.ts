@@ -190,16 +190,30 @@ export interface HeroData {
   relics: string[];
 }
 
+// Правило-реликвия меняет само правило шкалы, а не срабатывает по событию. Числа прибавляются к обычным
+export interface RelicRules {
+  capacity?: number; // клетки вместимости
+  rerolls?: number; // перебросы за ход
+  openDraws?: number; // открытые карты добора
+  blockCells?: number; // сколько клеток держится блок
+  zeroWeight?: number; // карт весом 0 за ход
+  brewOptions?: number; // зелий на выбор при варке
+  prepCapacity?: number; // вес подготовки Мага
+  finalTwice?: boolean; // бонус «Финал» срабатывает дважды
+}
+
 export interface RelicData {
   id: string;
   name: string;
   icon: string;
   rarity: RelicRarity;
   description: string;
-  trigger: Trigger;
+  trigger?: Trigger; // у правил-реликвий нет
   effects: Effect[];
   cardType?: CardType; // только для карт этого типа
   everyN?: number; // срабатывает каждый N-й раз
+  hero?: HeroId; // классовая: выпадает только этому герою
+  rules?: RelicRules;
 }
 
 export interface PotionData {

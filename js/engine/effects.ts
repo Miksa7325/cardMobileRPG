@@ -3,6 +3,7 @@
 import { CONFIG } from "../config.ts";
 import { CARDS } from "../data/cards.ts";
 import { RELICS } from "../data/relics.ts";
+import { blockCells } from "./rules.ts";
 import type {
   CardType, Combat, CombatEvent, Effect, EffectContext, EffectOf, EffectType, EnemyUnit, HeroUnit, RelicData, StatusId,
   Trigger, Unit,
@@ -52,7 +53,7 @@ export function absoluteTime(combat: Combat, cell = combat.clock): number {
 // Новая порция блока: держится blockCells клеток с этого момента
 export function addBlock(combat: Combat, unit: Unit, amount: number): void {
   if (amount <= 0) return;
-  unit.blocks.push({ amount, expires: absoluteTime(combat) + CONFIG.timeline.blockCells });
+  unit.blocks.push({ amount, expires: absoluteTime(combat) + blockCells(combat) });
   unit.block += amount;
 }
 

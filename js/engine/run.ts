@@ -478,10 +478,11 @@ export function addRelic(run: Run, relicId: string): void {
   if (relic.trigger === "onPickup") applyRunEffects(run, relic.effects, nodeRng(run, `relic:${relicId}`));
 }
 
-// Новые реликвии заданных редкостей, которых у игрока ещё нет
+// Новые реликвии заданных редкостей, которых у игрока ещё нет. Чужие классовые не выпадают
 export function getRelicPool(run: Run, rarities: RelicRarity[]): RelicData[] {
   return Object.values(RELICS).filter((relic) => (
     rarities.includes(relic.rarity) && !run.relics.includes(relic.id) && !run.lockedRelicIds.includes(relic.id)
+    && (!relic.hero || relic.hero === run.heroId)
   ));
 }
 

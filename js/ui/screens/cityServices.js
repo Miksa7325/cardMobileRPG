@@ -145,7 +145,7 @@ const SERVICES = {
     if (!appendHeroLine(context)) return;
     const gear = getGear(meta, run, heroId);
     const forge = createButton(TEXTS.services.forge(CONFIG.city.prices.forge), "button--large", () => {
-      const relicId = forgeRelic(meta, gear, createRng(Date.now()));
+      const relicId = forgeRelic(meta, gear, heroId, createRng(Date.now()));
       if (!relicId) {
         fail(forge, meta.gold < CONFIG.city.prices.forge ? TEXTS.trader.notEnoughGold : TEXTS.services.forgeEmpty);
         return;
