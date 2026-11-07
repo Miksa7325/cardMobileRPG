@@ -18,9 +18,9 @@ export const RELICS: Record<string, RelicData> = {
     name: "Походный котёл",
     icon: "⚗️",
     rarity: "starter",
-    description: "В начале боя сварить зелье.",
+    description: "В начале боя сварить 2 зелья.",
     trigger: "onCombatStart",
-    effects: [{ type: "brewPotion", amount: 1 }],
+    effects: [{ type: "brewPotion", amount: 2 }],
   },
   venom_ring: {
     id: "venom_ring",
