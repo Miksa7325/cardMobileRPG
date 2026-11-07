@@ -65,7 +65,4 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("button")) playSound("click");
 });
 
-// Service worker даёт игру без интернета. Работает только по HTTPS или на localhost
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-}
+// Service worker (игра без интернета) собирает и подключает плагин PWA в vite.config.ts

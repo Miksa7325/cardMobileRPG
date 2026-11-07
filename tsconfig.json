@@ -1,0 +1,19 @@
+{
+  // Настройки проверки типов. Сам TypeScript ничего не собирает (noEmit): собирает Vite.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
+    // .js и .ts живут вместе: переводим файлы постепенно. Старые .js пока не проверяем
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["js", "tools", "tests", "vite.config.ts"]
+}
