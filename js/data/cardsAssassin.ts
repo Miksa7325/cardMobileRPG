@@ -2,7 +2,7 @@
 import {
   allStatus, block, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, gainResource, grow, heal, hits,
   multiplyStatus, selfStatus, spend, status, triggerPower, wound,
-} from "./cardHelpers.js";
+} from "./cardHelpers.ts";
 
 export const ASSASSIN_CARDS = [
   // Комбо: каждая карта за ход даёт Комбо, добивания растут от него, а приёмы «Комбо N» тратят его

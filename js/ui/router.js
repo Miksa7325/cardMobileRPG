@@ -1,5 +1,5 @@
 // Переключение экранов: очищает страницу и рисует нужный экран.
-import { state } from "../state.js";
+import { state } from "../state.ts";
 import { setMusicMood } from "./audio.js";
 import { hideTooltip } from "./components/tooltip.js";
 import { setSceneAct } from "./scene.js";

@@ -1,9 +1,9 @@
 // Экран награды после боя, сундука и босса.
-import { POTIONS } from "../../data/potions.js";
-import { RELICS } from "../../data/relics.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { completeReward, getCurrentNode } from "../../engine/run.js";
-import { state } from "../../state.js";
+import { POTIONS } from "../../data/potions.ts";
+import { RELICS } from "../../data/relics.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { completeReward, getCurrentNode } from "../../engine/run.ts";
+import { state } from "../../state.ts";
 import { createCardElement } from "../components/card.js";
 import { openCardPreview } from "../components/cardPreview.js";
 import { createRunBar } from "../components/runBar.js";

@@ -1,6 +1,6 @@
 // Страница статистики забега: помогает проверять баланс.
-import { ENEMIES } from "../../data/enemies.js";
-import { TEXTS } from "../../data/texts.ru.js";
+import { ENEMIES } from "../../data/enemies.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
 
 // Открывается поверх текущего экрана: забег при этом никуда не уходит

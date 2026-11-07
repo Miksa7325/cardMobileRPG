@@ -1,6 +1,6 @@
 // Значки статусов и сил бойца. Сами значки — в ui/icons.js: у статуса и значка одно имя (poison, rage…)
-import { CARDS } from "../../data/cards.js";
-import { TEXTS } from "../../data/texts.ru.js";
+import { CARDS } from "../../data/cards.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
 import { createIcon } from "../icons.js";
 

@@ -1,11 +1,11 @@
 // Экран события: текст ситуации, варианты выбора и результат.
-import { CARDS } from "../../data/cards.js";
-import { POTIONS } from "../../data/potions.js";
-import { RELICS } from "../../data/relics.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { chooseEventOption, finishEvent, getEventData } from "../../engine/events.js";
-import { saveRun } from "../../save.js";
-import { state } from "../../state.js";
+import { CARDS } from "../../data/cards.ts";
+import { POTIONS } from "../../data/potions.ts";
+import { RELICS } from "../../data/relics.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { chooseEventOption, finishEvent, getEventData } from "../../engine/events.ts";
+import { saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { createRunBar } from "../components/runBar.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";

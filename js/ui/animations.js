@@ -1,6 +1,6 @@
 // Анимации боя. Логика считает всё мгновенно и записывает события в combat.events,
 // а этот файл проигрывает их: удары врагов, вылетающие числа урона, изменение HP.
-import { TEXTS } from "../data/texts.ru.js";
+import { TEXTS } from "../data/texts.ru.ts";
 import { ATTACK_STYLES } from "./art.js";
 import { playCardSound, playSound } from "./audio.js";
 import { createIcon } from "./icons.js";

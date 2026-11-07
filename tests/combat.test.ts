@@ -1,9 +1,9 @@
 // Автотесты нынешних правил боя. Запуск: npm test
 // Каждый тест строит маленький бой и проверяет одно правило. Если правку сломала правило — тест упадёт.
 import { describe, expect, it } from "vitest";
-import { CONFIG } from "../js/config.js";
-import { canPlayCard, createCombat, endTurn, playCard } from "../js/engine/combat.js";
-import { applyPoison, calculateBlock, calculateDamage, executeEffects } from "../js/engine/effects.js";
+import { CONFIG } from "../js/config.ts";
+import { canPlayCard, createCombat, endTurn, playCard } from "../js/engine/combat.ts";
+import { applyPoison, calculateBlock, calculateDamage, executeEffects } from "../js/engine/effects.ts";
 
 type Statuses = Record<string, number>;
 const unit = (statuses: Statuses = {}) => ({ statuses });

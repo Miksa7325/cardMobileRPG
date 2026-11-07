@@ -1,6 +1,6 @@
 // Большая карта поверх экрана: полное описание, термины и что даст улучшение.
-import { TEXTS } from "../../data/texts.ru.js";
-import { canUpgradeCard, getCardData } from "../../engine/deck.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { canUpgradeCard, getCardData } from "../../engine/deck.ts";
 import { el } from "../dom.js";
 import { fillCardFace, formatDescription } from "./card.js";
 import { hideTooltip } from "./tooltip.js";

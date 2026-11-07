@@ -3,7 +3,7 @@
 // и когда. Чародейские карты растут от Прилива. Как каждая карта выглядит на поле боя — в ui/vfx.js.
 import {
   allStatus, block, burn, card, cheaperPower, damage, draw, gainResource, grow, hits, selfStatus, status, triggerPower,
-} from "./cardHelpers.js";
+} from "./cardHelpers.ts";
 
 export const MAGE_CARDS = [
   // Стартовые

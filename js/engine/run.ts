@@ -1,14 +1,14 @@
 // Логика забега: карта, переходы между узлами, награды, отдых. Этот файл не трогает HTML.
-import { CONFIG } from "../config.js";
-import { CARDS } from "../data/cards.js";
-import { ACTS } from "../data/acts.js";
-import { HEROES, getMaxPotions } from "../data/heroes.js";
-import { POTIONS } from "../data/potions.js";
-import { RELICS } from "../data/relics.js";
-import { createCombat } from "./combat.js";
-import { canUpgradeCard, upgradeCard } from "./deck.js";
-import { generateMap } from "./map.js";
-import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.js";
+import { CONFIG } from "../config.ts";
+import { CARDS } from "../data/cards.ts";
+import { ACTS } from "../data/acts.ts";
+import { HEROES, getMaxPotions } from "../data/heroes.ts";
+import { POTIONS } from "../data/potions.ts";
+import { RELICS } from "../data/relics.ts";
+import { createCombat } from "./combat.ts";
+import { canUpgradeCard, upgradeCard } from "./deck.ts";
+import { generateMap } from "./map.ts";
+import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.ts";
 
 // startAct — с какого акта начинается забег: пройденные акты можно пропустить за золото.
 // locked...Ids — что ещё не открыто постройками: это не выпадет в забеге.

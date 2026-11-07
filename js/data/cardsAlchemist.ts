@@ -2,7 +2,7 @@
 // Сваренное зелье даёт 1 Реагент, выпитое — 2. Смеси «Реагенты N» тратят их, катализаторы растут от них.
 import {
   block, brew, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, gainResource, grow, heal, hits, selfStatus, spend, status, triggerPower,
-} from "./cardHelpers.js";
+} from "./cardHelpers.ts";
 
 export const ALCHEMIST_CARDS = [
   // Стартовые

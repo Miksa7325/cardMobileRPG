@@ -1,10 +1,10 @@
 // Лавка в подземелье: карта подземелья на этот акт и избавление от карты из колоды за золото, которое несёт герой.
 // В лавку можно вернуться: карта подземелья продаётся, пока её нет, а от карты избавляют один раз.
-import { CONFIG } from "../../config.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { buyShopMap, canBuyShopMap, canRemoveCardAtShop, isShopRemovalUsed, removeCardAtShop } from "../../engine/shop.js";
-import { saveRun } from "../../save.js";
-import { state } from "../../state.js";
+import { CONFIG } from "../../config.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { buyShopMap, canBuyShopMap, canRemoveCardAtShop, isShopRemovalUsed, removeCardAtShop } from "../../engine/shop.ts";
+import { saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { playSound } from "../audio.js";
 import { openCardList } from "../components/cardList.js";
 import { createRunBar } from "../components/runBar.js";

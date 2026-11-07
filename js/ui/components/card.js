@@ -1,7 +1,7 @@
 // Рисует карту. На самой карте — значки с числами, полный текст показывает большая карта (cardPreview.js).
-import { TEXTS } from "../../data/texts.ru.js";
-import { getCardData } from "../../engine/deck.js";
-import { calculateBlock, calculateDamage, getBonus } from "../../engine/effects.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { getCardData } from "../../engine/deck.ts";
+import { calculateBlock, calculateDamage, getBonus } from "../../engine/effects.ts";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { CARD_ART, CARD_THEME } from "../cardArt.js";

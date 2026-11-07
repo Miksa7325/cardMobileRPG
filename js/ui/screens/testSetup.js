@@ -1,9 +1,9 @@
 // Тестовый режим: выбор любых врагов для боя.
-import { CONFIG } from "../../config.js";
-import { ENEMIES } from "../../data/enemies.js";
-import { HEROES } from "../../data/heroes.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { state } from "../../state.js";
+import { CONFIG } from "../../config.ts";
+import { ENEMIES } from "../../data/enemies.ts";
+import { HEROES } from "../../data/heroes.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { state } from "../../state.ts";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { startTestCombat } from "./combat.js";

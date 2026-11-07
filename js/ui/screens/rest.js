@@ -1,7 +1,7 @@
 // Экран отдыха: восстановить HP или улучшить карту.
-import { TEXTS } from "../../data/texts.ru.js";
-import { getRestHealAmount, getUpgradableCards, restHeal, restUpgrade } from "../../engine/run.js";
-import { state } from "../../state.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { getRestHealAmount, getUpgradableCards, restHeal, restUpgrade } from "../../engine/run.ts";
+import { state } from "../../state.ts";
 import { createCardElement } from "../components/card.js";
 import { openCardPreview } from "../components/cardPreview.js";
 import { createRunBar } from "../components/runBar.js";

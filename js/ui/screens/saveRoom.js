@@ -1,7 +1,7 @@
 // Комната сохранения: только отсюда можно подняться из подземелья в город, а потом вернуться сюда же и идти дальше.
-import { TEXTS } from "../../data/texts.ru.js";
-import { saveRun } from "../../save.js";
-import { state } from "../../state.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";

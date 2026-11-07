@@ -1,9 +1,9 @@
 // Верхняя панель забега: HP, золото и эссенции, которые герой несёт, этаж, колода, зелья и реликвии.
-import { POTIONS } from "../../data/potions.js";
-import { RELICS } from "../../data/relics.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { getCurrentFloor } from "../../engine/run.js";
-import { state } from "../../state.js";
+import { POTIONS } from "../../data/potions.ts";
+import { RELICS } from "../../data/relics.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { getCurrentFloor } from "../../engine/run.ts";
+import { state } from "../../state.ts";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { openCardList } from "./cardList.js";

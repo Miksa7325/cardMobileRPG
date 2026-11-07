@@ -1,14 +1,14 @@
 // Экран боя: показывает состояние боя и передаёт действия игрока в логику.
-import { CONFIG } from "../../config.js";
-import { ENEMIES } from "../../data/enemies.js";
-import { HEROES } from "../../data/heroes.js";
-import { POTIONS } from "../../data/potions.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { canPlayCard, createCombat, endTurn, getEnemyIntent, playCard, usePotion } from "../../engine/combat.js";
-import { getCardData } from "../../engine/deck.js";
-import { createNodeCombat, finishCombat } from "../../engine/run.js";
-import { saveRun } from "../../save.js";
-import { state } from "../../state.js";
+import { CONFIG } from "../../config.ts";
+import { ENEMIES } from "../../data/enemies.ts";
+import { HEROES } from "../../data/heroes.ts";
+import { POTIONS } from "../../data/potions.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { canPlayCard, createCombat, endTurn, getEnemyIntent, playCard, usePotion } from "../../engine/combat.ts";
+import { getCardData } from "../../engine/deck.ts";
+import { createNodeCombat, finishCombat } from "../../engine/run.ts";
+import { saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
 import { playCardEffect } from "../vfxCards.js";
 import { enemySprite, heroSprite, IDLE_STYLES, setHeroLookVariable } from "../art.js";

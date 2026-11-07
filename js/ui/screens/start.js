@@ -1,9 +1,9 @@
 // Стартовый экран: вход в город, ячейки сохранения, коллекция, перенос сохранения и тест-режим.
 // Игра начинается в городе: оттуда герой спускается в подземелье, там же продолжается сохранённый забег.
 // Но если герой в подземелье не в комнате сохранения, в город ему нельзя: «Играть» сразу продолжает забег.
-import { TEXTS } from "../../data/texts.ru.js";
-import { canReturnToCity } from "../../engine/run.js";
-import { getActiveSlot, loadRun } from "../../save.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { canReturnToCity } from "../../engine/run.ts";
+import { getActiveSlot, loadRun } from "../../save.ts";
 import { LOGO_ART } from "../art.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";

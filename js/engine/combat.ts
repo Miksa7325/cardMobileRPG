@@ -1,12 +1,12 @@
 // Логика боя. Этот файл не трогает HTML: только меняет данные боя.
-import { CONFIG } from "../config.js";
-import { ENEMIES } from "../data/enemies.js";
-import { HEROES, getMaxPotions } from "../data/heroes.js";
-import { POTIONS } from "../data/potions.js";
-import { RELICS } from "../data/relics.js";
-import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
-import { addTally, applyLeech, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.js";
-import { createRng, nextInt } from "./rng.js";
+import { CONFIG } from "../config.ts";
+import { ENEMIES } from "../data/enemies.ts";
+import { HEROES, getMaxPotions } from "../data/heroes.ts";
+import { POTIONS } from "../data/potions.ts";
+import { RELICS } from "../data/relics.ts";
+import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.ts";
+import { addTally, applyLeech, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.ts";
+import { createRng, nextInt } from "./rng.ts";
 
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
 const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];

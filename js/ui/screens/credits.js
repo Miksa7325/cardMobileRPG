@@ -1,6 +1,6 @@
 // Экран авторов: лицензии требуют указать, чьи рисунки использует игра.
-import { ICON_AUTHORS, MODEL_CREDITS, SOUND_CREDITS } from "../../data/credits.js";
-import { TEXTS } from "../../data/texts.ru.js";
+import { ICON_AUTHORS, MODEL_CREDITS, SOUND_CREDITS } from "../../data/credits.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 

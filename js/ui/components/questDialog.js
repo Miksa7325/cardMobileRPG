@@ -1,8 +1,8 @@
 // Разговор со старейшиной в городе: задания и награды в кронах. Сначала то, что можно забрать, в конце уже полученное.
-import { QUESTS } from "../../data/quests.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { claimQuest, countReadyQuests, getQuestProgress, isQuestClaimed, isQuestReady } from "../../engine/meta.js";
-import { loadMeta, saveMeta } from "../../save.js";
+import { QUESTS } from "../../data/quests.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { claimQuest, countReadyQuests, getQuestProgress, isQuestClaimed, isQuestReady } from "../../engine/meta.ts";
+import { loadMeta, saveMeta } from "../../save.ts";
 import { ELDER_ART } from "../art.js";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";

@@ -4,19 +4,19 @@
 // По бокам старого города — слободы. Здания, дома для красоты, деревья и вход в подземелье — отрисованные 3D-модели,
 // земля с дорогами и фонтаном — одна картинка ground.jpg. Что где стоит, описано в data/buildings.js и data/cityLayout.js.
 // В городе есть места интереса: колодец желаний, доска объявлений и дом летописца.
-import { CONFIG } from "../../config.js";
-import { BUILDINGS } from "../../data/buildings.js";
-import { DECOR_HOUSES, DECOR_PROPS, FOUNTAIN, POINTS_OF_INTEREST, SERVICE_HOUSES } from "../../data/cityLayout.js";
-import { HEROES } from "../../data/heroes.js";
-import { TEXTS } from "../../data/texts.ru.js";
+import { CONFIG } from "../../config.ts";
+import { BUILDINGS } from "../../data/buildings.ts";
+import { DECOR_HOUSES, DECOR_PROPS, FOUNTAIN, POINTS_OF_INTEREST, SERVICE_HOUSES } from "../../data/cityLayout.ts";
+import { HEROES } from "../../data/heroes.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
 import {
   bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getHeroEquipment, getStartableActs, getTraderGoods,
   isHeroDead, payForReturn, selectHero, throwWishCoin,
-} from "../../engine/meta.js";
-import { canReturnToCity, getCurrentFloor, getReturnPrice, healInCity } from "../../engine/run.js";
-import { isBuilt } from "../../engine/town.js";
-import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
-import { state } from "../../state.js";
+} from "../../engine/meta.ts";
+import { canReturnToCity, getCurrentFloor, getReturnPrice, healInCity } from "../../engine/run.ts";
+import { isBuilt } from "../../engine/town.ts";
+import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { applyHeroLook, ELDER_ART, heroSprite } from "../art.js";
 import { playSound } from "../audio.js";
 import { shakeCard } from "../components/card.js";

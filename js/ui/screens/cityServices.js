@@ -1,21 +1,21 @@
 // Окна служб городских зданий: что можно сделать в построенном доме. Логика служб — в engine/town.js.
 // Службы работают для героя, который сейчас в забеге, а если забега нет — для выбранного в доме героев.
 // После каждой покупки город перерисовывается с новой казной и то же окно открывается снова (reopen).
-import { CONFIG } from "../../config.js";
-import { CARDS } from "../../data/cards.js";
-import { COSMETICS } from "../../data/cosmetics.js";
-import { ENEMIES } from "../../data/enemies.js";
-import { HEROES, getMaxPotions } from "../../data/heroes.js";
-import { RELICS } from "../../data/relics.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { buyFromTrader, getPotionGoods, isHeroDead, isTraderGoodOwned } from "../../engine/meta.js";
-import { createRng } from "../../engine/rng.js";
+import { CONFIG } from "../../config.ts";
+import { CARDS } from "../../data/cards.ts";
+import { COSMETICS } from "../../data/cosmetics.ts";
+import { ENEMIES } from "../../data/enemies.ts";
+import { HEROES, getMaxPotions } from "../../data/heroes.ts";
+import { RELICS } from "../../data/relics.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { buyFromTrader, getPotionGoods, isHeroDead, isTraderGoodOwned } from "../../engine/meta.ts";
+import { createRng } from "../../engine/rng.ts";
 import {
   blessHero, buyCosmetic, buyFortune, cleanseCard, forgeRelic, getArenaFights, getBlessingPrice, getGear, getLibraryOffers,
   getStudyPrice, getTrainableCards, hireHero, isCosmeticOwned, studyCard, trainCard, wearCosmetic,
-} from "../../engine/town.js";
-import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
-import { state } from "../../state.js";
+} from "../../engine/town.ts";
+import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { heroSprite } from "../art.js";
 import { playSound } from "../audio.js";
 import { formatDescription, shakeCard } from "../components/card.js";

@@ -1,10 +1,10 @@
 // Экран ячеек сохранения: в каждой свой забег и мета-прогресс. Здесь ячейку выбирают и очищают.
-import { CONFIG } from "../../config.js";
-import { HEROES } from "../../data/heroes.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { getCurrentFloor } from "../../engine/run.js";
-import { deleteSlot, getActiveSlot, hasSave, loadMeta, loadRun, setActiveSlot } from "../../save.js";
-import { state } from "../../state.js";
+import { CONFIG } from "../../config.ts";
+import { HEROES } from "../../data/heroes.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { getCurrentFloor } from "../../engine/run.ts";
+import { deleteSlot, getActiveSlot, hasSave, loadMeta, loadRun, setActiveSlot } from "../../save.ts";
+import { state } from "../../state.ts";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";

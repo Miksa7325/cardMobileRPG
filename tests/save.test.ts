@@ -14,7 +14,7 @@ globalThis.localStorage = {
   },
 } as Storage;
 
-const { exportSave, importSave, loadMeta, saveMeta, SAVE_VERSION } = await import("../js/save.js");
+const { exportSave, importSave, loadMeta, saveMeta, SAVE_VERSION } = await import("../js/save.ts");
 
 const encode = (data: unknown) => btoa(unescape(encodeURIComponent(JSON.stringify(data))));
 

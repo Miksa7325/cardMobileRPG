@@ -1,13 +1,13 @@
 // Мета-прогресс: казна города, постройки, задания, выбранный герой и коллекция. Этот файл не трогает хранилище и HTML:
 // сохраняет данные save.js, а показывает их интерфейс.
-import { CONFIG } from "../config.js";
-import { ACTS } from "../data/acts.js";
-import { BUILDINGS } from "../data/buildings.js";
-import { HEROES, getMaxPotions } from "../data/heroes.js";
-import { POTIONS } from "../data/potions.js";
-import { QUESTS } from "../data/quests.js";
-import { POTION_PRICE, TRADER_GOODS } from "../data/trader.js";
-import { getEquipment } from "./run.js";
+import { CONFIG } from "../config.ts";
+import { ACTS } from "../data/acts.ts";
+import { BUILDINGS } from "../data/buildings.ts";
+import { HEROES, getMaxPotions } from "../data/heroes.ts";
+import { POTIONS } from "../data/potions.ts";
+import { QUESTS } from "../data/quests.ts";
+import { POTION_PRICE, TRADER_GOODS } from "../data/trader.ts";
+import { getEquipment } from "./run.ts";
 
 export function createMeta() {
   return {

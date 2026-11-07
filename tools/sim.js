@@ -12,13 +12,13 @@
 //   --out=tools/baseline/current   сохранить итог в .json и .md с этим именем
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { CONFIG } from "../js/config.js";
-import { ACTS } from "../js/data/acts.js";
-import { ENEMIES } from "../js/data/enemies.js";
-import { HEROES } from "../js/data/heroes.js";
-import { POTIONS } from "../js/data/potions.js";
-import { canPlayCard, createCombat, endTurn, playCard, usePotion } from "../js/engine/combat.js";
-import { getCardData } from "../js/engine/deck.js";
+import { CONFIG } from "../js/config.ts";
+import { ACTS } from "../js/data/acts.ts";
+import { ENEMIES } from "../js/data/enemies.ts";
+import { HEROES } from "../js/data/heroes.ts";
+import { POTIONS } from "../js/data/potions.ts";
+import { canPlayCard, createCombat, endTurn, playCard, usePotion } from "../js/engine/combat.ts";
+import { getCardData } from "../js/engine/deck.ts";
 
 const MAX_TURNS = 60; // бой дольше считается поражением: бот застрял
 

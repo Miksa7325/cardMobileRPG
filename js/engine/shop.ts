@@ -1,7 +1,7 @@
 // Лавка в подземелье. Платят золотом, которое несёт герой: карта подземелья на этот акт и избавление от одной карты
 // из колоды. Этот файл не трогает HTML.
-import { CONFIG } from "../config.js";
-import { getAct, removeCardFromDeck } from "./run.js";
+import { CONFIG } from "../config.ts";
+import { getAct, removeCardFromDeck } from "./run.ts";
 
 // В каждой лавке от карты можно избавиться один раз: запоминаем лавку по акту и комнате
 function shopKey(run) {

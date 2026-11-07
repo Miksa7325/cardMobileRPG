@@ -2,7 +2,7 @@
 import {
   allStatus, block, burn, card, cheaperPower, damage, draw, energy, exhaustWounds, fixedDamageToAll, gainResource, grow, heal, hits,
   loseHp, selfStatus, spend, status, triggerPower, wound,
-} from "./cardHelpers.js";
+} from "./cardHelpers.ts";
 
 export const WARLOCK_CARDS = [
   // Тьма: копится от платы здоровьем и сожжённых Ран, тёмные карты растут от неё или тратят её

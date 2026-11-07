@@ -1,7 +1,7 @@
 // Логика событий: выбор события на узле и исполнение варианта. Этот файл не трогает HTML.
-import { EVENTS, TRAVEL_EVENTS } from "../data/events.js";
-import { pickRandom } from "./rng.js";
-import { applyRunEffects, nodeRng } from "./run.js";
+import { EVENTS, TRAVEL_EVENTS } from "../data/events.ts";
+import { pickRandom } from "./rng.ts";
+import { applyRunEffects, nodeRng } from "./run.ts";
 
 // Данные текущего события: из комнаты или встреча в пути. null — такого события больше нет (старое сохранение)
 export function getEventData(active) {

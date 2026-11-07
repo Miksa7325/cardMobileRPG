@@ -1,10 +1,10 @@
 // Исполнение эффектов в бою: от карт, врагов, сил, реликвий и зелий.
 // Новый тип эффекта — новая запись в EFFECT_HANDLERS.
-import { CONFIG } from "../config.js";
-import { CARDS } from "../data/cards.js";
-import { RELICS } from "../data/relics.js";
-import { createCardInstance, drawCards } from "./deck.js";
-import { nextInt } from "./rng.js";
+import { CONFIG } from "../config.ts";
+import { CARDS } from "../data/cards.ts";
+import { RELICS } from "../data/relics.ts";
+import { createCardInstance, drawCards } from "./deck.ts";
+import { nextInt } from "./rng.ts";
 
 // Формула урона: (база + Сила) × 0.75 при Слабости × 1.5 при Уязвимости цели, округление вниз.
 // target может быть null: тогда это число для описания карты, без учёта цели.

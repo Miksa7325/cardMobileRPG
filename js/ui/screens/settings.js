@@ -1,6 +1,6 @@
 // Экран настроек: громкость, скорость анимаций, вибрация, обучение и сброс прогресса.
-import { TEXTS } from "../../data/texts.ru.js";
-import { loadMeta, loadSettings, resetProgress, saveMeta, saveSettings } from "../../save.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { loadMeta, loadSettings, resetProgress, saveMeta, saveSettings } from "../../save.ts";
 import { playSound } from "../audio.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";

@@ -1,5 +1,5 @@
 // Применяет настройки игрока: громкость и скорость анимаций. Настройки общие для всех ячеек сохранения.
-import { loadSettings } from "../save.js";
+import { loadSettings } from "../save.ts";
 import { setVolumes } from "./audio.js";
 
 const ANIMATION_MS = 300; // обычная длительность анимации

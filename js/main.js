@@ -1,8 +1,8 @@
 // Точка входа: отсюда запускается вся игра.
-import { ENEMIES } from "./data/enemies.js";
-import { HEROES } from "./data/heroes.js";
-import { TEXTS } from "./data/texts.ru.js";
-import { requestPersistentStorage } from "./save.js";
+import { ENEMIES } from "./data/enemies.ts";
+import { HEROES } from "./data/heroes.ts";
+import { TEXTS } from "./data/texts.ru.ts";
+import { requestPersistentStorage } from "./save.ts";
 import { preloadSprites } from "./ui/art.js";
 import { playSound, prepareAudio, unlockAudio } from "./ui/audio.js";
 import { enableReliableTaps } from "./ui/reliableTap.js";

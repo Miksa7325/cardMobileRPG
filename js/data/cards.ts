@@ -1,10 +1,10 @@
-import { ASSASSIN_CARDS } from "./cardsAssassin.js";
-import { ALCHEMIST_CARDS } from "./cardsAlchemist.js";
-import { MAGE_CARDS } from "./cardsMage.js";
+import { ASSASSIN_CARDS } from "./cardsAssassin.ts";
+import { ALCHEMIST_CARDS } from "./cardsAlchemist.ts";
+import { MAGE_CARDS } from "./cardsMage.ts";
 import {
   block, burn, card, damage, draw, energy, gainResource, grow, heal, hits, allStatus, loseHp, selfStatus, spend, status, triggerPower, wound,
-} from "./cardHelpers.js";
-import { WARLOCK_CARDS } from "./cardsWarlock.js";
+} from "./cardHelpers.ts";
+import { WARLOCK_CARDS } from "./cardsWarlock.ts";
 
 // Все карты игры. Новая карта — новая запись здесь или в таблице её героя.
 // В описании {damage}, {block}, {draw}, {energy}, {heal} и {имя статуса} заменяются на итоговые числа.

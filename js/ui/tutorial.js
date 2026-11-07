@@ -1,10 +1,10 @@
 // Обучение в первом бою: подсказки ведут игрока за руку, но ничего не запрещают.
 // Шаг двигается сам, когда игрок делает нужное действие, или по кнопке «Дальше».
-import { TEXTS } from "../data/texts.ru.js";
-import { canPlayCard } from "../engine/combat.js";
-import { getCardData } from "../engine/deck.js";
-import { loadMeta, saveMeta } from "../save.js";
-import { state } from "../state.js";
+import { TEXTS } from "../data/texts.ru.ts";
+import { canPlayCard } from "../engine/combat.ts";
+import { getCardData } from "../engine/deck.ts";
+import { loadMeta, saveMeta } from "../save.ts";
+import { state } from "../state.ts";
 import { el } from "./dom.js";
 import { showScreen } from "./router.js";
 

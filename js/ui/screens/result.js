@@ -1,11 +1,11 @@
 // Экран победы или поражения: в забеге и в тестовом бою.
-import { HEROES } from "../../data/heroes.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { applyRunToMeta } from "../../engine/meta.js";
-import { awardArenaWin } from "../../engine/town.js";
-import { getDeepestFloor } from "../../engine/run.js";
-import { clearRun, loadMeta, saveMeta } from "../../save.js";
-import { state } from "../../state.js";
+import { HEROES } from "../../data/heroes.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { applyRunToMeta } from "../../engine/meta.ts";
+import { awardArenaWin } from "../../engine/town.ts";
+import { getDeepestFloor } from "../../engine/run.ts";
+import { clearRun, loadMeta, saveMeta } from "../../save.ts";
+import { state } from "../../state.ts";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { trackPlayTime } from "../playTime.js";

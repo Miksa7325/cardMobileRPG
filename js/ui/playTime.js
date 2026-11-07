@@ -1,5 +1,5 @@
 // Считает время игры для статистики. Часы — это интерфейс, в логике боя времени нет.
-import { CONFIG } from "../config.js";
+import { CONFIG } from "../config.ts";
 
 let lastTick = null;
 

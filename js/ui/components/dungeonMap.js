@@ -1,9 +1,9 @@
 // Карта акта поверх подземелья. На ней только то, что герой видел сам: пройденные комнаты и туннели между ними.
 // Из развилок торчат обрывки неизведанных туннелей, но куда они ведут, не видно. Только посмотреть:
 // путь выбирают в туннелях на экране подземелья.
-import { CONFIG } from "../../config.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { getAct, getLowerNodeIds } from "../../engine/run.js";
+import { CONFIG } from "../../config.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { getAct, getLowerNodeIds } from "../../engine/run.ts";
 import { el } from "../dom.js";
 
 const ROW_HEIGHT = 64; // расстояние между этажами на карте, px

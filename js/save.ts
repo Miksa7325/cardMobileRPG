@@ -1,14 +1,14 @@
 // Сохранение и загрузка. Есть несколько ячеек сохранения: в каждой свой забег и мета-прогресс,
 // игра пишет в выбранную ячейку. Настройки общие для всех ячеек.
 // Смерть стирает только забег. Браузер может запретить хранилище, поэтому всё обёрнуто в try.
-import { CONFIG } from "./config.js";
-import { ACTS } from "./data/acts.js";
-import { BUILDINGS } from "./data/buildings.js";
-import { CARDS } from "./data/cards.js";
-import { ENEMIES } from "./data/enemies.js";
-import { POTIONS } from "./data/potions.js";
-import { RELICS } from "./data/relics.js";
-import { createMeta } from "./engine/meta.js";
+import { CONFIG } from "./config.ts";
+import { ACTS } from "./data/acts.ts";
+import { BUILDINGS } from "./data/buildings.ts";
+import { CARDS } from "./data/cards.ts";
+import { ENEMIES } from "./data/enemies.ts";
+import { POTIONS } from "./data/potions.ts";
+import { RELICS } from "./data/relics.ts";
+import { createMeta } from "./engine/meta.ts";
 
 // Свои ключи у «Такта клинка»: старая игра хранит сохранения под cardRpg.* и на одном сайте
 // (тот же адрес github.io) их не задевает

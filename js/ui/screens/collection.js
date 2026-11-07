@@ -1,12 +1,12 @@
 // Экран коллекции: значки всего, что игрок открыл, и статистика забегов. Нажатие на значок показывает параметры.
-import { CARDS } from "../../data/cards.js";
-import { ACTS } from "../../data/acts.js";
-import { ENEMIES } from "../../data/enemies.js";
-import { HEROES } from "../../data/heroes.js";
-import { POTIONS } from "../../data/potions.js";
-import { RELICS } from "../../data/relics.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { loadMeta } from "../../save.js";
+import { CARDS } from "../../data/cards.ts";
+import { ACTS } from "../../data/acts.ts";
+import { ENEMIES } from "../../data/enemies.ts";
+import { HEROES } from "../../data/heroes.ts";
+import { POTIONS } from "../../data/potions.ts";
+import { RELICS } from "../../data/relics.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { loadMeta } from "../../save.ts";
 import { enemySprite, heroSprite } from "../art.js";
 import { createCardIcon } from "../components/card.js";
 import { openCardPreview } from "../components/cardPreview.js";

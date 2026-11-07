@@ -1,7 +1,7 @@
 // Все герои игры: здоровье, описание, стартовая колода, реликвия и особенность класса.
 // mechanic — то, что отличает класс: resource — статус-ресурс героя, passives — как он его копит
 // (триггер и эффекты, как у карт-сил). Ресурс тратят и усиливают карты класса.
-import { CONFIG } from "../config.js";
+import { CONFIG } from "../config.ts";
 
 const gain = (status, amount = 1) => [{ type: "applyStatus", status, amount, target: "self" }];
 

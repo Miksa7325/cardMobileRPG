@@ -1,6 +1,6 @@
-import { HEROES } from "../data/heroes.js";
-import { getHeroFilter } from "../engine/town.js";
-import { loadMeta } from "../save.js";
+import { HEROES } from "../data/heroes.ts";
+import { getHeroFilter } from "../engine/town.ts";
+import { loadMeta } from "../save.ts";
 
 // Как выглядят бойцы. Спрайты лежат в assets/images/units: это отрисованные 3D-модели, откуда они взяты — на экране «Авторы».
 // Заменить рисунок просто: положи файл с тем же именем. У героя без своего рисунка в HEROES указан чужой (sprite)

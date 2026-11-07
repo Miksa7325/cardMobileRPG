@@ -1,5 +1,5 @@
 // Список карт поверх экрана: просмотр колоды, стопок и выбор карты для удаления.
-import { TEXTS } from "../../data/texts.ru.js";
+import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
 import { createCardElement } from "./card.js";
 import { openCardPreview } from "./cardPreview.js";

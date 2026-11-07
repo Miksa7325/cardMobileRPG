@@ -2,14 +2,14 @@
 // сохраняет данные save.js, а показывает их ui/screens/cityServices.js.
 // Все службы работают со снаряжением героя (getGear): если он сейчас в забеге — с тем, что при нём в забеге,
 // иначе — с тем, что лежит в доме героев. У забега и у снаряжения одинаковые поля: deck, relics, potions, maxHp.
-import { CONFIG } from "../config.js";
-import { CARDS } from "../data/cards.js";
-import { COSMETICS } from "../data/cosmetics.js";
-import { HEROES } from "../data/heroes.js";
-import { RELICS } from "../data/relics.js";
-import { canUpgradeCard } from "./deck.js";
-import { getLockedContent, isHeroDead } from "./meta.js";
-import { pickRandom, pickWeighted } from "./rng.js";
+import { CONFIG } from "../config.ts";
+import { CARDS } from "../data/cards.ts";
+import { COSMETICS } from "../data/cosmetics.ts";
+import { HEROES } from "../data/heroes.ts";
+import { RELICS } from "../data/relics.ts";
+import { canUpgradeCard } from "./deck.ts";
+import { getLockedContent, isHeroDead } from "./meta.ts";
+import { pickRandom, pickWeighted } from "./rng.ts";
 
 export function isBuilt(meta, buildingId) {
   return meta.buildings.includes(buildingId);

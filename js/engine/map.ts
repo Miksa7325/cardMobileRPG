@@ -1,6 +1,6 @@
 // Генерация карты акта. Этот файл не трогает HTML: только создаёт данные карты.
-import { CONFIG } from "../config.js";
-import { nextFloat, nextInt, pickWeighted } from "./rng.js";
+import { CONFIG } from "../config.ts";
+import { nextFloat, nextInt, pickWeighted } from "./rng.ts";
 
 // Узлы лежат в сетке из рядов и колонок. Каждый путь — это колонка на каждом этаже.
 // Колонки путей всегда отсортированы по порядку, поэтому линии между рядами не пересекаются.

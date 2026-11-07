@@ -1,7 +1,7 @@
 // Колода в бою: стопка добора → рука → стопка сброса. Сожжённые карты уходят в отдельную стопку.
-import { CONFIG } from "../config.js";
-import { CARDS } from "../data/cards.js";
-import { shuffle } from "./rng.js";
+import { CONFIG } from "../config.ts";
+import { CARDS } from "../data/cards.ts";
+import { shuffle } from "./rng.ts";
 
 // У каждой карты свой uid: в колоде несколько одинаковых Ударов, а различать их нужно
 export function createPiles(deck, rng) {

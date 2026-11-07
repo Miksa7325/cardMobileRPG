@@ -1,7 +1,7 @@
 // Экран переноса сохранения: экспорт и импорт текстом.
 // Браузер может очистить данные сайта, а текст останется у игрока.
-import { TEXTS } from "../../data/texts.ru.js";
-import { exportSave, getActiveSlot, importSave, loadRun } from "../../save.js";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { exportSave, getActiveSlot, importSave, loadRun } from "../../save.ts";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";

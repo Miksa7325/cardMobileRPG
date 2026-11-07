@@ -1,11 +1,11 @@
 // Тестовый режим: список карт, реликвий и зелий поверх боя. Нажатие сразу выдаёт выбранное.
-import { CARDS } from "../../data/cards.js";
-import { POTIONS } from "../../data/potions.js";
-import { RELICS } from "../../data/relics.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { addCardToHand, addPotionToCombat, addRelicToCombat } from "../../engine/combat.js";
-import { canUpgradeCard } from "../../engine/deck.js";
-import { state } from "../../state.js";
+import { CARDS } from "../../data/cards.ts";
+import { POTIONS } from "../../data/potions.ts";
+import { RELICS } from "../../data/relics.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { addCardToHand, addPotionToCombat, addRelicToCombat } from "../../engine/combat.ts";
+import { canUpgradeCard } from "../../engine/deck.ts";
+import { state } from "../../state.ts";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { showTooltip } from "./tooltip.js";

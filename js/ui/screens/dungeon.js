@@ -1,18 +1,18 @@
 // Подземелье от первого лица: герой стоит в комнате или коридоре и выбирает, куда идти. Туннели вверх, от одного
 // до трёх, — на дальней стене, спуски в комнаты этажом ниже — люки в полу. Что за новым проходом, не видно.
 // Карта акта открывается отдельной кнопкой, если её купили у торговца. Банка светлячков освещает неизведанный проход.
-import { CONFIG } from "../../config.js";
-import { TEXTS } from "../../data/texts.ru.js";
-import { getEventData, startEvent, startTravelEvent } from "../../engine/events.js";
+import { CONFIG } from "../../config.ts";
+import { TEXTS } from "../../data/texts.ru.ts";
+import { getEventData, startEvent, startTravelEvent } from "../../engine/events.ts";
 import {
   bankLoot, countReadyQuests, getHeroEquipment, getLockedContent, isHeroDead, keepEquipment, mergeSeen, payForActStart, takeSupplies,
-} from "../../engine/meta.js";
+} from "../../engine/meta.ts";
 import {
   canReturnToCity, createRun, enterNode, getAct, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId, getStepCost,
   isNodeCleared, isNodeRevealed, openChest, rechargeFireflies, releaseFireflies, travelTo,
-} from "../../engine/run.js";
-import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
-import { state } from "../../state.js";
+} from "../../engine/run.ts";
+import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
+import { state } from "../../state.ts";
 import { NODE_ICONS, openDungeonMap } from "../components/dungeonMap.js";
 import { createItemColumns, createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
