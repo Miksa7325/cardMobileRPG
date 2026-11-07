@@ -115,10 +115,11 @@ export const ENEMIES: Record<string, EnemyData> = {
   crypt_warden: {
     id: "crypt_warden",
     name: "Хранитель склепа",
-    hp: [150, 150],
+    // Подобрано симулятором полного забега: HP 150 и коса с Сокрушением делали его стеной для всех классов
+    hp: [120, 120],
     moves: {
       hex: debuff({ weak: 2, slow: 1 }, 1, { w: 2 }),
-      scythe: attack(15, 1, { w: 3, sunder: 1 }),
+      scythe: attack(15, 1, { w: 3 }),
       fortify: buff(2, 12, { w: 2, repair: 2 }),
       flurry: attack(5, 3, { w: 2 }),
       call: summon("skeleton", { w: 2 }),
