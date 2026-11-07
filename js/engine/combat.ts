@@ -5,14 +5,15 @@ import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { RELICS } from "../data/relics.ts";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.ts";
-import { addTally, applyLeech, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.ts";
+import { addTally, applyBurning, applyLeech, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.ts";
 import { createRng, nextInt } from "./rng.ts";
 import type {
   ActionResult, CardInstance, CardTarget, Combat, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent, Power, Rng, RunCard, StatusId, Statuses,
 } from "../types.ts";
 
-// Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
-const DECAYING_STATUSES: StatusId[] = ["vulnerable", "weak", "frail"];
+// Статусы, которые убывают на 1 в конце хода владельца. Уязвимость сама не проходит, её снимает только Починка.
+// Сила и Ловкость тоже остаются, у Яда и Горения свой порядок
+const DECAYING_STATUSES: StatusId[] = ["weak"];
 // Статусы, которые сгорают целиком в конце хода: Комбо Убийцы живёт один ход
 const TURN_STATUSES: StatusId[] = ["combo"];
 
@@ -61,6 +62,7 @@ export function createCombat({
       powers: [], // разыгранные карты-силы с триггерами
       // Врождённая особенность класса (как герой копит свой ресурс) и то, что навешивает акт
       passives: [...(heroData.mechanic?.passives ?? []), ...extraPassives],
+      damageReduction: heroData.mechanic.damageReduction ?? 0,
     },
     enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng, enemyHpMultiplier, enemyStrength, enemyBlock)),
     piles: createPiles(deck ?? startingDeck, rng),
@@ -111,8 +113,8 @@ export function getEnemyIntent(combat: Combat, enemy: EnemyUnit): EnemyIntent {
   const move = getCurrentMove(enemy);
   const attacks = move.effects.filter((effect) => effect.type === "damage");
   const blockEffect = move.effects.find((effect) => effect.type === "block");
-  // Статусы героя убывают в конце его хода, то есть раньше удара: считаем по тем, что останутся
-  const heroWhenHit = { statuses: { ...combat.hero.statuses } };
+  // Статусы героя убывают в конце его хода, то есть раньше удара: считаем по тем, что останутся. Защита Воина тоже учитывается
+  const heroWhenHit = { statuses: { ...combat.hero.statuses }, damageReduction: combat.hero.damageReduction };
   decayStatuses(heroWhenHit);
   return {
     intent: move.intent,
@@ -213,6 +215,8 @@ function startPlayerTurn(combat: Combat): void {
   combat.energy = CONFIG.energyPerTurn;
 
   applyPoison(combat, combat.hero);
+  applyBurning(combat, combat.hero);
+  if (combat.status !== "playerTurn") return;
   fireTrigger(combat, "onTurnStart");
   if (combat.status !== "playerTurn") return;
 
@@ -228,6 +232,9 @@ function runEnemyTurn(combat: Combat): void {
     if (combat.status !== "playerTurn") return;
     if (enemy.hp <= 0) continue;
     applyLeech(combat, enemy);
+    if (combat.status !== "playerTurn") return;
+    if (enemy.hp <= 0) continue;
+    applyBurning(combat, enemy);
     if (combat.status !== "playerTurn") return;
     if (enemy.hp <= 0) continue;
 

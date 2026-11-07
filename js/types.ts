@@ -8,10 +8,10 @@
 export type StatusId =
   | "vulnerable" // Уязвимость
   | "weak" // Слабость
-  | "frail" // Хрупкость
   | "strength" // Сила
   | "dexterity" // Ловкость
   | "poison" // Яд
+  | "burning" // Горение
   | "leech" // Печать крови Чернокнижника
   | "rage" // Ярость Воина
   | "combo" // Комбо Убийцы
@@ -63,6 +63,9 @@ export type Effect =
   | { type: "block"; amount: number; target?: EffectTarget; bonus?: Bonus }
   | { type: "applyStatus"; status: StatusId; amount: number; target?: EffectTarget; bonus?: Bonus }
   | { type: "spend"; status: StatusId; amount: number; effects: Effect[] }
+  // Сокрушение N: N Уязвимости на цель до урона этой же карты. Починка N: снять N Уязвимости с себя
+  | { type: "sunder"; amount: number; target?: EffectTarget }
+  | { type: "repair"; amount: number }
   | { type: "brewPotion"; amount: number }
   | { type: "heal"; amount: number }
   | { type: "loseHp"; amount: number }
@@ -136,6 +139,7 @@ export interface HeroData {
     resource: StatusId;
     text: string;
     passives: Power[];
+    damageReduction?: number; // защита класса: на сколько процентов меньше урона от ударов
   };
   deck: string[];
   relics: string[];
@@ -289,6 +293,7 @@ export interface HeroUnit extends Unit {
   heroId: HeroId;
   powers: (Power & { cardId: string })[]; // разыгранные карты-силы
   passives: Power[]; // особенность класса и то, что навешивает акт
+  damageReduction: number; // защита класса в процентах: Воин получает меньше урона от ударов
 }
 
 export interface EnemyUnit extends Unit {

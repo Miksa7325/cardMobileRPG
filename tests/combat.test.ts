@@ -1,9 +1,10 @@
-// Автотесты нынешних правил боя. Запуск: npm test
+// Автотесты правил боя. Запуск: npm test
 // Каждый тест строит маленький бой и проверяет одно правило. Если правку сломала правило — тест упадёт.
 import { describe, expect, it } from "vitest";
 import { CONFIG } from "../js/config.ts";
 import { canPlayCard, createCombat, endTurn, playCard } from "../js/engine/combat.ts";
-import { applyPoison, calculateBlock, calculateDamage, executeEffects } from "../js/engine/effects.ts";
+import { applyBurning, applyPoison, calculateBlock, calculateDamage, executeEffects, orderEffects } from "../js/engine/effects.ts";
+import type { Effect } from "../js/types.ts";
 
 type Statuses = Record<string, number>;
 const unit = (statuses: Statuses = {}) => ({ statuses });
@@ -16,20 +17,93 @@ function fight(options: Record<string, unknown> = {}) {
 }
 
 describe("формула урона", () => {
-  it("Сила прибавляется к каждому удару", () => {
-    expect(calculateDamage(6, unit({ strength: 2 }), unit())).toBe(8);
+  it("Сила: +10% за стак", () => {
+    expect(calculateDamage(10, unit({ strength: 2 }), unit())).toBe(12);
   });
-  it("Слабость атакующего — ×0.75, с округлением вниз", () => {
-    expect(calculateDamage(6, unit({ weak: 1 }), unit())).toBe(4);
+  it("Слабость: −10% за стак, с округлением вниз", () => {
+    expect(calculateDamage(9, unit({ weak: 1 }), unit())).toBe(8); // 8.1
   });
-  it("Уязвимость цели — ×1.5", () => {
-    expect(calculateDamage(6, unit(), unit({ vulnerable: 1 }))).toBe(9);
+  it("Слабость не больше 3 стаков (−30%)", () => {
+    expect(calculateDamage(10, unit({ weak: 5 }), unit())).toBe(7);
   });
-  it("Сила считается до множителей", () => {
-    expect(calculateDamage(6, unit({ strength: 2, weak: 1 }), unit({ vulnerable: 1 }))).toBe(9);
+  it("Уязвимость: +10% за стак — удар на 9 по 5 стакам = 13", () => {
+    expect(calculateDamage(9, unit(), unit({ vulnerable: 5 }))).toBe(13);
+  });
+  it("Уязвимость не больше 10 стаков (+100%)", () => {
+    expect(calculateDamage(6, unit(), unit({ vulnerable: 15 }))).toBe(12);
+  });
+  it("множители перемножаются, округление один раз в конце", () => {
+    // 10 × 1.2 × 0.9 × 1.3 = 14.04
+    expect(calculateDamage(10, unit({ strength: 2, weak: 1 }), unit({ vulnerable: 3 }))).toBe(14);
+  });
+  it("защита класса: −20% урона", () => {
+    expect(calculateDamage(10, unit(), { statuses: {}, damageReduction: 20 })).toBe(8);
+  });
+  it("защита и Уязвимость вместе не дают минуса: 10 × 2 × 0.8 = 16", () => {
+    expect(calculateDamage(10, unit(), { statuses: { vulnerable: 10 }, damageReduction: 20 })).toBe(16);
   });
   it("без цели (описание карты) Уязвимость не учитывается", () => {
     expect(calculateDamage(6, unit(), null)).toBe(6);
+  });
+});
+
+describe("порядок эффектов карты", () => {
+  it("статусы на цель → урон → остальное в записанном порядке", () => {
+    const effects: Effect[] = [
+      { type: "damage", amount: 5 },
+      { type: "block", amount: 3, target: "self" },
+      { type: "applyStatus", status: "vulnerable", amount: 2 },
+      { type: "draw", amount: 1 },
+      { type: "sunder", amount: 1 },
+      { type: "applyStatus", status: "strength", amount: 1, target: "self" },
+    ];
+    expect(orderEffects(effects).map((e) => e.type)).toEqual(["applyStatus", "sunder", "damage", "block", "draw", "applyStatus"]);
+  });
+  it("Уязвимость карты срабатывает до её урона", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    const hp = enemy.hp;
+    // Как старое Сокрушение: 8 урона, потом 2 Уязвимости — теперь Уязвимость идёт первой
+    executeEffects(combat, [{ type: "damage", amount: 8 }, { type: "applyStatus", status: "vulnerable", amount: 2 }],
+      { source: combat.hero, targets: [enemy], fromCard: true });
+    expect(enemy.hp).toBe(hp - 9); // 8 × 1.2 = 9.6
+  });
+  it("у многоударной карты статус ложится один раз, перед первым ударом", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    const hp = enemy.hp;
+    executeEffects(combat, [{ type: "damage", amount: 5 }, { type: "damage", amount: 5 }, { type: "sunder", amount: 2 }],
+      { source: combat.hero, targets: [enemy], fromCard: true });
+    expect(enemy.statuses.vulnerable).toBe(2);
+    expect(enemy.hp).toBe(hp - 12); // 2 × (5 × 1.2)
+  });
+});
+
+describe("Сокрушение и Починка", () => {
+  it("Сокрушение N кладёт N Уязвимости на цель", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    executeEffects(combat, [{ type: "sunder", amount: 3 }], { source: combat.hero, targets: [enemy], fromCard: true });
+    expect(enemy.statuses.vulnerable).toBe(3);
+  });
+  it("Сокрушение не поднимает Уязвимость выше 10", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    enemy.statuses.vulnerable = 9;
+    executeEffects(combat, [{ type: "sunder", amount: 3 }], { source: combat.hero, targets: [enemy], fromCard: true });
+    expect(enemy.statuses.vulnerable).toBe(10);
+  });
+  it("Починка N снимает N Уязвимости с того, кто играет", () => {
+    const combat = fight();
+    combat.hero.statuses.vulnerable = 5;
+    executeEffects(combat, [{ type: "repair", amount: 2 }], { source: combat.hero, targets: [], fromCard: true });
+    expect(combat.hero.statuses.vulnerable).toBe(3);
+  });
+  it("Починка больше, чем стаков, просто снимает все", () => {
+    const combat = fight();
+    combat.hero.statuses.vulnerable = 1;
+    executeEffects(combat, [{ type: "repair", amount: 3 }], { source: combat.hero, targets: [], fromCard: true });
+    expect(combat.hero.statuses.vulnerable).toBeUndefined();
   });
 });
 
@@ -37,9 +111,6 @@ describe("блок", () => {
   it("Ловкость прибавляется только к блоку от карт", () => {
     expect(calculateBlock(5, unit({ dexterity: 2 }), true)).toBe(7);
     expect(calculateBlock(5, unit({ dexterity: 2 }), false)).toBe(5);
-  });
-  it("Хрупкость — ×0.75 блока", () => {
-    expect(calculateBlock(8, unit({ frail: 1 }), true)).toBe(6);
   });
   it("урон сначала снимает блок, остаток — HP", () => {
     const combat = fight();
@@ -72,13 +143,42 @@ describe("статусы", () => {
     expect(enemy.block).toBe(10);
     expect(enemy.statuses.poison).toBe(2);
   });
-  it("Уязвимость и Слабость героя убывают на 1 в конце его хода, Сила остаётся", () => {
+  it("Горение бьёт сначала по блоку, потом остаётся меньшая половина: 5 → 2 → 1 → 0", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    enemy.block = 3;
+    enemy.statuses.burning = 5;
+    const hp = enemy.hp;
+    applyBurning(combat, enemy);
+    expect(enemy.block).toBe(0);
+    expect(enemy.hp).toBe(hp - 2);
+    expect(enemy.statuses.burning).toBe(2);
+    applyBurning(combat, enemy);
+    expect(enemy.statuses.burning).toBe(1);
+    applyBurning(combat, enemy);
+    expect(enemy.statuses.burning).toBeUndefined();
+  });
+  it("Горение героя не даёт Ярости и не снижается защитой Воина", () => {
+    const combat = fight({ deck: deckOf("defend") });
+    combat.hero.statuses.burning = 10;
+    const hp = combat.hero.hp;
+    applyBurning(combat, combat.hero);
+    expect(combat.hero.hp).toBe(hp - 10);
+    expect(combat.hero.statuses.rage).toBeUndefined();
+  });
+  it("Слабость убывает на 1 в конце хода, Уязвимость и Сила остаются", () => {
     const combat = fight();
     Object.assign(combat.hero.statuses, { vulnerable: 2, weak: 1, strength: 3 });
     combat.enemies[0].patternIndex = 1;
     endTurn(combat);
-    expect(combat.hero.statuses).toMatchObject({ vulnerable: 1, strength: 3 });
+    expect(combat.hero.statuses).toMatchObject({ vulnerable: 2, strength: 3 });
     expect(combat.hero.statuses.weak).toBeUndefined();
+  });
+  it("Слабость не набирается больше 3", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    executeEffects(combat, [{ type: "applyStatus", status: "weak", amount: 5 }], { source: combat.hero, targets: [enemy], fromCard: true });
+    expect(enemy.statuses.weak).toBe(3);
   });
   it("Комбо Убийцы сгорает в конце хода", () => {
     const combat = fight({ heroId: "assassin", deck: deckOf("a_strike") });
@@ -86,6 +186,35 @@ describe("статусы", () => {
     expect(combat.hero.statuses.combo).toBe(1);
     endTurn(combat);
     expect(combat.hero.statuses.combo).toBeUndefined();
+  });
+});
+
+describe("защита Воина", () => {
+  it("удар Скелета на 9 бьёт Воина на 7", () => {
+    const combat = fight({ deck: deckOf("strike") });
+    combat.enemies[0].patternIndex = 0; // Рубка на 9
+    const hp = combat.hero.hp;
+    endTurn(combat);
+    expect(combat.hero.hp).toBe(hp - 7);
+  });
+  it("у других классов защиты нет", () => {
+    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
+    combat.enemies[0].patternIndex = 0;
+    const hp = combat.hero.hp;
+    endTurn(combat);
+    expect(combat.hero.hp).toBe(hp - 9);
+  });
+  it("намерение врага показывает урон уже с защитой", async () => {
+    const { getEnemyIntent } = await import("../js/engine/combat.ts");
+    const combat = fight();
+    combat.enemies[0].patternIndex = 0;
+    expect(getEnemyIntent(combat, combat.enemies[0]).damage).toBe(7);
+  });
+  it("плата своим HP защитой не снижается", () => {
+    const combat = fight();
+    const hp = combat.hero.hp;
+    executeEffects(combat, [{ type: "loseHp", amount: 5 }], { source: combat.hero, targets: [], fromCard: true });
+    expect(combat.hero.hp).toBe(hp - 5);
   });
 });
 

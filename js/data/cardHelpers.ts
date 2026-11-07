@@ -18,6 +18,9 @@ export const multiplyStatus = (name: StatusId, factor: number): EffectOf<"multip
 export const exhaustWounds: EffectOf<"exhaustWounds"> = { type: "exhaustWounds" };
 export const wound: EffectOf<"addCard"> = { type: "addCard", cardId: "wound", pile: "discard" };
 export const burn: EffectOf<"exhaust"> = { type: "exhaust" };
+// Сокрушение N: N Уязвимости на цель до урона этой же карты. Починка N: снять с себя N Уязвимости
+export const sunder = (amount: number): EffectOf<"sunder"> => ({ type: "sunder", amount });
+export const repair = (amount: number): EffectOf<"repair"> => ({ type: "repair", amount });
 
 // Механики классов. Ресурсы — статусы героя: rage — Ярость, combo — Комбо, darkness — Тьма, reagents — Реагенты.
 // spend: потратить N ресурса на эффекты; если ресурса меньше, ничего не случится

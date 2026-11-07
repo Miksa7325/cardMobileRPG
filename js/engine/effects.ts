@@ -10,29 +10,66 @@ import type {
 import { createCardInstance, drawCards } from "./deck.ts";
 import { nextInt } from "./rng.ts";
 
-// Для формул хватает статусов: так можно посчитать урон и для «пустого» бойца из предпросмотра
+// Для формул хватает статусов: так можно посчитать урон и для «пустого» бойца из предпросмотра.
+// damageReduction — защита класса в процентах (у Воина)
 type HasStatuses = Pick<Unit, "statuses">;
+type DamageTarget = HasStatuses & { damageReduction?: number };
 
-// Формула урона: (база + Сила) × 0.75 при Слабости × 1.5 при Уязвимости цели, округление вниз.
-// target может быть null: тогда это число для описания карты, без учёта цели.
-export function calculateDamage(base: number, attacker: HasStatuses, target: HasStatuses | null): number {
-  let damage = base + (attacker.statuses.strength ?? 0);
-  if (attacker.statuses.weak) damage *= CONFIG.weakMultiplier;
-  if (target && target.statuses.vulnerable) damage *= CONFIG.vulnerableMultiplier;
-  return Math.floor(damage);
+// Больше этого числа стаков статус не набирает
+const STATUS_CAPS: Partial<Record<StatusId, number>> = {
+  weak: CONFIG.weakMaxStacks,
+  vulnerable: CONFIG.vulnerableMaxStacks,
+};
+
+// Формула урона: база × (1 + 10% за Силу) × (1 − 10% за Слабость) × (1 + 10% за Уязвимость цели) × (1 − защита класса).
+// Множители перемножаются, поэтому урон не уходит в минус. Округление вниз — один раз, в конце.
+// Считаем в целых процентах: так 10 × 0.7 не превращается в 6.9999 из-за дробей компьютера.
+// target может быть null: тогда это число для описания карты, без учёта цели
+export function calculateDamage(base: number, attacker: HasStatuses, target: DamageTarget | null): number {
+  const strength = attacker.statuses.strength ?? 0;
+  const weak = Math.min(attacker.statuses.weak ?? 0, CONFIG.weakMaxStacks);
+  const vulnerable = Math.min(target?.statuses.vulnerable ?? 0, CONFIG.vulnerableMaxStacks);
+  const reduction = target?.damageReduction ?? 0;
+  const percent = (100 + strength * CONFIG.strengthPercent)
+    * (100 - weak * CONFIG.weakPercent)
+    * (100 + vulnerable * CONFIG.vulnerablePercent)
+    * (100 - reduction);
+  return Math.max(0, Math.floor((base * percent) / 100 ** 4));
 }
 
-// Ловкость прибавляется только к блоку от карт, Хрупкость уменьшает любой блок
+// Ловкость прибавляется только к блоку от карт
 export function calculateBlock(base: number, unit: HasStatuses, fromCard: boolean): number {
-  let block = base + (fromCard ? unit.statuses.dexterity ?? 0 : 0);
-  if (unit.statuses.frail) block *= CONFIG.frailMultiplier;
-  return Math.floor(block);
+  return base + (fromCard ? unit.statuses.dexterity ?? 0 : 0);
+}
+
+// Прибавляет стаки статуса с учётом потолка. Возвращает, сколько стаков реально добавилось
+function addStatus(unit: HasStatuses, status: StatusId, amount: number): number {
+  const before = unit.statuses[status] ?? 0;
+  const cap = STATUS_CAPS[status] ?? Infinity;
+  const after = Math.min(before + amount, cap);
+  if (after > 0) unit.statuses[status] = after;
+  return after - before;
+}
+
+// Порядок эффектов внутри карты: сначала статусы на цель (Сокрушение, Уязвимость, Слабость, Яд…), потом урон,
+// потом всё остальное в записанном порядке. Так Сокрушение ломает броню до удара этой же карты,
+// а у многоударной карты статус ложится один раз, перед первым ударом
+function isTargetStatus(effect: Effect): boolean {
+  return (effect.type === "applyStatus" && effect.target !== "self") || effect.type === "sunder";
+}
+
+export function orderEffects(effects: Effect[]): Effect[] {
+  return [
+    ...effects.filter(isTargetStatus),
+    ...effects.filter((effect) => effect.type === "damage"),
+    ...effects.filter((effect) => !isTargetStatus(effect) && effect.type !== "damage"),
+  ];
 }
 
 // Исполняет эффекты по очереди; после каждого проверяет победу и поражение.
 // context: source — кто действует, targets — цели, fromCard — эффект идёт от разыгранной карты
 export function executeEffects(combat: Combat, effects: Effect[], context: EffectContext): void {
-  for (const effect of effects) {
+  for (const effect of orderEffects(effects)) {
     if (combat.status !== "playerTurn") return;
     const handler = EFFECT_HANDLERS[effect.type] as Handler<EffectType> | undefined;
     if (!handler) throw new Error(`Эффект «${effect.type}» не работает в бою`);
@@ -100,6 +137,24 @@ export function applyPoison(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   unit.hp = Math.max(0, unit.hp - stacks);
   recordEvent(combat, { type: "poison", targetId: unitId(combat, unit), amount: stacks, hp: unit.hp, block: unit.block });
   reduceStatus(unit, "poison");
+  notifyIfEnemyDied(combat, unit);
+  checkCombatEnd(combat);
+}
+
+// Горение: урон равен числу стаков, сначала снимает блок. Потом половина стаков сгорает, остаётся меньшая часть: 5 → 2 → 1 → 0.
+// Это не удар: Сила, Уязвимость и защита Воина на него не действуют, Ярость за него не копится
+export function applyBurning(combat: Combat, unit: HeroUnit | EnemyUnit): void {
+  const stacks = unit.statuses.burning;
+  if (!stacks) return;
+  const absorbed = Math.min(unit.block, stacks);
+  const hpLost = Math.min(unit.hp, stacks - absorbed);
+  unit.block -= absorbed;
+  if (unit !== combat.hero) addTally(combat, "damageDealt", hpLost);
+  unit.hp -= hpLost;
+  recordEvent(combat, { type: "burning", targetId: unitId(combat, unit), amount: stacks, hpLost, blocked: absorbed, hp: unit.hp, block: unit.block });
+  const left = Math.floor(stacks / 2);
+  if (left > 0) unit.statuses.burning = left;
+  else delete unit.statuses.burning;
   notifyIfEnemyDied(combat, unit);
   checkCombatEnd(combat);
 }
@@ -193,9 +248,26 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     const amount = effect.amount + getBonus(effect, context.source);
     if (amount <= 0) return;
     for (const target of getTargets(combat, effect, context)) {
-      target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + amount;
-      recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: effect.status, amount });
+      const added = addStatus(target, effect.status, amount);
+      if (added > 0) recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: effect.status, amount: added });
     }
+  },
+  // Сокрушение: ломает броню цели. Стоит среди статусов на цель, поэтому срабатывает до урона этой же карты
+  sunder(combat, effect, context) {
+    for (const target of getTargets(combat, effect, context)) {
+      const added = addStatus(target, "vulnerable", effect.amount);
+      if (added > 0) recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: "vulnerable", amount: added });
+    }
+  },
+  // Починка: снимает Уязвимость с того, кто играет карту. Обычный блок броню не чинит
+  repair(combat, effect, context) {
+    const unit = context.source;
+    const stacks = unit.statuses.vulnerable ?? 0;
+    const removed = Math.min(stacks, effect.amount);
+    if (removed === 0) return;
+    if (removed === stacks) delete unit.statuses.vulnerable;
+    else unit.statuses.vulnerable = stacks - removed;
+    recordEvent(combat, { type: "repair", targetId: unitId(combat, unit), amount: removed });
   },
   // Тратит ресурс героя (Ярость, Комбо, Тьму, Реагенты) на сильный эффект. Если ресурса не хватает, ничего не происходит
   spend(combat, effect, context) {

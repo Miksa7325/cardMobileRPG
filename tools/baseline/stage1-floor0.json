@@ -1,0 +1,513 @@
+{
+  "meta": {
+    "date": "2026-11-07",
+    "act": 1,
+    "actName": "Катакомбы",
+    "floor": 0,
+    "fights": 100,
+    "budget": 400,
+    "strengthScale": 1
+  },
+  "results": [
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "battle",
+      "enemies": [
+        "cultist"
+      ],
+      "enemiesName": "Культист",
+      "winRate": 1,
+      "avgHpLost": 2,
+      "avgTurns": 3.7
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "battle",
+      "enemies": [
+        "skeleton"
+      ],
+      "enemiesName": "Скелет",
+      "winRate": 1,
+      "avgHpLost": 2.5,
+      "avgTurns": 3.5
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 8.2,
+      "avgTurns": 3.8
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "battle",
+      "enemies": [
+        "skeleton",
+        "spider"
+      ],
+      "enemiesName": "Скелет + Паук",
+      "winRate": 1,
+      "avgHpLost": 11.5,
+      "avgTurns": 5.4
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 30,
+      "avgTurns": 5.8
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "elite",
+      "enemies": [
+        "fallen_knight"
+      ],
+      "enemiesName": "Падший рыцарь",
+      "winRate": 1,
+      "avgHpLost": 8.9,
+      "avgTurns": 6
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "elite",
+      "enemies": [
+        "grave_hound"
+      ],
+      "enemiesName": "Могильный пёс",
+      "winRate": 1,
+      "avgHpLost": 15.6,
+      "avgTurns": 5.6
+    },
+    {
+      "hero": "warrior",
+      "heroName": "Воин",
+      "type": "boss",
+      "enemies": [
+        "crypt_warden"
+      ],
+      "enemiesName": "Хранитель склепа",
+      "winRate": 0.99,
+      "avgHpLost": 39.4,
+      "avgTurns": 14.4
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "battle",
+      "enemies": [
+        "cultist"
+      ],
+      "enemiesName": "Культист",
+      "winRate": 1,
+      "avgHpLost": 2.4,
+      "avgTurns": 3.3
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "battle",
+      "enemies": [
+        "skeleton"
+      ],
+      "enemiesName": "Скелет",
+      "winRate": 1,
+      "avgHpLost": 1.1,
+      "avgTurns": 3.2
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 4.2,
+      "avgTurns": 3.1
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "battle",
+      "enemies": [
+        "skeleton",
+        "spider"
+      ],
+      "enemiesName": "Скелет + Паук",
+      "winRate": 1,
+      "avgHpLost": 7.4,
+      "avgTurns": 4.8
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 18.8,
+      "avgTurns": 4.5
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "elite",
+      "enemies": [
+        "fallen_knight"
+      ],
+      "enemiesName": "Падший рыцарь",
+      "winRate": 1,
+      "avgHpLost": 10.8,
+      "avgTurns": 5.5
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "elite",
+      "enemies": [
+        "grave_hound"
+      ],
+      "enemiesName": "Могильный пёс",
+      "winRate": 1,
+      "avgHpLost": 19.5,
+      "avgTurns": 4.7
+    },
+    {
+      "hero": "assassin",
+      "heroName": "Убийца",
+      "type": "boss",
+      "enemies": [
+        "crypt_warden"
+      ],
+      "enemiesName": "Хранитель склепа",
+      "winRate": 0.96,
+      "avgHpLost": 54.3,
+      "avgTurns": 12.3
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "battle",
+      "enemies": [
+        "cultist"
+      ],
+      "enemiesName": "Культист",
+      "winRate": 1,
+      "avgHpLost": 1.1,
+      "avgTurns": 4.2
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "battle",
+      "enemies": [
+        "skeleton"
+      ],
+      "enemiesName": "Скелет",
+      "winRate": 1,
+      "avgHpLost": 0.6,
+      "avgTurns": 4.6
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 2.8,
+      "avgTurns": 3.9
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "battle",
+      "enemies": [
+        "skeleton",
+        "spider"
+      ],
+      "enemiesName": "Скелет + Паук",
+      "winRate": 1,
+      "avgHpLost": 10.1,
+      "avgTurns": 6.7
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 20.7,
+      "avgTurns": 6
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "elite",
+      "enemies": [
+        "fallen_knight"
+      ],
+      "enemiesName": "Падший рыцарь",
+      "winRate": 1,
+      "avgHpLost": 24,
+      "avgTurns": 7.7
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "elite",
+      "enemies": [
+        "grave_hound"
+      ],
+      "enemiesName": "Могильный пёс",
+      "winRate": 1,
+      "avgHpLost": 32.9,
+      "avgTurns": 7.1
+    },
+    {
+      "hero": "warlock",
+      "heroName": "Чернокнижник",
+      "type": "boss",
+      "enemies": [
+        "crypt_warden"
+      ],
+      "enemiesName": "Хранитель склепа",
+      "winRate": 0,
+      "avgHpLost": 82,
+      "avgTurns": 14.7
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "battle",
+      "enemies": [
+        "cultist"
+      ],
+      "enemiesName": "Культист",
+      "winRate": 1,
+      "avgHpLost": 1.8,
+      "avgTurns": 4
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "battle",
+      "enemies": [
+        "skeleton"
+      ],
+      "enemiesName": "Скелет",
+      "winRate": 1,
+      "avgHpLost": 1.2,
+      "avgTurns": 3.6
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 6.2,
+      "avgTurns": 3.6
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "battle",
+      "enemies": [
+        "skeleton",
+        "spider"
+      ],
+      "enemiesName": "Скелет + Паук",
+      "winRate": 1,
+      "avgHpLost": 8.3,
+      "avgTurns": 5.4
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 23.1,
+      "avgTurns": 5.5
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "elite",
+      "enemies": [
+        "fallen_knight"
+      ],
+      "enemiesName": "Падший рыцарь",
+      "winRate": 1,
+      "avgHpLost": 13.3,
+      "avgTurns": 6.5
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "elite",
+      "enemies": [
+        "grave_hound"
+      ],
+      "enemiesName": "Могильный пёс",
+      "winRate": 1,
+      "avgHpLost": 16.6,
+      "avgTurns": 5.8
+    },
+    {
+      "hero": "alchemist",
+      "heroName": "Алхимик",
+      "type": "boss",
+      "enemies": [
+        "crypt_warden"
+      ],
+      "enemiesName": "Хранитель склепа",
+      "winRate": 0.9,
+      "avgHpLost": 46.5,
+      "avgTurns": 14.3
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "battle",
+      "enemies": [
+        "cultist"
+      ],
+      "enemiesName": "Культист",
+      "winRate": 1,
+      "avgHpLost": 1.2,
+      "avgTurns": 3.8
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "battle",
+      "enemies": [
+        "skeleton"
+      ],
+      "enemiesName": "Скелет",
+      "winRate": 1,
+      "avgHpLost": 1.2,
+      "avgTurns": 3.9
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 8.5,
+      "avgTurns": 3.7
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "battle",
+      "enemies": [
+        "skeleton",
+        "spider"
+      ],
+      "enemiesName": "Скелет + Паук",
+      "winRate": 1,
+      "avgHpLost": 10.8,
+      "avgTurns": 5.2
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "battle",
+      "enemies": [
+        "spider",
+        "spider",
+        "spider"
+      ],
+      "enemiesName": "Паук + Паук + Паук",
+      "winRate": 1,
+      "avgHpLost": 29.3,
+      "avgTurns": 5.6
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "elite",
+      "enemies": [
+        "fallen_knight"
+      ],
+      "enemiesName": "Падший рыцарь",
+      "winRate": 1,
+      "avgHpLost": 9.8,
+      "avgTurns": 5.9
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "elite",
+      "enemies": [
+        "grave_hound"
+      ],
+      "enemiesName": "Могильный пёс",
+      "winRate": 1,
+      "avgHpLost": 19.1,
+      "avgTurns": 5.1
+    },
+    {
+      "hero": "mage",
+      "heroName": "Маг",
+      "type": "boss",
+      "enemies": [
+        "crypt_warden"
+      ],
+      "enemiesName": "Хранитель склепа",
+      "winRate": 0.85,
+      "avgHpLost": 48.6,
+      "avgTurns": 12.9
+    }
+  ]
+}

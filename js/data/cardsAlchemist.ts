@@ -22,7 +22,7 @@ export const ALCHEMIST_CARDS: CardData[] = [
   card("al_distill", "Перегонка", "skill", "common", 1, "self", "Получить {reagents} Реагента. Взять {draw} карту.", [gainResource("reagents", 3), draw(1)], { effects: [gainResource("reagents", 4), draw(1)] }),
   card("al_tincture", "Настойка", "skill", "common", 1, "self", "Вылечить {heal} HP. Сжечь.", [heal(6), burn], { effects: [heal(9), burn] }),
   card("al_caustic", "Едкая склянка", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(4), status("poison", 3)], { effects: [damage(6), status("poison", 4)] }),
-  card("al_firebomb", "Зажигательная смесь", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем. Наложить {poison} Яда всем: враги горят.", [damage(3), status("poison", 2)], { effects: [damage(4), status("poison", 3)] }),
+  card("al_firebomb", "Зажигательная смесь", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем. Наложить {burning} Горения всем.", [damage(3), status("burning", 2)], { effects: [damage(4), status("burning", 3)] }),
   card("al_smoke", "Дымовая шашка", "skill", "common", 1, "allEnemies", "Получить {block} блока. Наложить {weak} Слабости всем.", [block(5), status("weak", 1)], { effects: [block(7), status("weak", 2)] }),
   card("al_pouch", "Мешочек реагентов", "skill", "common", 0, "self", "Получить {reagents} Реагента.", [gainResource("reagents", 2)], { effects: [gainResource("reagents", 3)] }),
 

@@ -6,7 +6,7 @@ import { fillCardFace, formatDescription } from "./card.js";
 import { hideTooltip } from "./tooltip.js";
 
 // Числа и термины в тексте выделяются. Текст собираем из узлов, поэтому разметка в него не попадёт
-const HIGHLIGHT = /(\d+|Сжечь|Сжечь Раны|Яд[а-я]*|Уязвимост[а-я]*|Слабост[а-я]*|Сил[а-я]*|Ловкост[а-я]*|Хрупкост[а-я]*|Ран[а-я]*|блок[а-я]*)/g;
+const HIGHLIGHT = /(\d+|Сжечь|Сжечь Раны|Яд[а-я]*|Уязвимост[а-я]*|Слабост[а-я]*|Сил[а-я]*|Ловкост[а-я]*|Горени[а-я]*|Сокрушени[а-я]*|Починк[а-я]*|Ран[а-я]*|блок[а-я]*)/g;
 
 export function createRichText(className, text) {
   const paragraph = el("p", className);

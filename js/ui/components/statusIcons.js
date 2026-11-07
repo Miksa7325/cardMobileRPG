@@ -1,4 +1,5 @@
 // Значки статусов и сил бойца. Сами значки — в ui/icons.js: у статуса и значка одно имя (poison, rage…)
+import { CONFIG } from "../../config.ts";
 import { CARDS } from "../../data/cards.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { el } from "../dom.js";
@@ -11,10 +12,19 @@ function createBadge(iconName, text) {
   return badge;
 }
 
+// Процентные статусы: рядом с числом стаков — итоговый процент («Уязвимость 5 · +50%»)
+const PERCENT_STATUSES = {
+  vulnerable: (stacks) => `+${Math.min(stacks, CONFIG.vulnerableMaxStacks) * CONFIG.vulnerablePercent}%`,
+  weak: (stacks) => `−${Math.min(stacks, CONFIG.weakMaxStacks) * CONFIG.weakPercent}%`,
+  strength: (stacks) => `+${stacks * CONFIG.strengthPercent}%`,
+};
+
 export function createStatusIcons(unit, { compact = false } = {}) {
   const list = el("div", "statuses");
   for (const [status, amount] of Object.entries(unit.statuses)) {
-    list.append(createBadge(status, compact ? String(amount) : `${TEXTS.statuses[status]} ${amount}`));
+    const percent = PERCENT_STATUSES[status]?.(amount);
+    const full = `${TEXTS.statuses[status]} ${amount}${percent ? ` · ${percent}` : ""}`;
+    list.append(createBadge(status, compact ? String(amount) : full));
   }
   // Одинаковые силы показываем одним значком: «Ярость ×2»
   const powerCounts = {};

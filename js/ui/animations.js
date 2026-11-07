@@ -243,6 +243,12 @@ function showEvent(event, before) {
     updateUnitView(event, before);
     playSound(DRAIN_SOUNDS[event.type]);
     markDeadEnemy(event, target);
+  } else if (event.type === "burning") {
+    // Горение бьёт как удар без атакующего: сначала по блоку, потом по HP
+    showHit(event, before, "burst");
+  } else if (event.type === "repair") {
+    showNumber(target.rect, `🔧−${event.amount}`, "number--block");
+    playSound("shield");
   } else if (event.type === "status") {
     showNumber(target.rect, `+${event.amount}`, "number--status", 0, event.status);
   }

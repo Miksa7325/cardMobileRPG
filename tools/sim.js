@@ -9,11 +9,14 @@
 //   --act=1              какой акт (номер с 1)
 //   --floor=0            этаж, на котором идёт обычный бой и элита (глубже — враги крепче)
 //   --heroes=warrior,mage   только эти герои
+//   --strength-scale=2   умножить все числа Силы (карты, враги, реликвии, зелья, акты) — для подбора чисел
 //   --out=tools/baseline/current   сохранить итог в .json и .md с этим именем
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { CONFIG } from "../js/config.ts";
 import { ACTS } from "../js/data/acts.ts";
+import { CARDS } from "../js/data/cards.ts";
+import { RELICS } from "../js/data/relics.ts";
 import { ENEMIES } from "../js/data/enemies.ts";
 import { HEROES } from "../js/data/heroes.ts";
 import { POTIONS } from "../js/data/potions.ts";
@@ -33,6 +36,23 @@ const FIGHTS = Number(args.fights ?? 30);
 const BUDGET = Number(args.budget ?? 400);
 const ACT_INDEX = Number(args.act ?? 1) - 1;
 const FLOOR = Number(args.floor ?? 0);
+const STRENGTH_SCALE = Number(args["strength-scale"] ?? 1);
+
+// Опыт с числами Силы: умножаем Силу во всех данных только в памяти симулятора, файлы не меняются
+function scaleStrength(value) {
+  if (Array.isArray(value)) return value.forEach(scaleStrength);
+  if (!value || typeof value !== "object") return;
+  if (value.type === "applyStatus" && value.status === "strength") value.amount *= STRENGTH_SCALE;
+  for (const child of Object.values(value)) scaleStrength(child);
+}
+if (STRENGTH_SCALE !== 1) {
+  [CARDS, ENEMIES, RELICS, POTIONS].forEach(scaleStrength);
+  for (const act of ACTS) {
+    act.enemyStrength *= STRENGTH_SCALE;
+    if (act.mechanic.enemyStrength) act.mechanic.enemyStrength *= STRENGTH_SCALE;
+    if (act.mechanic.enemyRamp) act.mechanic.enemyRamp *= STRENGTH_SCALE;
+  }
+}
 const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 
 // ---------- Бот ----------
@@ -90,7 +110,7 @@ function evaluate(combat) {
   let score = hero.hp * 10;
   score += (s.strength ?? 0) * 12 + (s.dexterity ?? 0) * 10;
   score += (s.rage ?? 0) * 2 + (s.darkness ?? 0) * 2 + (s.surge ?? 0) * 3 + (s.reagents ?? 0) * 2;
-  score -= (s.poison ?? 0) * 8 + (s.weak ?? 0) * 6 + (s.vulnerable ?? 0) * 8 + (s.frail ?? 0) * 5;
+  score -= (s.poison ?? 0) * 8 + (s.burning ?? 0) * 6 + (s.weak ?? 0) * 6 + (s.vulnerable ?? 0) * 8;
   score += hero.powers.length * 15;
   score += combat.potions.length * 5;
 
@@ -101,7 +121,7 @@ function evaluate(combat) {
     }
     const es = enemy.statuses;
     score -= enemy.hp * 4 + enemy.block * 2;
-    score += (es.poison ?? 0) * 5 + (es.leech ?? 0) * 6 + (es.vulnerable ?? 0) * 6 + (es.weak ?? 0) * 5;
+    score += (es.poison ?? 0) * 5 + (es.burning ?? 0) * 4 + (es.leech ?? 0) * 6 + (es.vulnerable ?? 0) * 6 + (es.weak ?? 0) * 5;
     score -= (es.strength ?? 0) * 10;
   }
   return score;
@@ -164,7 +184,7 @@ function runFight(heroId, enemyIds, seed, setup) {
 function actSetup(act, type) {
   const depth = type === "boss" ? 0 : FLOOR;
   const depthHp = 1 + CONFIG.depth.hpPerFloor * depth;
-  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength);
+  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength) * STRENGTH_SCALE;
   const actMultiplier = type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier;
   return {
     enemyHpMultiplier: CONFIG.enemyHpMultiplier * depthHp * actMultiplier,
@@ -193,7 +213,7 @@ const encounters = listEncounters(act);
 const results = [];
 const started = Date.now();
 
-console.log(`Акт ${ACT_INDEX + 1} «${act.name}», этаж ${FLOOR}, боёв на пару: ${FIGHTS}, перебор: ${BUDGET} вариантов за ход\n`);
+console.log(`Акт ${ACT_INDEX + 1} «${act.name}», этаж ${FLOOR}, боёв на пару: ${FIGHTS}, перебор: ${BUDGET} вариантов за ход, Сила ×${STRENGTH_SCALE}\n`);
 
 for (const heroId of HERO_IDS) {
   for (const encounter of encounters) {
@@ -228,7 +248,7 @@ console.log(`Готово за ${round((Date.now() - started) / 1000)} с`);
 
 // ---------- Сохранение ----------
 if (args.out) {
-  const meta = { date: new Date().toISOString().slice(0, 10), act: ACT_INDEX + 1, actName: act.name, floor: FLOOR, fights: FIGHTS, budget: BUDGET };
+  const meta = { date: new Date().toISOString().slice(0, 10), act: ACT_INDEX + 1, actName: act.name, floor: FLOOR, fights: FIGHTS, budget: BUDGET, strengthScale: STRENGTH_SCALE };
   mkdirSync(dirname(args.out), { recursive: true });
   writeFileSync(`${args.out}.json`, JSON.stringify({ meta, results }, null, 2));
   writeFileSync(`${args.out}.md`, toMarkdown(meta, results));

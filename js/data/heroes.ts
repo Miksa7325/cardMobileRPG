@@ -15,7 +15,8 @@ export const HEROES: Record<HeroId, HeroData> = {
     mechanic: {
       name: "Ярость",
       resource: "rage",
-      text: "Каждая разыгранная атака и каждый пропущенный удар дают 1 Ярость. Карты «Ярость N» тратят её на мощные приёмы, другие бьют сильнее за каждую Ярость.",
+      text: "Каждая разыгранная атака и каждый пропущенный удар дают 1 Ярость. Карты «Ярость N» тратят её на мощные приёмы, другие бьют сильнее за каждую Ярость. Доспехи: удары врагов наносят Воину на 20% меньше урона.",
+      damageReduction: CONFIG.warriorDamageReduction,
       passives: [
         { trigger: "onCardPlayed", cardType: "attack", effects: gain("rage") },
         { trigger: "onDamageTaken", effects: gain("rage") },
