@@ -22,7 +22,7 @@ import { formatDescription, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
-import { startArenaCombat } from "./combat.js";
+import { startArenaCombat } from "./combat.ts";
 
 // Вне боя статусов нет: числа на картах показываем без них
 const HERO_OUTSIDE_COMBAT = { statuses: {} };

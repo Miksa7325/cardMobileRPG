@@ -23,7 +23,7 @@ import { showScreen } from "../router.js";
 import { animationMs } from "../settings.js";
 import { createTutorialBanner, notifyTutorial, startTutorial } from "../tutorial.js";
 import { openCity } from "./city.js";
-import { resumeCombat, startNodeCombat } from "./combat.js";
+import { resumeCombat, startNodeCombat } from "./combat.ts";
 import { openRunStats } from "./runStats.js";
 
 const WALK_ANIMATIONS = 2.4; // шаг в туннель длится столько обычных анимаций

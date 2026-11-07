@@ -6,7 +6,7 @@ import { TEXTS } from "../../data/texts.ru.ts";
 import { state } from "../../state.ts";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
-import { startTestCombat } from "./combat.js";
+import { startTestCombat } from "./combat.ts";
 
 export function renderTestSetupScreen(root) {
   const { test } = state;

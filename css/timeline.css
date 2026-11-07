@@ -1,0 +1,314 @@
+/* Шкала хода на экране боя: дорожки, плашки карт и ходов врагов, указатель времени.
+   Ширина подписи слева — --lane-label, остальное делится на 6 клеток */
+.timeline {
+  --lane-label: 62px;
+  --lane-gap: 6px;
+  margin: 4px 8px 0;
+  padding: 4px 6px 6px;
+  border: 1px solid var(--gold-dark, #6b5524);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(30, 24, 38, 0.92), rgba(16, 12, 20, 0.92));
+}
+
+.timeline__row {
+  display: grid;
+  grid-template-columns: var(--lane-label) 1fr;
+  align-items: center;
+  gap: var(--lane-gap);
+}
+
+.timeline__label {
+  overflow: hidden;
+  color: #cfc4ad;
+  font-size: 11px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline__numbers {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  color: #a99f8b;
+  font-size: 11px;
+  text-align: center;
+}
+
+.timeline__number--past {
+  color: var(--color-highlight, #ffd36a);
+}
+
+.timeline__tracks {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+/* Дорожка: 6 клеток и черта между тактами посередине */
+.timeline__track {
+  position: relative;
+  height: 34px;
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(255, 200, 90, 0.55) calc(50% - 1px), rgba(255, 200, 90, 0.55) calc(50% + 1px), transparent calc(50% + 1px)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 calc(100% / 6 - 1px), rgba(255, 255, 255, 0.18) calc(100% / 6 - 1px) calc(100% / 6));
+}
+
+.timeline__track[data-lane="hero"] {
+  height: 40px;
+  cursor: pointer;
+}
+
+/* Пока несут карту, дорожки, куда её можно отпустить, подсвечены */
+.timeline--dropping .timeline__track[data-lane="hero"],
+.timeline--dropping .timeline__track[data-lane="prep"] {
+  box-shadow: 0 0 0 1px var(--color-highlight, #ffd36a) inset;
+}
+
+/* Указатель времени: стоит на границе, до которой дошёл розыгрыш */
+.timeline__pointer {
+  position: absolute;
+  top: -4px;
+  bottom: -2px;
+  left: calc(var(--lane-label) + var(--lane-gap) + (100% - var(--lane-label) - var(--lane-gap)) * var(--clock) / 6);
+  z-index: 3;
+  width: 3px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--color-highlight, #ffd36a);
+  box-shadow: 0 0 8px var(--color-highlight, #ffd36a);
+  pointer-events: none;
+  transition: left calc(220ms * var(--anim-speed, 1)) linear;
+}
+
+/* Плашка карты, зелья или хода врага */
+.lane-chip {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  padding: 0 3px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.1;
+  text-shadow: 0 1px 1px #000;
+  cursor: pointer;
+}
+
+.lane-chip__name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane-chip__value {
+  font-weight: bold;
+}
+
+.lane-chip .gi {
+  width: 14px;
+  height: 14px;
+}
+
+.lane-chip--enemy {
+  flex-direction: row;
+  gap: 2px;
+  background: linear-gradient(180deg, #6b2a2a, #3a1414);
+  cursor: default;
+}
+
+.lane-chip--defend { background: linear-gradient(180deg, #2f4f78, #182a44); }
+.lane-chip--buff { background: linear-gradient(180deg, #6b5a22, #3b3010); }
+.lane-chip--debuff { background: linear-gradient(180deg, #4d2f6b, #2a183d); }
+.lane-chip--attack { background: linear-gradient(180deg, #8a2e2e, #4a1414); }
+.lane-chip--skill { background: linear-gradient(180deg, #2f5f8f, #173250); }
+.lane-chip--power { background: linear-gradient(180deg, #6a3a90, #351a4d); }
+.lane-chip--potion { background: linear-gradient(180deg, #2f7a4a, #164026); font-size: 14px; }
+.lane-chip--status { background: #444; }
+
+/* Карта весом 0 стоит на стыке клеток: кружок поверх черты */
+.lane-chip--zero {
+  z-index: 2;
+  width: 22px;
+  transform: translateX(-50%);
+  border-radius: 11px;
+}
+
+.lane-chip--zero .lane-chip__name {
+  display: none;
+}
+
+.lane-chip--done {
+  opacity: 0.35;
+}
+
+.lane-chip--locked {
+  border-style: dashed;
+}
+
+/* Ход врага, который не влез в шкалу: переедет на следующий ход */
+.lane-chip--overflow {
+  border-right: 2px dashed var(--color-highlight, #ffd36a);
+}
+
+/* Куда встанет карта: зелёная рамка — можно, красная — нельзя */
+.lane-slot {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  z-index: 2;
+  box-sizing: border-box;
+  border: 2px dashed;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.lane-slot.lane-chip--zero {
+  width: 22px;
+}
+
+.lane-slot--ok { border-color: #7be07b; background: rgba(123, 224, 123, 0.15); }
+.lane-slot--bad { border-color: #ff6a5a; background: rgba(255, 106, 90, 0.15); }
+
+/* Выбранный враг: его дорожка видна на шкале */
+.combat__enemies .unit--selected {
+  border-color: rgba(255, 211, 106, 0.6);
+  background: rgba(255, 211, 106, 0.06);
+}
+
+/* Герой в бою компактнее: место нужно шкале */
+.combat__hero .unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.combat__hero .unit__portrait {
+  flex: none;
+  width: 52px;
+  height: 52px;
+}
+
+.combat__hero .unit__details {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Кнопки для выбранной карты: оставить, перебросить, подготовить, подробнее */
+.combat__selection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.combat__selection:empty {
+  display: none;
+}
+
+.combat__action {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.combat__capacity {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 64px;
+  height: 44px;
+  border: 2px solid var(--gold, #d8a93a);
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 30%, #6b5a2a, #2a2210);
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.combat__upcoming {
+  max-width: 150px;
+  overflow: hidden;
+  color: #cfc4ad;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combat__launch {
+  min-width: 96px;
+}
+
+/* Карта, которая останется в руке на следующий ход */
+.card__kept {
+  position: absolute;
+  top: -0.6em;
+  right: -0.4em;
+  z-index: 2;
+  font-size: 1.1em;
+}
+
+/* Выбор зелья варки поверх экрана */
+.brew-choice {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.brew-choice__panel {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  padding: 16px;
+  border: 1px solid var(--gold-dark, #6b5524);
+  border-radius: 12px;
+  background: #1c1624;
+}
+
+.brew-choice__title {
+  margin: 0;
+  font-weight: bold;
+  text-align: center;
+}
+
+.brew-choice__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  text-align: left;
+}
+
+.brew-choice__icon {
+  font-size: 24px;
+}
+
+.lane-chip__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* Вес карты — сколько клеток шкалы она занимает. Квадратный значок цвета песочных часов, а не круг энергии */
+.card__cost {
+  border-color: #ffe2a0;
+  border-radius: 0.35em;
+  background: radial-gradient(circle at 35% 30%, #ffd77a, #c98a1e 55%, #5e3a08);
+}

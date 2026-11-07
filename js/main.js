@@ -11,7 +11,7 @@ import { createScene } from "./ui/scene.js";
 import { renderCityScreen } from "./ui/screens/city.js";
 import { renderCollectionScreen } from "./ui/screens/collection.js";
 import { renderCreditsScreen } from "./ui/screens/credits.js";
-import { renderCombatScreen } from "./ui/screens/combat.js";
+import { renderCombatScreen } from "./ui/screens/combat.ts";
 import { renderDungeonScreen } from "./ui/screens/dungeon.js";
 import { renderEventScreen } from "./ui/screens/event.js";
 import { renderRestScreen, renderRestUpgradeScreen } from "./ui/screens/rest.js";
@@ -28,6 +28,14 @@ import { applySettings } from "./ui/settings.js";
 import { enableCardTilt } from "./ui/tilt.js";
 
 document.title = TEXTS.gameTitle;
+
+// Только в режиме разработки (npm run dev): инструмент снимков tools/shot.js управляет игрой через window.__game
+if (import.meta.env.DEV) {
+  const [{ state }, combatScreen, engine] = await Promise.all([
+    import("./state.ts"), import("./ui/screens/combat.ts"), import("./engine/combat.ts"),
+  ]);
+  window.__game = { state, showScreen, combatScreen, engine };
+}
 
 // Сообщаем роутеру, какие экраны есть в игре
 registerScreen("start", renderStartScreen);

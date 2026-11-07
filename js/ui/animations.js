@@ -7,6 +7,7 @@ import { createIcon } from "./icons.js";
 import { setHpFill } from "./components/hpBar.js";
 import { hideTooltip } from "./components/tooltip.js";
 import { el } from "./dom.js";
+import { moveTimelinePointer } from "./components/timeline.ts";
 import { animationMs, vibrate } from "./settings.js";
 
 const STRIKE_MS = 340; // длительность выпада врага
@@ -136,6 +137,62 @@ export async function playEnemyTurn(before, combat) {
   skipping = false;
 }
 
+const CELL_MS = 260; // указатель переходит на следующую клетку шкалы
+
+// Выпад героя, когда срабатывает его атака
+function heroLunge() {
+  return animate(portraitOf("hero"), [
+    { transform: "none" },
+    { transform: "translate(14px, -20px) scale(1.15) rotate(6deg)", offset: 0.4 },
+    { transform: "none" },
+  ], 280);
+}
+
+// Розыгрыш шкалы: экран показывает состояние до «Запуска», указатель идёт по клеткам,
+// и события каждой клетки меняют экран шаг за шагом. Тап по экрану проматывает до конца.
+// onCardPlayed(event) — сработала карта героя: экран рисует её эффект
+export async function playLaunch(before, combat, { onCardPlayed = null } = {}) {
+  skipping = false;
+  hideTooltip();
+  document.querySelector(".tutorial")?.remove();
+  const hint = document.querySelector(".combat__hint");
+  if (hint) hint.textContent = TEXTS.timeline.hintResolving;
+
+  const blocker = el("div", "input-blocker");
+  blocker.addEventListener("pointerdown", () => {
+    skipping = true;
+  });
+  document.getElementById("app").append(blocker);
+
+  let cell = null;
+  for (const event of combat.events) {
+    if (event.type === "turnEnd") {
+      discardHandView();
+      continue;
+    }
+    if (event.cell !== cell) {
+      cell = event.cell;
+      moveTimelinePointer(cell);
+      await wait(CELL_MS);
+    }
+    if (event.type === "cardPlayed") {
+      onCardPlayed?.(event);
+      heroLunge();
+      await wait(120);
+    } else if (event.type === "enemyAction") {
+      if (event.intent !== "attack") await castAnimation(event.enemyId);
+    } else if (event.type === "hit" && event.sourceId !== "hero") {
+      await strike(event, before);
+    } else if (event.type !== "tactStart") {
+      showEvent(event, before);
+      if (event.type in DRAIN_SOUNDS || event.type === "bleed") await wait(200);
+    }
+  }
+  await wait(PAUSE_BETWEEN_ENEMIES_MS);
+  blocker.remove();
+  skipping = false;
+}
+
 // Рука уходит в сброс сразу, как только ход закончен
 function discardHandView() {
   for (const card of document.querySelectorAll(".hand .card")) {
@@ -214,8 +271,8 @@ async function castProjectile(portrait, attacker, target, color) {
 }
 
 // Потеря HP мимо блока: Яд, Печать крови или плата здоровьем
-const DRAIN_NUMBER_CLASSES = { poison: "number--poison", leech: "number--leech", hpLoss: "number--damage" };
-const DRAIN_SOUNDS = { poison: "poison", leech: "magicHit", hpLoss: "hit" };
+const DRAIN_NUMBER_CLASSES = { poison: "number--poison", leech: "number--leech", hpLoss: "number--damage", bleed: "number--damage" };
+const DRAIN_SOUNDS = { poison: "poison", leech: "magicHit", hpLoss: "hit", bleed: "claw" };
 
 // Проигрывает одно событие без движения атакующего: числа, вспышки, полоску HP
 function showEvent(event, before) {
@@ -238,7 +295,7 @@ function showEvent(event, before) {
     showNumber(target.rect, `+${event.amount}`, "number--heal");
     updateUnitView(event, before);
     playSound("heal");
-  } else if (event.type === "poison" || event.type === "hpLoss" || event.type === "leech") {
+  } else if (event.type === "poison" || event.type === "hpLoss" || event.type === "leech" || event.type === "bleed") {
     showNumber(target.rect, `-${event.amount}`, DRAIN_NUMBER_CLASSES[event.type], event.amount);
     updateUnitView(event, before);
     playSound(DRAIN_SOUNDS[event.type]);
@@ -249,6 +306,9 @@ function showEvent(event, before) {
   } else if (event.type === "repair") {
     showNumber(target.rect, `🔧−${event.amount}`, "number--block");
     playSound("shield");
+  } else if (event.type === "stunned") {
+    showNumber(target.rect, "💫", "number--status");
+    playSound("stone");
   } else if (event.type === "status") {
     showNumber(target.rect, `+${event.amount}`, "number--status", 0, event.status);
   }
