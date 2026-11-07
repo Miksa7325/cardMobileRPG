@@ -170,7 +170,8 @@ function relicConditionMet(combat: Combat, relic: RelicData, details: { cardType
 // проигрывает эти события по очереди: удары, числа урона, изменение HP
 export function recordEvent(combat: Combat, event: CombatEvent): void {
   // Номер клетки нужен анимации: событие проигрывается, когда указатель дойдёт до неё
-  (combat.events ??= []).push({ cell: combat.clock, ...event });
+  // by — чьё это действие: так экран показывает итоговые числа у каждой карты и каждого хода врага
+  (combat.events ??= []).push({ cell: combat.clock, by: combat.acting, ...event });
 }
 
 // Счётчики боя для заданий: сколько карт разыграно, урона нанесено и зелий выпито
@@ -257,8 +258,20 @@ function getTargets(combat: Combat, effect: { target?: string }, context: Effect
   return context.targets.filter((target) => target.hp > 0);
 }
 
+// Из чего сложился урон: для журнала расчёта в тестовом режиме
+export interface DamageBreakdown {
+  base: number;
+  strength: number;
+  weak: number;
+  vulnerable: number;
+  reduction: number;
+  fixed: boolean;
+}
+
 // Урон сначала снимает блок, остаток — HP
-function dealDamage(combat: Combat, source: HeroUnit | EnemyUnit, target: HeroUnit | EnemyUnit, damage: number): void {
+function dealDamage(
+  combat: Combat, source: HeroUnit | EnemyUnit, target: HeroUnit | EnemyUnit, damage: number, breakdown?: DamageBreakdown,
+): void {
   const absorbed = absorbBlock(target, damage);
   const hpLost = damage - absorbed;
   if (target !== combat.hero) addTally(combat, "damageDealt", Math.min(target.hp, hpLost));
@@ -271,6 +284,8 @@ function dealDamage(combat: Combat, source: HeroUnit | EnemyUnit, target: HeroUn
     blocked: absorbed,
     hp: target.hp,
     block: target.block,
+    damage,
+    breakdown,
   });
   if (target === combat.hero && hpLost > 0) fireTrigger(combat, "onDamageTaken");
   notifyIfEnemyDied(combat, target);
@@ -287,7 +302,15 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     for (const target of getTargets(combat, effect, context)) {
       const base = effect.amount + getBonus(effect, context.source);
       const amount = effect.fixed ? base : calculateDamage(base, context.source, target);
-      dealDamage(combat, context.source, target, amount);
+      const breakdown: DamageBreakdown = {
+        base,
+        strength: context.source.statuses.strength ?? 0,
+        weak: context.source.statuses.weak ?? 0,
+        vulnerable: target.statuses.vulnerable ?? 0,
+        reduction: (target as HeroUnit).damageReduction ?? 0,
+        fixed: Boolean(effect.fixed),
+      };
+      dealDamage(combat, context.source, target, amount, breakdown);
     }
   },
   block(combat, effect, context) {

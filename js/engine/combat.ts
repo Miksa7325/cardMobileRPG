@@ -592,6 +592,7 @@ function bleed(combat: Combat, unit: HeroUnit | EnemyUnit, weight: number, targe
 }
 
 function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
+  combat.acting = `lane:${item.id}`;
   item.resolved = true;
   item.end = combat.clock;
   spendTimingStacks(combat.hero, slot);
@@ -604,9 +605,11 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   if (isOver(combat)) return;
   if (item.card) playResolvedCard(combat, item.card, item.targetId, 1);
   else if (item.potionId) drinkPotion(combat, item.potionId, item.targetId);
+  combat.acting = undefined;
 }
 
 function resolvePrepared(combat: Combat, spell: PreparedSpell, slot: HeroSlot): void {
+  combat.acting = `prep:${spell.id}`;
   combat.prepared = combat.prepared.filter((entry) => entry !== spell);
   spendTimingStacks(combat.hero, slot);
   // Сорванное заклинание Мага уходит в сброс
@@ -615,6 +618,7 @@ function resolvePrepared(combat: Combat, spell: PreparedSpell, slot: HeroSlot): 
     return;
   }
   playResolvedCard(combat, spell.card, spell.targetId, T.preparedBoost);
+  combat.acting = undefined;
 }
 
 // Если цель умерла раньше, атака переходит на ближайшего живого врага
@@ -660,6 +664,7 @@ function drinkPotion(combat: Combat, potionId: string, targetId: string | null):
 }
 
 function resolveEnemyAction(combat: Combat, enemy: EnemyUnit, slot: ReturnType<typeof enemySchedule>[number]): void {
+  combat.acting = `enemy:${enemy.instanceId}:${enemy.lane.indexOf(slot.action)}`;
   slot.action.resolved = true;
   slot.action.end = combat.clock;
   spendTimingStacks(enemy, slot);
@@ -677,6 +682,7 @@ function resolveEnemyAction(combat: Combat, enemy: EnemyUnit, slot: ReturnType<t
     enemy.statuses.strength = (enemy.statuses.strength ?? 0) + combat.enemyRamp;
     recordEvent(combat, { type: "status", targetId: enemy.instanceId, status: "strength", amount: combat.enemyRamp });
   }
+  combat.acting = undefined;
 }
 
 // Карты весом 0 на стыке — в порядке постановки
@@ -692,6 +698,8 @@ function resolveZeroWeight(combat: Combat, boundary: number): void {
 
 // Начало такта: Яд, Горение, Печать крови, потом силы и реликвии «в начале такта»
 function startTact(combat: Combat): void {
+  combat.acting = "tact";
+  recordEvent(combat, { type: "tactStart" });
   for (const unit of [combat.hero, ...combat.enemies]) {
     if (unit.hp <= 0 || isOver(combat)) continue;
     applyPoison(combat, unit);
@@ -699,6 +707,7 @@ function startTact(combat: Combat): void {
     if (unit !== combat.hero && unit.hp > 0 && !isOver(combat)) applyLeech(combat, unit);
   }
   if (!isOver(combat)) fireTrigger(combat, "onTactStart");
+  combat.acting = undefined;
 }
 
 function startTurn(combat: Combat): void {
@@ -740,10 +749,38 @@ function finishTurn(combat: Combat): void {
   combat.piles.discard.push(...combat.piles.hand.filter((card) => !stays.has(card.uid)));
   combat.piles.hand = combat.piles.hand.filter((card) => stays.has(card.uid));
   combat.carried = [];
+  // Граница: дальше идут события уже нового хода (добор, Яд в начале такта 1)
+  recordEvent(combat, { type: "turnEnd" });
   startTurn(combat);
 }
 
 // ---------- Что показать игроку ----------
+
+// Итог одного действия по предпросмотру: сколько урона нанесёт и блока даст
+export interface ActionPreview {
+  damage: number; // урон по целям (с блоком и без)
+  block: number;
+  cell: number;
+}
+
+// Предпросмотр «Запуска»: розыгрыш на копии боя. Числа уже учитывают всё, что сработает раньше на шкале.
+// Ключ — чьё действие: «lane:3», «prep:5», «enemy:skeleton-0:1». Пока не выбрано зелье варки, предпросмотра нет
+export function previewLaunch(combat: Combat): Map<string, ActionPreview> {
+  const result = new Map<string, ActionPreview>();
+  if (combat.status !== "planning" || combat.brewChoices.length > 0) return result;
+  const copy = structuredClone(combat);
+  launch(copy);
+  for (const event of copy.events) {
+    if (event.type === "turnEnd") break;
+    const by = event.by as string | undefined;
+    if (!by) continue;
+    const entry = result.get(by) ?? { damage: 0, block: 0, cell: event.cell as number };
+    if (event.type === "hit") entry.damage += event.damage as number;
+    if (event.type === "block") entry.block += event.amount as number;
+    result.set(by, entry);
+  }
+  return result;
+}
 
 export interface EnemyIntent {
   intent: Intent;

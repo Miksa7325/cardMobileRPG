@@ -389,6 +389,7 @@ export interface Combat {
   carried: number[]; // карты, вытолкнутые со шкалы: остаются в руке
   brewChoices: BrewChoice[];
   launchGains: boolean; // во время розыгрыша пришли карты или вместимость: может быть пауза
+  acting?: string; // чьё действие сейчас идёт: «lane:3», «prep:5», «enemy:skeleton-0:1», «tact». Попадает в события как by
   hero: HeroUnit;
   enemies: EnemyUnit[];
   piles: Piles;

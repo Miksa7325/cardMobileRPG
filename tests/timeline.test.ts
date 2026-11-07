@@ -3,8 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG } from "../js/config.ts";
 import {
-  chooseBrew, createCombat, getEnemyLane, launch, moveLaneItem, placeCard, placePotion, removeFromLane, rerollCard, setKeep,
-  totalCapacity,
+  chooseBrew, createCombat, getEnemyLane, launch, moveLaneItem, placeCard, placePotion, previewLaunch, removeFromLane, rerollCard,
+  setKeep, totalCapacity,
 } from "../js/engine/combat.ts";
 import { deckOf, fight, quiet, setLane } from "./helpers.ts";
 
@@ -320,6 +320,31 @@ describe("Алхимик и зелья", () => {
     placePotion(combat, 0, 4);
     launch(combat);
     expect(combat.events.find((event) => event.type === "block")?.cell).toBe(4);
+  });
+});
+
+describe("предпросмотр", () => {
+  it("числа учитывают то, что сработает раньше: Сокрушение в клетке 2 усиливает удар в клетке 3", () => {
+    const combat = fight({ deck: [...deckOf("bash", 5), ...deckOf("strike", 5)] });
+    quiet(combat);
+    const target = firstEnemy(combat);
+    const bash = combat.piles.hand.find((card) => card.cardId === "bash")!;
+    const strike = combat.piles.hand.find((card) => card.cardId === "strike")!;
+    placeCard(combat, bash.uid, 1, target); // клетки 1–2: 8 урона и 2 Уязвимости (до урона)
+    placeCard(combat, strike.uid, 3, target);
+    const preview = previewLaunch(combat);
+    const [bashItem, strikeItem] = combat.lane;
+    expect(preview.get(`lane:${bashItem.id}`)).toMatchObject({ damage: 9, cell: 2 });
+    expect(preview.get(`lane:${strikeItem.id}`)).toMatchObject({ damage: 7, cell: 3 }); // 6 × 1.2
+    // Предпросмотр не меняет сам бой
+    expect(combat.lane.every((item) => !item.resolved)).toBe(true);
+  });
+  it("удар врага в предпросмотре — с защитой Воина и блоком", () => {
+    const combat = fight({ deck: deckOf("defend") });
+    setLane(combat.enemies[0], ["hack"]);
+    placeCard(combat, uidAt(combat), 1);
+    const preview = previewLaunch(combat);
+    expect(preview.get(`enemy:${firstEnemy(combat)}:0`)).toMatchObject({ damage: 7, cell: 3 });
   });
 });
 
