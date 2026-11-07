@@ -55,6 +55,7 @@ export function createRun({
     maxHp,
     gold: 0, // золото из событий: в подземелье его не потратить, оно уходит в казну города
     essences: 0, // эссенции с монстров: в городе их меняют на золото
+    shards: 0, // Осколки мастерства: в казну сдаются в комнате сохранения, при гибели пропадают
     hasMap: false, // куплена ли карта подземелья на этот акт: без неё карту не открыть, в новом акте нужна новая
     fireflies: null, // банка светлячков: { charged } — заряжена ли она до следующего отдыха или комнаты сохранения
     revealedNodeIds: [], // комнаты, которые осветили светлячки: видно, что там, хотя герой там не был
@@ -499,6 +500,14 @@ function rollEssences(run: Run, rng: Rng, range: number[]): number {
   return Math.round(nextInt(rng, range[0], range[1]) * getAct(run).rewards.essences);
 }
 
+// Осколки мастерства за бой: в каждом следующем акте их больше, как и эссенций. chance — шанс, что они вообще выпадут
+function rollShards(run: Run, rng: Rng, base: number, chance = 1): number {
+  if (chance < 1 && nextFloat(rng) >= chance) return 0;
+  const shards = Math.max(1, Math.round(base * getAct(run).rewards.essences));
+  run.shards += shards;
+  return shards;
+}
+
 // Даёт случайную новую реликвию. Если новых нет, вместо неё золото. Без rarities — какие положены в этом акте
 function grantRandomRelic(run: Run, rng: Rng, rarities: RelicRarity[] = getAct(run).rewards.relics): { relicId: string | null; relicFallbackGold: number } {
   const pool = getRelicPool(run, rarities);
@@ -541,14 +550,16 @@ function createBattleReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.battleEssences);
   run.essences += essences;
-  return { essences, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
+  const shards = rollShards(run, rng, CONFIG.rewards.shards.battle, CONFIG.rewards.shards.battleChance);
+  return { essences, shards, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
 function createEliteReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.eliteEssences);
   run.essences += essences;
-  return { essences, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
+  const shards = rollShards(run, rng, CONFIG.rewards.shards.elite);
+  return { essences, shards, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
 // После босса: эссенции, реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
@@ -556,8 +567,10 @@ function createBossReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.bossEssences);
   run.essences += essences;
+  const shards = rollShards(run, rng, CONFIG.rewards.shards.boss);
   return {
     essences,
+    shards,
     ...grantRandomRelic(run, rng, ["boss"]),
     potionId: null,
     potionsFull: false,
@@ -568,7 +581,8 @@ function createBossReward(run: Run): Reward {
 // Открывает сундук на текущем узле: внутри реликвия
 export function openChest(run: Run): void {
   const rng = nodeRng(run, "chest");
-  run.pendingReward = { essences: 0, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
+  const shards = rollShards(run, rng, CONFIG.rewards.shards.chest, CONFIG.rewards.shards.chestChance);
+  run.pendingReward = { essences: 0, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
 }
 
 // Карты, которые можно получить в награду и купить: только карты своего героя и только открытые.

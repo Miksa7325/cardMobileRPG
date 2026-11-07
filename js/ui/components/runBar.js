@@ -99,6 +99,7 @@ export function createRunBar(run, { combat = null, allSaved = false, showItems =
     el("span", "bar-hp", `❤️ ${hp}/${run.maxHp}`),
     el("span", "", `💰 ${run.gold}`),
     el("span", "", `🔮 ${run.essences}`),
+    el("span", "", `💠 ${run.shards}`),
     el("span", "", TEXTS.floorLabel(run.act, getCurrentFloor(run))),
   );
   if (!combat) bar.append(createIconButton("🃏", () => openCardList([{ title: TEXTS.deck, cards: run.deck }])));

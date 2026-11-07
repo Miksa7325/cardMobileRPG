@@ -93,7 +93,7 @@ export const TEXTS = {
     button: "Город",
     buttonReady: (count: number) => `Город: наград ${count}`,
     title: "Город",
-    balance: (gold: number, essences: number) => `Казна: 💰 ${gold} · 🔮 ${essences}`,
+    balance: (gold: number, essences: number, shards = 0) => `Казна: 💰 ${gold} · 🔮 ${essences} · 💠 ${shards}`,
     hint: "Нажми, куда идти. В домах работают службы для героев, вход в подземелье — в конце южной дороги",
     enter: (name: string) => `Войти: ${name}`,
     locked: (price: number) => `💰 ${price}`,
@@ -196,7 +196,7 @@ export const TEXTS = {
     returnHint: "Из комнаты сохранения в подземелье пускают только за плату",
     toCity: "Вернуться в город",
     healed: (amount: number) => `Герой отдохнул в городе и полностью восстановил здоровье: +${amount} HP`,
-    banked: (gold: number, essences: number) => `Добыча сдана в казну: 💰 +${gold}, 🔮 +${essences}`,
+    banked: (gold: number, essences: number, shards: number) => `Добыча сдана в казну: 💰 +${gold}, 🔮 +${essences}, 💠 +${shards}`,
   },
   // Службы городских зданий
   services: {
@@ -437,6 +437,7 @@ export const TEXTS = {
     chestTitle: "Сундук",
     bossTitle: "Босс повержен!",
     essences: (amount: number) => `🔮 +${amount} эссенций`,
+    shards: (amount: number) => `💠 +${amount} Осколок мастерства`,
     relic: (name: string, icon: string, description: string) => `${icon} Реликвия «${name}»: ${description}`,
     noRelic: (amount: number) => `Новых реликвий не осталось: 💰 +${amount} золота`,
     potion: (name: string, icon: string, description: string) => `${icon} ${name}: ${description}`,
@@ -563,7 +564,7 @@ export const TEXTS = {
     hp: (amount: number) => `${amount} HP.`,
   },
   meta: {
-    banked: (gold: number, essences: number) => `В казну города: 💰 +${gold}, 🔮 +${essences}. Снаряжение осталось у героя`,
+    banked: (gold: number, essences: number, shards: number) => `В казну города: 💰 +${gold}, 🔮 +${essences}, 💠 +${shards}. Снаряжение осталось у героя`,
     heroDied: (name: string) => `${name} погиб навсегда. Снаряжение и всё, что он нёс, потеряно`,
     questReady: (title: string) => `Задание выполнено: ${title}. Награда у старейшины в городе`,
   },

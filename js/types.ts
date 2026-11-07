@@ -457,6 +457,7 @@ export interface Gain {
 
 export interface Reward {
   essences: number;
+  shards: number;
   relicId: string | null;
   relicFallbackGold: number;
   potionId: string | null;
@@ -509,6 +510,7 @@ export interface Run {
   maxHp: number;
   gold: number;
   essences: number;
+  shards: number; // Осколки мастерства, которые герой несёт: сдаются в казну в комнате сохранения
   hasMap: boolean;
   fireflies: { charged: boolean } | null;
   revealedNodeIds: string[];
@@ -562,6 +564,7 @@ export interface HeroRecord {
 export interface Meta {
   gold: number;
   essences: number;
+  shards: number; // Осколки мастерства в казне города
   selectedHero: HeroId;
   heroes: Partial<Record<HeroId, HeroRecord>>;
   supplies: Supplies;

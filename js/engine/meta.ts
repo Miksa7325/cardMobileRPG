@@ -14,6 +14,7 @@ export function createMeta(): Meta {
   return {
     gold: 0, // казна города: на золото строят дома и покупают у торговца
     essences: 0, // эссенции с монстров: в гильдии их меняют на золото
+    shards: 0, // Осколки мастерства: на улучшения карт на Тренировочной арене
     selectedHero: "warrior", // кем герой спустится в подземелье: выбирают в доме героев
     // Герои этого сохранения: { warrior: { dead: false, equipment } }. Снаряжение у каждого своё и остаётся
     // между забегами, а погибший герой не возвращается вовсе. Героя без записи ещё не было в подземелье
@@ -140,13 +141,15 @@ export function payForActStart(meta: Meta, actNumber: number): boolean {
 }
 
 // Сдаёт в казну добычу, которую герой несёт из подземелья. Возвращает, сколько сдано
-export function bankLoot(meta: Meta, run: Run): { gold: number; essences: number } {
+export function bankLoot(meta: Meta, run: Run): { gold: number; essences: number; shards: number } {
   reachAct(meta, run.act);
-  const loot = { gold: run.gold, essences: run.essences };
+  const loot = { gold: run.gold, essences: run.essences, shards: run.shards };
   meta.gold += run.gold;
   meta.essences += run.essences;
+  meta.shards += run.shards;
   run.gold = 0;
   run.essences = 0;
+  run.shards = 0;
   return loot;
 }
 
@@ -252,7 +255,8 @@ export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
   const died = run.status === "lost";
   reachAct(meta, run.act);
-  const loot = died ? { gold: 0, essences: 0 } : bankLoot(meta, run);
+  // Погибший теряет всё несданное: и золото, и эссенции, и Осколки
+  const loot = died ? { gold: 0, essences: 0, shards: 0 } : bankLoot(meta, run);
   if (died) buryHero(meta, run.heroId);
   else keepEquipment(meta, run);
 
@@ -280,6 +284,7 @@ export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
     died,
     goldGained: loot.gold,
     essencesGained: loot.essences,
+    shardsGained: loot.shards,
     questsReady: QUESTS.filter((quest) => isQuestReady(meta, quest) && !readyBefore.includes(quest.id)).map((quest) => quest.title),
   };
 }

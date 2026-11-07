@@ -70,7 +70,7 @@ function renderArenaResult(root) {
 
 // Гибель героя или добыча, сданная в казну, и выполненные задания
 function formatMetaResult(result, heroName) {
-  const lines = [result.died ? TEXTS.meta.heroDied(heroName) : TEXTS.meta.banked(result.goldGained, result.essencesGained)];
+  const lines = [result.died ? TEXTS.meta.heroDied(heroName) : TEXTS.meta.banked(result.goldGained, result.essencesGained, result.shardsGained)];
   for (const title of result.questsReady) lines.push(TEXTS.meta.questReady(title));
   return lines;
 }

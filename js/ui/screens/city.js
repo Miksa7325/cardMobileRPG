@@ -147,7 +147,7 @@ export function openCity(entrance) {
   if (run !== null && canReturnToCity(run)) {
     const meta = loadMeta();
     const loot = bankLoot(meta, run);
-    if (loot.gold > 0 || loot.essences > 0) news.push(TEXTS.city.banked(loot.gold, loot.essences));
+    if (loot.gold > 0 || loot.essences > 0 || loot.shards > 0) news.push(TEXTS.city.banked(loot.gold, loot.essences, loot.shards));
     const healed = healInCity(run);
     if (healed > 0) news.push(TEXTS.city.healed(healed));
     state.run = run;
