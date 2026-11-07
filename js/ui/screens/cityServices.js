@@ -23,6 +23,8 @@ import { openCardList } from "../components/cardList.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { startArenaCombat } from "./combat.ts";
+import { startTutorialBattle } from "../tutorial.ts";
+import { showScreen } from "../router.js";
 
 // Вне боя статусов нет: числа на картах показываем без них
 const HERO_OUTSIDE_COMBAT = { statuses: {} };
@@ -189,7 +191,11 @@ const SERVICES = {
       });
     });
     train.disabled = meta.gold < CONFIG.city.prices.training || trainable.length === 0;
-    dialog.append(train);
+    // Учебный бой на шкале можно повторить здесь: бесплатно и без риска
+    const tutorial = createButton(TEXTS.services.tutorialBattle, "button--large button--secondary", () => {
+      startTutorialBattle(heroId, () => showScreen("city"));
+    });
+    dialog.append(train, tutorial);
   },
 
   // Боевая арена: бои без смерти за золото и эссенции

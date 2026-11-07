@@ -32,7 +32,9 @@ import { createIcon } from "../icons.js";
 import { showScreen } from "../router.js";
 import { animationMs } from "../settings.js";
 import { type DropTarget, enableTimelineDrag } from "../timelineDrag.ts";
-import { createTutorialBanner, finishTutorial } from "../tutorial.js";
+import {
+  applyTutorialHighlights, createTutorialBanner, finishTutorial, finishTutorialBattle, isTutorialBattle, notifyTutorial, tutorialActionForCard,
+} from "../tutorial.ts";
 import { playCardEffect } from "../vfxCards.js";
 
 // Старые модули интерфейса ещё на JavaScript (переводим на этапе 9): TypeScript не знает их параметров
@@ -149,8 +151,9 @@ export function renderCombatScreen(root: HTMLElement): void {
   );
   if (current.brewChoices.length > 0) screen.append(createBrewChoice(current));
   if (state.test.pickerOpen) screen.append(createCardPicker());
-  const banner = state.test.enabled ? null : ui.createTutorialBanner("combat", current);
+  const banner = state.test.enabled && !isTutorialBattle() ? null : ui.createTutorialBanner("combat", current);
   if (banner) screen.append(banner);
+  applyTutorialHighlights(screen);
   root.append(screen);
 }
 
@@ -161,8 +164,8 @@ function createTopBar(current: Combat): HTMLElement {
     el("span", "bar-hp", `❤️ ${current.hero.hp}/${current.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${current.turn}`),
   );
-  // На арене добавлять карты нельзя: это настоящий бой, просто без смерти
-  if (state.arena) {
+  // На арене и в учебном бою добавлять карты нельзя: это настоящий бой, просто без смерти
+  if (state.arena || isTutorialBattle()) {
     bar.append(el("span", "run-bar__spacer"), createMenuButton({ needsConfirm: true, confirmText: TEXTS.menuConfirmCombat }));
     return bar;
   }
@@ -531,6 +534,8 @@ function placeCardAt(instance: CardInstance, target: DropTarget): void {
   if (!result.ok) return showError(result);
   selection = null;
   current.keep = current.keep.filter((uid) => uid !== instance.uid);
+  const tutorialAction = tutorialActionForCard(instance);
+  if (tutorialAction) notifyTutorial(tutorialAction);
   playSound("cardPick");
   afterChange();
 }
@@ -578,6 +583,7 @@ async function onLaunchTap(): Promise<void> {
   const result = launch(current);
   if (!result.ok) return showError(result);
   selection = null;
+  notifyTutorial("launched");
   playSound("click");
   await ui.playLaunch(before, current, {
     onCardPlayed: (event: { cardId: string; targetId: string | null }) => {
@@ -601,6 +607,11 @@ function finishCombatIfOver(): void {
 
 // Тестовый бой заканчивается результатом, а в забеге победа ведёт к награде и только поражение — к результату
 function showCombatEnd(): void {
+  // Учебный бой ведёт дальше сам: в забег или обратно в город
+  if (isTutorialBattle()) {
+    finishTutorialBattle();
+    return;
+  }
   if (state.tutorialStep !== null) finishTutorial();
   if (state.test.enabled) {
     showScreen("result");

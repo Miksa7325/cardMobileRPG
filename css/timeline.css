@@ -312,3 +312,9 @@
   border-radius: 0.35em;
   background: radial-gradient(circle at 35% 30%, #ffd77a, #c98a1e 55%, #5e3a08);
 }
+
+/* В бою внизу шкала и рука, поэтому подсказка обучения стоит сверху, на месте врагов */
+.combat .tutorial {
+  top: calc(52px + env(safe-area-inset-top));
+  bottom: auto;
+}

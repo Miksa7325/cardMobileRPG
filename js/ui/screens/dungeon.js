@@ -21,7 +21,7 @@ import { el } from "../dom.js";
 import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
 import { animationMs } from "../settings.js";
-import { createTutorialBanner, notifyTutorial, startTutorial } from "../tutorial.js";
+import { createTutorialBanner, notifyTutorial, startTutorial, startTutorialBattle } from "../tutorial.ts";
 import { openCity } from "./city.js";
 import { resumeCombat, startNodeCombat } from "./combat.ts";
 import { openRunStats } from "./runStats.js";
@@ -49,7 +49,7 @@ export function startNewRun(heroId, startAct = 1) {
     heroId,
     seed: Date.now(),
     startAct,
-    tutorialFight: !meta.tutorialDone && startAct === 1,
+    tutorialFight: false,
     ...getLockedContent(meta),
     equipment: getHeroEquipment(meta, heroId),
     potions: supplies.potions,
@@ -59,8 +59,15 @@ export function startNewRun(heroId, startAct = 1) {
   });
   saveMeta(meta);
   state.test.enabled = false;
-  if (state.run.tutorialFight) startTutorial();
   resetPlayTimer();
+  // Перед первым забегом — учебный бой на шкале, потом одна подсказка про подземелье
+  if (!meta.tutorialDone && startAct === 1) {
+    startTutorialBattle(heroId, () => {
+      startTutorial();
+      showScreen("dungeon");
+    });
+    return true;
+  }
   showScreen("dungeon");
   return true;
 }

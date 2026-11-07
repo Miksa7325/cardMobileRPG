@@ -31,10 +31,10 @@ document.title = TEXTS.gameTitle;
 
 // Только в режиме разработки (npm run dev): инструмент снимков tools/shot.js управляет игрой через window.__game
 if (import.meta.env.DEV) {
-  const [{ state }, combatScreen, engine] = await Promise.all([
-    import("./state.ts"), import("./ui/screens/combat.ts"), import("./engine/combat.ts"),
+  const [{ state }, combatScreen, engine, tutorial] = await Promise.all([
+    import("./state.ts"), import("./ui/screens/combat.ts"), import("./engine/combat.ts"), import("./ui/tutorial.ts"),
   ]);
-  window.__game = { state, showScreen, combatScreen, engine };
+  window.__game = { state, showScreen, combatScreen, engine, tutorial };
 }
 
 // Сообщаем роутеру, какие экраны есть в игре
