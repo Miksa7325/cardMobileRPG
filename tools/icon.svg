@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Иконка «Такт клинка»: клинок — стрелка циферблата. 6 крупных делений — 6 клеток шкалы хода.
+       Всё важное внутри круга радиусом 205: так иконку можно обрезать кругом (maskable) -->
+  <defs>
+    <radialGradient id="face" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#4a1f26"/>
+      <stop offset="1" stop-color="#22121a"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/>
+      <stop offset="0.5" stop-color="#e0a92e"/>
+      <stop offset="1" stop-color="#9a6410"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9aa6bd"/>
+      <stop offset="0.5" stop-color="#f2f4f8"/>
+      <stop offset="1" stop-color="#8592ab"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="#15121a"/>
+
+  <!-- Циферблат -->
+  <circle cx="256" cy="256" r="182" fill="url(#face)" stroke="url(#gold)" stroke-width="14"/>
+  <g stroke="#e0b23a" stroke-linecap="round" transform="translate(256 256)">
+    <!-- 6 крупных делений -->
+    <g stroke-width="12">
+      <line x1="0" y1="-162" x2="0" y2="-134"/>
+      <line x1="0" y1="-162" x2="0" y2="-134" transform="rotate(60)"/>
+      <line x1="0" y1="-162" x2="0" y2="-134" transform="rotate(120)"/>
+      <line x1="0" y1="-162" x2="0" y2="-134" transform="rotate(180)"/>
+      <line x1="0" y1="-162" x2="0" y2="-134" transform="rotate(240)"/>
+      <line x1="0" y1="-162" x2="0" y2="-134" transform="rotate(300)"/>
+    </g>
+    <!-- Мелкие деления между ними -->
+    <g stroke-width="5" opacity="0.7">
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(20)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(40)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(80)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(100)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(140)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(160)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(200)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(220)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(260)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(280)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(320)"/>
+      <line x1="0" y1="-160" x2="0" y2="-148" transform="rotate(340)"/>
+    </g>
+  </g>
+
+  <!-- Клинок-стрелка: крестовина в центре циферблата -->
+  <g transform="translate(256 256) rotate(38)">
+    <polygon points="0,-176 15,-146 15,-10 -15,-10 -15,-146" fill="url(#steel)" stroke="#2a2633" stroke-width="4" stroke-linejoin="round"/>
+    <line x1="0" y1="-142" x2="0" y2="-16" stroke="#7c879e" stroke-width="4" stroke-linecap="round"/>
+    <rect x="-50" y="-10" width="100" height="20" rx="8" fill="url(#gold)" stroke="#2a2633" stroke-width="4"/>
+    <rect x="-9" y="10" width="18" height="48" rx="4" fill="#6b3f22" stroke="#2a2633" stroke-width="4"/>
+    <circle cx="0" cy="70" r="15" fill="url(#gold)" stroke="#2a2633" stroke-width="4"/>
+  </g>
+</svg>

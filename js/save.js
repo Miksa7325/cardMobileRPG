@@ -10,17 +10,18 @@ import { POTIONS } from "./data/potions.js";
 import { RELICS } from "./data/relics.js";
 import { createMeta } from "./engine/meta.js";
 
-const SLOT_KEY = "cardRpg.slot"; // номер выбранной ячейки
-const SETTINGS_KEY = "cardRpg.settings";
+// Свои ключи у «Такта клинка»: старая игра хранит сохранения под cardRpg.* и на одном сайте
+// (тот же адрес github.io) их не задевает
+const SLOT_KEY = "bladeTempo.slot"; // номер выбранной ячейки
+const SETTINGS_KEY = "bladeTempo.settings";
 const DEFAULT_SETTINGS = { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true, graphics: "auto" };
 
-// Первая ячейка лежит под старыми ключами: так прогресс, сделанный до появления ячеек, оказался в ней
 function runKey(slot) {
-  return slot === 1 ? "cardRpg.run" : `cardRpg.run.${slot}`;
+  return `bladeTempo.run.${slot}`;
 }
 
 function metaKey(slot) {
-  return slot === 1 ? "cardRpg.meta" : `cardRpg.meta.${slot}`;
+  return `bladeTempo.meta.${slot}`;
 }
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
@@ -254,8 +255,11 @@ export function exportSave() {
   const run = loadRun();
   const meta = loadMeta();
   if (!run && meta.runsPlayed === 0) return null;
-  return encodeBase64(JSON.stringify({ version: SAVE_VERSION, run, meta }));
+  return encodeBase64(JSON.stringify({ game: GAME_ID, version: SAVE_VERSION, run, meta }));
 }
+
+// Метка в тексте сохранения: коды старой игры (в них метки нет) сюда не загружаются
+const GAME_ID = "bladeTempo";
 
 // Загружает сохранение из текста в выбранную ячейку. Возвращает { ok: true } или { ok: false, reason: "..." }
 export function importSave(code) {
@@ -266,6 +270,7 @@ export function importSave(code) {
     return { ok: false, reason: "invalid" };
   }
 
+  if (raw?.game !== GAME_ID) return { ok: false, reason: raw?.version ? "otherGame" : "invalid" };
   if (Number.isInteger(raw?.version) && raw.version > SAVE_VERSION) return { ok: false, reason: "tooNew" };
   const save = migrateSave(raw);
   if (!save) return { ok: false, reason: "invalid" };

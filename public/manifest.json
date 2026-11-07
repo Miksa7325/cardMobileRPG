@@ -1,7 +1,7 @@
 {
-  "name": "RPG 2",
-  "short_name": "RPG 2",
-  "description": "Roguelike-декбилдер: пройди подземелье и собери свою колоду",
+  "name": "Такт клинка",
+  "short_name": "Такт клинка",
+  "description": "Карточный roguelike: собирай цепочку на шкале хода и успей ударить раньше врага",
   "lang": "ru",
   "start_url": "./",
   "scope": "./",
