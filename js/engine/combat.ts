@@ -489,6 +489,74 @@ function canPlaceSomething(combat: Combat): boolean {
   });
 }
 
+// ---------- Бонусы цепочки ----------
+
+// Звено цепочки — карта на дорожке героя. start и end — стыки клеток: карта в клетках 2–3 занимает стыки 1…3,
+// карта весом 0 на стыке 4 — стык 4…4
+interface ChainLink {
+  item: LaneItem;
+  card: CardData;
+  start: number;
+  end: number;
+}
+
+function chainLinks(combat: Combat): ChainLink[] {
+  const slots = heroSchedule(combat).lane;
+  return combat.lane
+    .filter((item) => item.kind === "card" && item.card)
+    .map((item) => {
+      const slot = slots.get(item.id)!;
+      const start = item.weight === 0 ? slot.start : slot.start - 1;
+      const end = item.weight === 0 ? slot.start : slot.end;
+      return { item, card: getCardData(item.card!), start, end };
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end || a.item.id - b.item.id);
+}
+
+// Встык ли две карты: между ними нет пустых клеток (клетки под зельем пустыми не считаются)
+function linksTouch(combat: Combat, previous: ChainLink, next: ChainLink): boolean {
+  if (previous.end >= next.start) return true;
+  const slots = heroSchedule(combat).lane;
+  const potions = combat.lane.filter((item) => item.kind === "potion" && item.weight > 0).map((item) => slots.get(item.id)!);
+  for (let cell = previous.end + 1; cell <= next.start; cell++) {
+    if (!potions.some((slot) => slot.start <= cell && cell <= slot.end)) return false;
+  }
+  return true;
+}
+
+// Сработает ли бонус цепочки у этой карты прямо сейчас
+function chainBonusMet(combat: Combat, links: ChainLink[], index: number): boolean {
+  const link = links[index];
+  const bonus = link.card.chain;
+  if (!bonus) return false;
+  const previous = index > 0 ? links[index - 1] : null;
+  const touching = previous !== null && linksTouch(combat, previous, link);
+  switch (bonus.kind) {
+    case "first":
+      return index === 0;
+    case "final":
+      return index === links.length - 1;
+    case "afterAttack":
+      return touching && previous!.card.type === "attack";
+    case "afterSkill":
+      return touching && previous!.card.type === "skill";
+    case "joint":
+      return touching && Boolean(link.card.joints?.left) && previous!.card.joints?.right === link.card.joints?.left;
+    case "chain":
+      return index + 1 >= (bonus.n ?? 3);
+  }
+}
+
+// Эффекты бонуса цепочки для карты, которая сейчас срабатывает, или пусто
+function chainBonusEffects(combat: Combat, item: LaneItem): Effect[] {
+  const links = chainLinks(combat);
+  const index = links.findIndex((link) => link.item === item);
+  if (index < 0 || !chainBonusMet(combat, links, index)) return [];
+  const bonus = links[index].card.chain!;
+  recordEvent(combat, { type: "chainBonus", laneId: item.id, kind: bonus.kind, cardId: links[index].card.id });
+  return bonus.effects;
+}
+
 // ---------- Розыгрыш ----------
 
 // «Запуск»: время идёт от текущей границы до конца шкалы. Если во время розыгрыша пришли карты или вместимость
@@ -593,7 +661,10 @@ function bleed(combat: Combat, unit: HeroUnit | EnemyUnit, weight: number, targe
 
 function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   combat.acting = `lane:${item.id}`;
+  // Бонус цепочки проверяем, пока карта ещё на своём месте среди несыгранных
+  const bonus = item.card ? chainBonusEffects(combat, item) : [];
   item.resolved = true;
+  item.start = slot.start;
   item.end = combat.clock;
   spendTimingStacks(combat.hero, slot);
   // У Мага Оглушение срывает ближайшее подготовленное заклинание, а не карту на дорожке
@@ -603,7 +674,7 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   }
   bleed(combat, combat.hero, slot.weight, "hero");
   if (isOver(combat)) return;
-  if (item.card) playResolvedCard(combat, item.card, item.targetId, 1);
+  if (item.card) playResolvedCard(combat, item.card, item.targetId, 1, bonus);
   else if (item.potionId) drinkPotion(combat, item.potionId, item.targetId);
   combat.acting = undefined;
 }
@@ -634,13 +705,14 @@ function resolveTargets(combat: Combat, target: CardTarget, targetId: string | n
 }
 
 // Карта сработала в своей клетке. Добор, вместимость и варка уже сработали при постановке
-function playResolvedCard(combat: Combat, instance: CardInstance, targetId: string | null, boost: number): void {
+// bonus — эффекты бонуса цепочки: добавляются к эффектам карты и идут по общему порядку
+function playResolvedCard(combat: Combat, instance: CardInstance, targetId: string | null, boost: number, bonus: Effect[] = []): void {
   const card = getCardData(instance);
   addTally(combat, "cardsPlayed");
   // Сила остаётся до конца боя, поэтому её карта не попадает ни в одну стопку
   if (card.power) combat.hero.powers.push({ cardId: card.id, ...card.power });
 
-  let effects = card.effects.filter((effect) => !PLANNING_EFFECTS.has(effect.type));
+  let effects = [...card.effects.filter((effect) => !PLANNING_EFFECTS.has(effect.type)), ...bonus];
   if (boost !== 1) effects = boostEffects(effects, boost);
   const context = { source: combat.hero, targets: resolveTargets(combat, card.target, targetId), fromCard: true, exhausted: false };
   recordEvent(combat, { type: "cardPlayed", cardId: card.id, targetId });
@@ -761,6 +833,7 @@ export interface ActionPreview {
   damage: number; // урон по целям (с блоком и без)
   block: number;
   cell: number;
+  chain: boolean; // сработает бонус цепочки
 }
 
 // Предпросмотр «Запуска»: розыгрыш на копии боя. Числа уже учитывают всё, что сработает раньше на шкале.
@@ -774,9 +847,10 @@ export function previewLaunch(combat: Combat): Map<string, ActionPreview> {
     if (event.type === "turnEnd") break;
     const by = event.by as string | undefined;
     if (!by) continue;
-    const entry = result.get(by) ?? { damage: 0, block: 0, cell: event.cell as number };
+    const entry = result.get(by) ?? { damage: 0, block: 0, cell: event.cell as number, chain: false };
     if (event.type === "hit") entry.damage += event.damage as number;
     if (event.type === "block") entry.block += event.amount as number;
+    if (event.type === "chainBonus") entry.chain = true;
     result.set(by, entry);
   }
   return result;

@@ -173,6 +173,12 @@ function createEffects(card: CardData, hero: Hero): HTMLElement {
     const label = card.power.cardType ? triggers[card.power.cardType] : triggers[card.power.trigger];
     block.append(el("div", "card__trigger", label), ...createEffectLines(card.power.effects, card, hero, false));
   }
+  // Бонус цепочки: подпись и что он даёт
+  if (card.chain) {
+    const labels = TEXTS.face.chain;
+    const label = card.chain.kind === "chain" ? labels.chain(card.chain.n ?? 3) : labels[card.chain.kind];
+    block.append(el("div", "card__trigger card__trigger--chain", label), ...createEffectLines(card.chain.effects, card, hero, true));
+  }
   if (card.cost === null) block.append(el("div", "card__trigger", TEXTS.face.unplayable));
   if (card.effects.some((effect) => effect.type === "exhaust")) block.append(el("div", "card__burn", TEXTS.face.burn));
   return block;
@@ -206,6 +212,11 @@ export function fillCardFace(element: HTMLElement, instance: CardInstance, hero:
   const name: HTMLElement = el("div", "card__name", fullName);
   if (instance.level > 0) name.classList.add("card__name--upgraded");
   element.append(name, art, createEffects(card, hero));
+  // Символы-стыки по краям карты
+  for (const side of ["left", "right"] as const) {
+    const symbol = card.joints?.[side];
+    if (symbol) element.append(el("div", `card__joint card__joint--${side} card__joint--${symbol}`, TEXTS.face.joints[symbol]));
+  }
 }
 
 // Значок карты для коллекции: только рисунок на цвете её типа, рамка показывает редкость

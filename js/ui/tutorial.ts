@@ -25,6 +25,8 @@ const BATTLE_STEPS: Step[] = [
   { id: "weight", screen: "combat", highlight: ".combat__capacity, .hand .card__cost" },
   { id: "block", screen: "combat", waitFor: "blockPlaced", highlight: ".hand .card--skill, .timeline__track[data-lane=hero]" },
   { id: "attack", screen: "combat", waitFor: "attackPlaced", highlight: ".hand .card--attack, .timeline__track[data-lane=hero]" },
+  // Бонусы цепочки: шаг пропускается, пока в руке нет карт с бонусом (они появятся на этапе 5)
+  { id: "chain", screen: "combat", highlight: ".card__trigger--chain, .lane-chip--bonus" },
   { id: "tacts", screen: "combat", highlight: ".timeline__tracks" },
   { id: "armor", screen: "combat" },
   { id: "launch", screen: "combat", waitFor: "launched", highlight: ".combat__launch" },
@@ -107,10 +109,13 @@ export function tutorialActionForCard(instance: CardInstance): string | null {
   return null;
 }
 
-// Шаг про блок нечем выполнить, если в руке нет карты с блоком: тогда его пропускаем
+// Шаг нечем выполнить или не о чем рассказать: про блок — нет карты с блоком, про цепочки — нет карты с бонусом
 function skipImpossibleSteps(combat: Combat): void {
-  if (currentStep()?.id !== "block") return;
-  if (!combat.piles.hand.some((card) => tutorialActionForCard(card) === "blockPlaced")) goToNextStep();
+  const id = currentStep()?.id;
+  if (id === "block" && !combat.piles.hand.some((card) => tutorialActionForCard(card) === "blockPlaced")) goToNextStep();
+  else if (id === "chain" && !combat.piles.hand.some((card) => getCardData(card).chain)) goToNextStep();
+  else return;
+  skipImpossibleSteps(combat);
 }
 
 // Подсвечивает то, о чём говорит шаг

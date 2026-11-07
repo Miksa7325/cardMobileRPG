@@ -194,6 +194,10 @@ export async function playLaunch(before, combat, { onCardPlayed = null, stepMode
       if (event.intent !== "attack") await castAnimation(event.enemyId);
     } else if (event.type === "hit" && event.sourceId !== "hero") {
       await strike(event, before);
+    } else if (event.type === "chainBonus") {
+      const chip = document.querySelector(`.lane-chip[data-lane-id="${event.laneId}"]`);
+      chip?.classList.add("lane-chip--bonus-fired");
+      playSound("gem"); // временный звук бонуса цепочки
     } else if (event.type !== "tactStart") {
       showEvent(event, before);
       if (event.type in DRAIN_SOUNDS || event.type === "bleed") await wait(200);

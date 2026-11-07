@@ -94,7 +94,9 @@ function createHeroTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
     if (item.resolved) chip.classList.add("lane-chip--done");
     if (item.locked) chip.classList.add("lane-chip--locked");
     place(chip, slot.start, item.weight === 0 ? 0 : Math.min(slot.end, CELLS) - slot.start + 1);
-    chip.append(el("span", "lane-chip__name", name), previewValue(preview.get(`lane:${item.id}`)));
+    const predicted = preview.get(`lane:${item.id}`);
+    if (predicted?.chain) chip.classList.add("lane-chip--bonus");
+    chip.append(el("span", "lane-chip__name", name), previewValue(predicted));
     chip.addEventListener("click", (event) => {
       event.stopPropagation();
       handlers.onItemTap(item.id);

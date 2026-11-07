@@ -99,6 +99,20 @@ export type EffectType = Effect["type"];
 // Эффект нужного вида: EffectOf<"damage"> — только урон
 export type EffectOf<T extends EffectType> = Extract<Effect, { type: T }>;
 
+// Бонус цепочки: когда срабатывает и что даёт сверх обычных эффектов карты.
+// first — карта первая на дорожке, final — последняя, afterAttack / afterSkill — стоит встык после атаки / навыка,
+// joint — правый символ предыдущей карты (встык) совпал с левым символом этой, chain — карта N-я или дальше
+export type ChainKind = "first" | "final" | "afterAttack" | "afterSkill" | "joint" | "chain";
+
+export interface ChainBonus {
+  kind: ChainKind;
+  n?: number; // для chain: с какой по счёту карты
+  effects: Effect[];
+}
+
+// Символы-стыки по краям карты: клинок, щит, искра
+export type JointSymbol = "blade" | "shield" | "spark";
+
 // Постоянный эффект: карта-сила, особенность класса или акта. cardType — только для карт этого типа
 export interface Power {
   trigger: Trigger;
@@ -122,6 +136,8 @@ export interface CardData {
   // Уровни 2, 3… до легендарной: что меняется ещё (поверх предыдущих). Пропишем на этапе 5
   levels?: Partial<Omit<CardData, "id" | "upgraded" | "levels">>[];
   power?: Power;
+  chain?: ChainBonus; // на одной карте не больше одного бонуса цепочки
+  joints?: { left?: JointSymbol; right?: JointSymbol };
   hero?: HeroId; // чья это карта; у Раны героя нет
 }
 
