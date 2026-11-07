@@ -258,11 +258,11 @@ describe("такты", () => {
     expect(combat.hero.statuses.poison).toBeUndefined();
   });
   it("сила «в начале такта» срабатывает 2 раза за ход", () => {
-    const combat = fight({ deck: deckOf("rage") }); // +1 Сила в начале такта
+    const combat = fight({ deck: deckOf("rage") }); // +2 Силы в начале такта
     quiet(combat);
     placeCard(combat, uidAt(combat), 1);
     launch(combat); // такт 2 этого хода и такт 1 следующего
-    expect(combat.hero.statuses.strength).toBe(2);
+    expect(combat.hero.statuses.strength).toBe(4);
   });
 });
 

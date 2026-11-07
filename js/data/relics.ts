@@ -65,9 +65,9 @@ export const RELICS: Record<string, RelicData> = {
     name: "Боевое знамя",
     icon: "🚩",
     rarity: "common",
-    description: "В начале боя +1 Сила.",
+    description: "В начале боя +2 Силы.",
     trigger: "onCombatStart",
-    effects: [{ type: "applyStatus", status: "strength", amount: 1, target: "self" }],
+    effects: [{ type: "applyStatus", status: "strength", amount: 2, target: "self" }],
   },
   light_boots: {
     id: "light_boots",
@@ -395,8 +395,8 @@ export const RELICS: Record<string, RelicData> = {
     name: "Кровавая клятва",
     icon: "🩸",
     rarity: "boss",
-    description: "В начале боя +3 Силы.",
+    description: "В начале боя +6 Силы.",
     trigger: "onCombatStart",
-    effects: [{ type: "applyStatus", status: "strength", amount: 3, target: "self" }],
+    effects: [{ type: "applyStatus", status: "strength", amount: 6, target: "self" }],
   },
 };

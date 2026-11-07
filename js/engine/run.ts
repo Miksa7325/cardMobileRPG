@@ -294,7 +294,7 @@ export function createNodeCombat(run: Run): Combat {
   // У босса своя настройка в акте, этаж на него не влияет
   const depth = type === "boss" ? 0 : getCurrentNode(run).floor;
   const depthHp = 1 + CONFIG.depth.hpPerFloor * depth;
-  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength);
+  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength) * CONFIG.depth.strengthPerStep;
 
   // Зараза: в колоду каждого боя замешаны Раны. После боя они исчезают вместе с колодой боя
   const wounds = Array.from({ length: act.mechanic.wounds ?? 0 }, () => ({ cardId: "wound", level: 0 }));

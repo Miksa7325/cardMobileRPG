@@ -28,6 +28,7 @@ export function applyStrengthScale(scale) {
     for (const child of Object.values(value)) walk(child);
   };
   [CARDS, ENEMIES, RELICS, POTIONS].forEach(walk);
+  CONFIG.depth.strengthPerStep *= scale;
   for (const act of ACTS) {
     act.enemyStrength *= scale;
     if (act.mechanic.enemyStrength) act.mechanic.enemyStrength *= scale;

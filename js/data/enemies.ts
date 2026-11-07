@@ -68,7 +68,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     name: "Культист",
     hp: [48, 54],
     // За ход успевает три действия: копит Силу и быстро режет
-    moves: { ritual: buff(3, 0, { w: 2 }), slash: attack(6, 1, { w: 2 }) },
+    moves: { ritual: buff(6, 0, { w: 2 }), slash: attack(6, 1, { w: 2 }) },
     pattern: ["ritual", "slash", "slash"],
   },
   skeleton: {
@@ -98,7 +98,7 @@ export const ENEMIES: Record<string, EnemyData> = {
       curse: debuff({ vulnerable: 2 }, 1, { w: 2 }),
       slam: attack(13, 1, { w: 3, sunder: 2 }),
       combo: attack(6, 2, { w: 3 }),
-      fortify: buff(2, 8, { w: 2, repair: 2 }),
+      fortify: buff(4, 8, { w: 2, repair: 2 }),
     },
     pattern: ["curse", "slam", "combo", "fortify"],
   },
@@ -107,7 +107,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     name: "Могильный пёс",
     hp: [62, 68],
     // Медленный тяжёлый рывок в конце шкалы: есть время закрыться
-    moves: { maul: attack(4, 3, { w: 2 }), howl: buff(3, 0, { w: 1 }), rend: attack(15, 1, { w: 4, sunder: 2 }) },
+    moves: { maul: attack(4, 3, { w: 2 }), howl: buff(6, 0, { w: 1 }), rend: attack(15, 1, { w: 4, sunder: 2 }) },
     pattern: ["maul", "howl", "rend"],
   },
 
@@ -120,7 +120,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     moves: {
       hex: debuff({ weak: 2, slow: 1 }, 1, { w: 2 }),
       scythe: attack(15, 1, { w: 3 }),
-      fortify: buff(2, 12, { w: 2, repair: 2 }),
+      fortify: buff(4, 12, { w: 2, repair: 2 }),
       flurry: attack(5, 3, { w: 2 }),
       call: summon("skeleton", { w: 2 }),
     },
@@ -162,7 +162,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "warlock",
     name: "Чернокнижник",
     hp: [42, 46],
-    moves: { ritual: buff(3), bolt: attack(8), wither: debuff({ vulnerable: 2 }, 1) },
+    moves: { ritual: buff(6), bolt: attack(8), wither: debuff({ vulnerable: 2 }, 1) },
     pattern: ["ritual", "bolt", "wither"],
   },
   rat_swarm: {
@@ -179,7 +179,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "bone_colossus",
     name: "Костяной колосс",
     hp: [100, 108],
-    moves: { smash: attack(15), brace: buff(2, 18), sweep: attack(6, 3) },
+    moves: { smash: attack(15), brace: buff(4, 18), sweep: attack(6, 3) },
     pattern: ["sweep", "brace", "smash"],
   },
   witch_queen: {
@@ -200,7 +200,7 @@ export const ENEMIES: Record<string, EnemyData> = {
       drain: debuff({ weak: 2, vulnerable: 2 }, 1, { w: 2 }),
       bite: attack(16, 1, { w: 3, hidden: true }),
       swarm: attack(5, 4, { w: 3, hidden: true }),
-      feast: buff(3, 18, { w: 2 }),
+      feast: buff(6, 18, { w: 2 }),
       thirstBite: attack(16, 1, { w: 3, hidden: true, lifesteal: 0.5 }),
       thirstSwarm: attack(5, 4, { w: 3, hidden: true, lifesteal: 0.5 }),
     },
@@ -228,7 +228,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "blood_priest",
     name: "Жрец крови",
     hp: [54, 60],
-    moves: { offering: buff(4), sacrifice: attack(9), curse: debuff({ vulnerable: 2 }, 2) },
+    moves: { offering: buff(8), sacrifice: attack(9), curse: debuff({ vulnerable: 2 }, 2) },
     pattern: ["offering", "sacrifice", "curse"],
   },
   assassin: {
@@ -263,7 +263,7 @@ export const ENEMIES: Record<string, EnemyData> = {
       cleave: attack(19, 1, { w: 4, sunder: 2 }),
       dread: debuff({ vulnerable: 2, slow: 1 }, 1, { w: 2 }),
       combo: attack(8, 3, { w: 3 }),
-      oath: buff(3, 22, { w: 2, repair: 3 }),
+      oath: buff(6, 22, { w: 2, repair: 3 }),
     },
     pattern: ["dread", "cleave", "combo", "oath"],
   },
@@ -271,7 +271,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "demon",
     name: "Демон бездны",
     hp: [113, 124],
-    moves: { rend: attack(6, 4), flames: debuff({ burning: 10 }), roar: buff(4), crush: attack(21) },
+    moves: { rend: attack(6, 4), flames: debuff({ burning: 10 }), roar: buff(8), crush: attack(21) },
     pattern: ["rend", "flames", "roar", "crush"],
   },
 
@@ -286,7 +286,7 @@ export const ENEMIES: Record<string, EnemyData> = {
       doom: debuff({ vulnerable: 2, weak: 2, slow: 1 }, 2, { w: 2 }),
       soulfire: attack(20, 1, { w: 3, sunder: 2 }),
       barrage: attack(6, 4, { w: 3 }),
-      phylactery: buff(4, 26, { w: 2, repair: 3 }),
+      phylactery: buff(8, 26, { w: 2, repair: 3 }),
       plague: debuff({ poison: 6 }, 0, { w: 2 }),
       howl: debuff({ stun: 1 }, 0, { w: 2 }),
     },

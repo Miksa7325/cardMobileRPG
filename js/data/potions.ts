@@ -31,8 +31,8 @@ export const POTIONS: Record<string, PotionData> = {
     name: "Зелье силы",
     icon: "💪",
     target: "self",
-    description: "Получить 2 Силы.",
-    effects: [{ type: "applyStatus", status: "strength", amount: 2, target: "self" }],
+    description: "Получить 4 Силы.",
+    effects: [{ type: "applyStatus", status: "strength", amount: 4, target: "self" }],
   },
   dexterity_potion: {
     id: "dexterity_potion",

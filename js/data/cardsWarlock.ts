@@ -57,8 +57,8 @@ export const WARLOCK_CARDS: CardData[] = [
   chained(card("w_bone_armor", "Костяная броня", "skill", "common", 1, "self", "Получить {block} блока. Потерять {loseHp} HP. После атаки: ещё {block} блока.",
     [block(9), loseHp(2)], { effects: [block(12), loseHp(2)] }), "afterAttack", [block(3)], [block(4)]),
   card("w_embers", "Тлеющие угли", "skill", "common", 1, "allEnemies", "Наложить {poison} Яда всем врагам.", [status("poison", 2)], { effects: [status("poison", 3)] }),
-  card("w_empower", "Усиление", "skill", "common", 1, "self", "Получить {strength} Силу. Сжечь.", [selfStatus("strength", 1), burn],
-    { effects: [selfStatus("strength", 2), burn], description: "Получить {strength} Силы. Сжечь." }),
+  card("w_empower", "Усиление", "skill", "common", 1, "self", "Получить {strength} Силу. Сжечь.", [selfStatus("strength", 2), burn],
+    { effects: [selfStatus("strength", 4), burn], description: "Получить {strength} Силы. Сжечь." }),
   card("w_ritual_scar", "Ритуальный шрам", "skill", "common", 0, "self", "Потерять {loseHp} HP. Починка {repair}. Сжечь.", [loseHp(2), repair(2), burn], { effects: [loseHp(2), repair(3), burn] }),
 
   // ---------- Необычные ----------
@@ -85,7 +85,7 @@ export const WARLOCK_CARDS: CardData[] = [
     [allStatus("weak", 2), allStatus("vulnerable", 1), burn], { effects: [allStatus("weak", 3), allStatus("vulnerable", 2), burn], description: "Наложить {weak} Слабости и {vulnerable} Уязвимости всем врагам. Сжечь." }),
   card("w_forbidden", "Запретное знание", "skill", "uncommon", 1, "self", "Взять {draw} карты. Добавить 2 Раны в сброс.", [draw(4), wound, wound], { effects: [draw(5), wound, wound] }),
   card("w_ritual", "Ритуал", "skill", "uncommon", 1, "self", "Получить {strength} Силы. Потерять {loseHp} HP. Сжечь.",
-    [selfStatus("strength", 2), loseHp(3), burn], { effects: [selfStatus("strength", 3), loseHp(3), burn] }),
+    [selfStatus("strength", 4), loseHp(3), burn], { effects: [selfStatus("strength", 6), loseHp(3), burn] }),
   card("w_abyss_gaze", "Взгляд бездны", "skill", "uncommon", 1, "enemy", "Наложить {vulnerable} Уязвимости. Взять {draw} карту.",
     [status("vulnerable", 2), draw(1)], { effects: [status("vulnerable", 3), draw(1)] }),
   triggerPower("w_dark_embrace", "Объятия тьмы", "uncommon", 1, "Когда карта сгорает, {block} блока.", "onExhaust", [block(3)], [block(4)]),
@@ -93,7 +93,7 @@ export const WARLOCK_CARDS: CardData[] = [
     [selfStatus("dexterity", 3)], { effects: [selfStatus("dexterity", 4)] }),
   triggerPower("w_curse_aura", "Аура порчи", "uncommon", 1, "В конце такта {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
   card("w_hunger", "Голод", "power", "uncommon", 1, "self", "В начале такта +{strength} Сила и −{loseHp} HP.", [], { cost: 0 },
-    { trigger: "onTactStart", effects: [selfStatus("strength", 1), loseHp(1)] }),
+    { trigger: "onTactStart", effects: [selfStatus("strength", 2), loseHp(1)] }),
 
   // ---------- Редкие ----------
   card("w_abyss", "Бездна", "attack", "rare", 3, "allEnemies", "Нанести {damage} урона всем врагам: +2 за каждую Тьму.",
@@ -109,7 +109,7 @@ export const WARLOCK_CARDS: CardData[] = [
     [status("poison", 7), status("weak", 3), burn], { effects: [status("poison", 9), status("weak", 3), burn] }),
   card("w_necromancy", "Некромантия", "skill", "rare", 1, "self", "Взять {draw} карты. +{energy} вместимости в этом ходу. Сжечь.",
     [draw(3), energy(1), burn], { effects: [draw(4), energy(2), burn] }),
-  card("w_lich_form", "Форма лича", "power", "rare", 3, "self", "Получить {strength} Силы и {dexterity} Ловкости.", [selfStatus("strength", 3), selfStatus("dexterity", 3)], { cost: 2 }),
+  card("w_lich_form", "Форма лича", "power", "rare", 3, "self", "Получить {strength} Силы и {dexterity} Ловкости.", [selfStatus("strength", 6), selfStatus("dexterity", 3)], { cost: 2 }),
   card("w_blood_god", "Бог крови", "power", "rare", 1, "self", "В начале такта +{energy} вместимости и −{loseHp} HP.", [], { cost: 0 },
     { trigger: "onTactStart", effects: [energy(1), loseHp(1)] }),
   triggerPower("w_ashes", "Пепел", "rare", 1, "Когда карта сгорает, {damage} урона всем врагам.", "onExhaust", [fixedDamageToAll(5)], [fixedDamageToAll(7)]),

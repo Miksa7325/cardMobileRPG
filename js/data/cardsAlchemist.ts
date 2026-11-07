@@ -70,7 +70,7 @@ export const ALCHEMIST_CARDS: CardData[] = [
     [damage(7), spend("reagents", 2, [damage(7)])], { effects: [damage(9), spend("reagents", 2, [damage(9)])] }),
   card("al_corrosion", "Коррозия", "skill", "uncommon", 1, "enemy", "Сокрушение {sunder}. Наложить {poison} Яда.", [sunder(2), status("poison", 2)], { effects: [sunder(3), status("poison", 3)] }),
   card("al_strength_elixir", "Эликсир силы", "skill", "uncommon", 1, "self", "Реагенты 4: получить {strength} Силы. Сжечь.",
-    [spend("reagents", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("reagents", 4, [selfStatus("strength", 3)]), burn] }),
+    [spend("reagents", 4, [selfStatus("strength", 4)]), burn], { effects: [spend("reagents", 4, [selfStatus("strength", 6)]), burn] }),
   triggerPower("al_fermentation", "Брожение", "uncommon", 1, "В начале такта +{reagents} Реагент.", "onTactStart", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
   card("al_haste_elixir", "Эликсир скорости", "skill", "uncommon", 1, "self", "Получить {haste} Ускорение. Реагенты 3: ещё {haste} Ускорения.",
     [selfStatus("haste", 1), spend("reagents", 3, [selfStatus("haste", 2)])], { effects: [selfStatus("haste", 2), spend("reagents", 3, [selfStatus("haste", 2)])], description: "Получить {haste} Ускорения. Реагенты 3: ещё {haste} Ускорения." }),

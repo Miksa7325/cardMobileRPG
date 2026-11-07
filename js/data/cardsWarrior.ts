@@ -52,7 +52,7 @@ export const WARRIOR_CARDS: CardData[] = [
   card("rally", "Собраться с духом", "skill", "common", 1, "self", "Взять {draw} карты.", [draw(2)], { effects: [draw(3)] }),
   card("dirty_trick", "Грязный приём", "skill", "common", 0, "enemy", "Наложить {weak} Слабости. Сжечь.", [status("weak", 1), burn], { effects: [status("weak", 2), burn] }),
   card("tourniquet", "Жгут", "skill", "common", 0, "self", "Починка {repair}. Вылечить {heal} HP. Сжечь.", [repair(2), heal(2), burn], { effects: [repair(3), heal(4), burn] }),
-  card("warm_up", "Разминка", "skill", "common", 1, "self", "Получить {strength} Силы. Сжечь.", [selfStatus("strength", 1), burn], { effects: [selfStatus("strength", 2), burn] }),
+  card("warm_up", "Разминка", "skill", "common", 1, "self", "Получить {strength} Силы. Сжечь.", [selfStatus("strength", 2), burn], { effects: [selfStatus("strength", 4), burn] }),
   card("battle_cry", "Грозный вызов", "skill", "common", 0, "allEnemies", "Наложить {vulnerable} Уязвимости всем врагам. Сжечь.",
     [allStatus("vulnerable", 1), burn], { effects: [allStatus("vulnerable", 2), burn] }),
   card("fury_shield", "Щит гнева", "skill", "common", 1, "self", "Получить {block} блока: +1 за каждую Ярость.", [grow(block(4), "rage", 1)], { effects: [grow(block(6), "rage", 2)] }),
@@ -77,7 +77,7 @@ export const WARRIOR_CARDS: CardData[] = [
   card("rampage", "Буйство", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Ярость 5: ещё 3 удара по {damage}.",
     [damage(8), spend("rage", 5, hits(7, 3))], { effects: [damage(10), spend("rage", 5, hits(9, 3))] }),
   card("unstoppable", "Неудержимость", "skill", "uncommon", 1, "self", "Ярость 4: получить {strength} Силы. Сжечь.",
-    [spend("rage", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("rage", 3, [selfStatus("strength", 2)]), burn], description: "Ярость 3: получить {strength} Силы. Сжечь." }),
+    [spend("rage", 4, [selfStatus("strength", 4)]), burn], { effects: [spend("rage", 3, [selfStatus("strength", 4)]), burn], description: "Ярость 3: получить {strength} Силы. Сжечь." }),
   card("seething", "Кипящая кровь", "power", "uncommon", 1, "self", "В начале такта +{rage} Ярость.", [], { cost: 0 },
     { trigger: "onTactStart", effects: [gainResource("rage", 1)] }),
   card("sunder", "Раскол брони", "attack", "uncommon", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(5)], { effects: [sunder(3), damage(7)] }),
@@ -104,7 +104,7 @@ export const WARRIOR_CARDS: CardData[] = [
 
   // ---------- Редкие ----------
   card("rage", "Нарастающий гнев", "power", "rare", 1, "self", "В начале такта +{strength} Сила.", [], { cost: 0 },
-    { trigger: "onTactStart", effects: [selfStatus("strength", 1)] }),
+    { trigger: "onTactStart", effects: [selfStatus("strength", 2)] }),
   card("execution", "Казнь", "attack", "rare", 3, "enemy", "Нанести {damage} урона: +3 за каждую Ярость.", [grow(damage(6), "rage", 3)], { effects: [grow(damage(10), "rage", 3)] }),
   card("berserk_roar", "Рёв берсерка", "attack", "rare", 1, "allEnemies", "Ярость 6: нанести {damage} урона всем и получить {block} блока.",
     [spend("rage", 6, [damage(20), block(10)])], { effects: [spend("rage", 6, [damage(26), block(14)])] }),
@@ -117,7 +117,7 @@ export const WARRIOR_CARDS: CardData[] = [
     [block(30), repair(5), burn], { effects: [block(40), repair(5), burn] }),
   card("adrenal_rush", "Всплеск", "skill", "rare", 1, "self", "+{energy} вместимости в этом ходу. Взять {draw} карты. Сжечь.",
     [energy(2), draw(2), burn], { effects: [energy(3), draw(3), burn] }),
-  card("berserker", "Берсерк", "power", "rare", 0, "self", "Получить {strength} Силы. Потерять {loseHp} HP.", [selfStatus("strength", 3), loseHp(6)], { effects: [selfStatus("strength", 4), loseHp(6)] }),
-  card("war_avatar", "Аватар войны", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости.", [selfStatus("strength", 3), selfStatus("dexterity", 3)], { cost: 2 }),
+  card("berserker", "Берсерк", "power", "rare", 0, "self", "Получить {strength} Силы. Потерять {loseHp} HP.", [selfStatus("strength", 6), loseHp(6)], { effects: [selfStatus("strength", 8), loseHp(6)] }),
+  card("war_avatar", "Аватар войны", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости.", [selfStatus("strength", 6), selfStatus("dexterity", 3)], { cost: 2 }),
   card("perfect_form", "Идеальная форма", "power", "rare", 1, "self", "В начале такта взять {draw} карту.", [], { cost: 0 }, { trigger: "onTactStart", effects: [draw(1)] }),
 ];

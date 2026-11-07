@@ -88,7 +88,7 @@ export const MAGE_CARDS: CardData[] = [
     [slowAll(2), block(14), burn], { effects: [slowAll(2), block(18), burn] }),
   card("m_inferno", "Инферно", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(22)], { effects: [damage(30)] }),
   card("m_starfall", "Звездопад", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам 4 раза.", hits(5, 4), { effects: hits(7, 4) }),
-  card("m_archmage", "Архимаг", "power", "rare", 3, "self", "Получить {strength} Силы.", [selfStatus("strength", 3)], { cost: 2 }),
+  card("m_archmage", "Архимаг", "power", "rare", 3, "self", "Получить {strength} Силы.", [selfStatus("strength", 6)], { cost: 2 }),
   card("m_mana_storm", "Буря маны", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам: +3 за каждый Прилив.", [grow(damage(4), "surge", 3)],
     { effects: [grow(damage(6), "surge", 4)], description: "Нанести {damage} урона всем врагам: +4 за каждый Прилив." }),
   card("m_time_warp", "Остановка времени", "skill", "rare", 3, "allEnemies", "Наложить Оглушение всем врагам: их следующее действие сорвётся. Сжечь.",
