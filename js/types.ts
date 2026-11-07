@@ -39,6 +39,7 @@ export type Trigger =
   | "onExhaust"
   | "onWoundBurned"
   | "onHpPaid"
+  | "onHpLost" // герой потерял HP чем угодно: удар, Яд, Горение, Кровотечение, плата HP
   | "onPotionUsed"
   | "onPotionBrewed"
   | "onPickup"; // реликвия: в момент получения, вне боя

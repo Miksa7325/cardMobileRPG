@@ -191,6 +191,7 @@ export function applyPoison(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   // В задания идут только реально снятые HP: удар сильнее, чем осталось у врага, не накручивает счётчик
   if (unit !== combat.hero) addTally(combat, "damageDealt", Math.min(unit.hp, stacks));
   unit.hp = Math.max(0, unit.hp - stacks);
+  if (unit === combat.hero && unit.hp > 0) fireTrigger(combat, "onHpLost");
   recordEvent(combat, { type: "poison", targetId: unitId(combat, unit), amount: stacks, hp: unit.hp, block: unit.block });
   reduceStatus(unit, "poison");
   notifyIfEnemyDied(combat, unit);
@@ -206,6 +207,7 @@ export function applyBurning(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   const hpLost = Math.min(unit.hp, stacks - absorbed);
   if (unit !== combat.hero) addTally(combat, "damageDealt", hpLost);
   unit.hp -= hpLost;
+  if (unit === combat.hero && hpLost > 0 && unit.hp > 0) fireTrigger(combat, "onHpLost");
   recordEvent(combat, { type: "burning", targetId: unitId(combat, unit), amount: stacks, hpLost, blocked: absorbed, hp: unit.hp, block: unit.block });
   const left = Math.floor(stacks / 2);
   if (left > 0) unit.statuses.burning = left;
@@ -293,7 +295,10 @@ function dealDamage(
     damage,
     breakdown,
   });
-  if (target === combat.hero && hpLost > 0) fireTrigger(combat, "onDamageTaken");
+  if (target === combat.hero && hpLost > 0) {
+    fireTrigger(combat, "onDamageTaken");
+    fireTrigger(combat, "onHpLost");
+  }
   notifyIfEnemyDied(combat, target);
   return Math.min(hpLost, target.hp + hpLost);
 }
@@ -388,7 +393,10 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     unit.hp = Math.max(0, unit.hp - effect.amount);
     recordEvent(combat, { type: "hpLoss", targetId: unitId(combat, unit), amount: effect.amount, hp: unit.hp, block: unit.block });
     // Чернокнижник копит Тьму, когда платит своим здоровьем
-    if (unit === combat.hero && unit.hp > 0) fireTrigger(combat, "onHpPaid");
+    if (unit === combat.hero && unit.hp > 0) {
+      fireTrigger(combat, "onHpPaid");
+      fireTrigger(combat, "onHpLost");
+    }
   },
   // Во время розыгрыша новые карты можно доложить на шкалу: розыгрыш встанет на паузу
   draw(combat, effect) {

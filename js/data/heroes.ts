@@ -56,7 +56,7 @@ export const HEROES: Record<HeroId, HeroData> = {
   warlock: {
     id: "warlock",
     name: "Чернокнижник",
-    description: "Тьма: платит здоровьем и Ранами, а Тьма копится весь бой.",
+    description: "Тьма: растёт от полученного урона и сожжённых карт.",
     maxHp: CONFIG.warlockMaxHp,
     capacity: CONFIG.capacity.warlock,
     drawPerTurn: CONFIG.drawPerTurn.warlock,
@@ -64,15 +64,16 @@ export const HEROES: Record<HeroId, HeroData> = {
     mechanic: {
       name: "Тьма",
       resource: "darkness",
-      text: "Каждая плата своим здоровьем и каждая сожжённая Рана дают 1 Тьму. Тьма копится весь бой: тёмные карты растут от неё или тратят её.",
+      text: "Любая потеря HP (удар, Яд, Горение, Кровотечение, плата здоровьем) и каждая сожжённая карта дают 1 Тьму. Тьма копится весь бой: тёмные карты растут от неё или тратят её.",
       passives: [
-        { trigger: "onHpPaid", effects: gain("darkness") },
-        { trigger: "onWoundBurned", effects: gain("darkness") },
+        // +1 Тьма за любую потерю HP и за каждую сожжённую карту
+        { trigger: "onHpLost", effects: gain("darkness") },
+        { trigger: "onExhaust", effects: gain("darkness") },
       ],
     },
     deck: [
       "w_bolt", "w_bolt", "w_bolt", "w_bolt",
-      "w_shield", "w_shield", "w_shield", "w_shield",
+      "w_shield", "w_shield", "w_shield", "w_bone_patch",
       "w_sacrifice", "w_dark_bolt",
     ],
     relics: ["soul_chalice"],
@@ -122,7 +123,7 @@ export const HEROES: Record<HeroId, HeroData> = {
     },
     deck: [
       "m_spark", "m_spark", "m_spark", "m_spark",
-      "m_barrier", "m_barrier", "m_barrier", "m_barrier",
+      "m_barrier", "m_barrier", "m_barrier", "m_rune_ward",
       "m_frostbolt", "m_arcane_blast",
     ],
     relics: ["moon_bell"],

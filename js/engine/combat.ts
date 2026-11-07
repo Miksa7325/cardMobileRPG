@@ -716,6 +716,7 @@ function bleed(combat: Combat, unit: HeroUnit | EnemyUnit, weight: number, targe
   const lost = Math.min(unit.hp, stacks * weight);
   if (unit !== combat.hero) addTally(combat, "damageDealt", lost);
   unit.hp -= lost;
+  if (unit === combat.hero && lost > 0 && unit.hp > 0) fireTrigger(combat, "onHpLost");
   recordEvent(combat, { type: "bleed", targetId, amount: lost, hp: unit.hp, block: unit.block });
   reduceStatus(unit, "bleed");
   if (combat.hero.hp <= 0) combat.status = "lost";

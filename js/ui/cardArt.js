@@ -326,6 +326,11 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 const BORROWED_ART = {
   patch: "bandage", pierce_armor: "sunder", rivets: "iron_skin", reforge: "brace", forged_armor: "iron_wall", counter_blow: "counterattack",
   a_tighten: "a_smoke", a_blood_flourish: "a_garrote", a_bloodletting: "a_bleed",
+  w_bone_patch: "w_ward", w_blood_for_blood: "w_drain", w_ritual_scar: "w_blood_offering",
+  m_rune_ward: "m_barrier", m_frost_ray: "m_frostbolt", m_ember: "m_scorch", m_shock: "m_lightning", m_frost_shell: "m_ice_armor",
+  m_channel: "m_mana_tap", m_arcane_bolt: "m_arcane_blast", m_frost_wall: "m_frost_nova", m_kindle: "m_ignite", m_spark_chain: "m_missiles",
+  m_mirror: "m_arcane_veil", m_heat: "m_flame_wave", m_frozen_spike: "m_ice_shards", m_split: "m_thunderclap", m_firewall: "m_pyroblast",
+  m_time_skip: "m_time_warp", m_ice_prison: "m_absolute_zero",
 };
 for (const [id, source] of Object.entries(BORROWED_ART)) {
   CARD_ART[id] = CARD_ART[source];
