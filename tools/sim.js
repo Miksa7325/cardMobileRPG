@@ -1,11 +1,11 @@
 // Симулятор боёв: гоняет настоящий движок игры (js/engine) без браузера.
-// Бот в каждом ходу перебирает, какие карты и зелья сыграть и в каком порядке,
-// для каждого варианта доигрывает ход врагов на копии боя и берёт лучший.
+// Бот в каждом ходу перебирает, какие карты и зелья поставить на шкалу и в каком порядке,
+// для каждого варианта доигрывает шкалу на копии боя (вместе с ходами врагов) и берёт лучший.
 //
 // Запуск:   node tools/sim.js
 // Параметры (все необязательные):
 //   --fights=30          сколько боёв на каждую пару «герой — враги»
-//   --budget=400         сколько вариантов хода бот проверяет за ход (больше — умнее, но медленнее)
+//   --beam=32            ширина поиска: сколько лучших недостроенных расстановок бот держит на каждом шаге (больше — умнее, но медленнее)
 //   --act=1              какой акт (номер с 1)
 //   --floor=0            этаж, на котором идёт обычный бой и элита (глубже — враги крепче)
 //   --heroes=warrior,mage   только эти герои
@@ -20,7 +20,7 @@ import { RELICS } from "../js/data/relics.ts";
 import { ENEMIES } from "../js/data/enemies.ts";
 import { HEROES } from "../js/data/heroes.ts";
 import { POTIONS } from "../js/data/potions.ts";
-import { canPlayCard, createCombat, endTurn, playCard, usePotion } from "../js/engine/combat.ts";
+import { cardWeight, chooseBrew, createCombat, endTurn, launch, placeCard, placePotion, setKeep } from "../js/engine/combat.ts";
 import { getCardData } from "../js/engine/deck.ts";
 
 const MAX_TURNS = 60; // бой дольше считается поражением: бот застрял
@@ -33,7 +33,7 @@ const args = Object.fromEntries(
   }),
 );
 const FIGHTS = Number(args.fights ?? 30);
-const BUDGET = Number(args.budget ?? 400);
+const BEAM = Number(args.beam ?? 32);
 const ACT_INDEX = Number(args.act ?? 1) - 1;
 const FLOOR = Number(args.floor ?? 0);
 const STRENGTH_SCALE = Number(args["strength-scale"] ?? 1);
@@ -56,41 +56,65 @@ if (STRENGTH_SCALE !== 1) {
 const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 
 // ---------- Бот ----------
+//
+// Бот строит дорожку слева направо: на каждом шаге выбирает, что поставить следующим (карту, зелье или подготовку Мага)
+// и на кого. Следующая карта встаёт сразу за предыдущей, без пустых клеток: пустые клетки бот не пробует.
+// Каждый вариант он доигрывает на копии боя до конца шкалы — вместе с ходами врагов — и берёт лучший.
+
+// Где кончается то, что уже стоит на дорожке: следующее встанет после этого
+function laneEnd(combat) {
+  let end = combat.clock;
+  for (const item of combat.lane) {
+    if (item.weight === 0) end = Math.max(end, item.start);
+    else end = Math.max(end, item.end ?? item.start + item.weight - 1);
+  }
+  return end;
+}
 
 // Все действия, которые можно сделать прямо сейчас. Одинаковые карты (два Удара) — одно действие
 function listActions(combat) {
+  // Алхимик сначала выбирает, какое из двух сваренных зелий взять
+  if (combat.brewChoices.length > 0) {
+    return combat.brewChoices[0].options.map((potionId) => ({ kind: "brew", potionId }));
+  }
   const actions = [];
   const seen = new Set();
   const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
+  const end = laneEnd(combat);
+  const targetsFor = (target) => (target === "enemy" ? alive.map((enemy) => enemy.instanceId) : [null]);
 
   for (const instance of combat.piles.hand) {
-    if (!canPlayCard(combat, instance)) continue;
+    const weight = cardWeight(instance);
+    if (weight === null) continue;
     const card = getCardData(instance);
-    const targets = card.target === "enemy" ? alive.map((enemy) => enemy.instanceId) : [null];
-    for (const targetId of targets) {
+    const start = weight === 0 ? end : end + 1;
+    for (const targetId of targetsFor(card.target)) {
       const key = `card:${instance.cardId}:${instance.level}:${targetId}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      actions.push({ kind: "card", uid: instance.uid, targetId, label: `${card.name}${targetId ? " → " + targetId : ""}` });
+      actions.push({ kind: "card", uid: instance.uid, start, targetId });
+      // Маг может поставить заклинание на подготовку
+      if (HEROES[combat.hero.heroId].prepCapacity) actions.push({ kind: "card", uid: instance.uid, start: 0, targetId, prepare: true });
     }
   }
 
   combat.potions.forEach((potionId, index) => {
     const potion = POTIONS[potionId];
-    const targets = potion.target === "enemy" ? alive.map((enemy) => enemy.instanceId) : [null];
-    for (const targetId of targets) {
+    const weight = HEROES[combat.hero.heroId].potionWeight;
+    for (const targetId of targetsFor(potion.target)) {
       const key = `potion:${potionId}:${targetId}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      actions.push({ kind: "potion", index, targetId, label: `зелье ${potion.name}` });
+      actions.push({ kind: "potion", index, start: weight === 0 ? end : end + 1, targetId });
     }
   });
   return actions;
 }
 
 function applyAction(combat, action) {
-  if (action.kind === "card") return playCard(combat, action.uid, action.targetId).ok;
-  return usePotion(combat, action.index, action.targetId).ok;
+  if (action.kind === "brew") return chooseBrew(combat, 0, action.potionId).ok;
+  if (action.kind === "card") return placeCard(combat, action.uid, action.start, action.targetId, { prepare: action.prepare }).ok;
+  return placePotion(combat, action.index, action.start, action.targetId).ok;
 }
 
 // Копия боя: бот пробует ходы на ней, настоящий бой не трогается
@@ -100,19 +124,27 @@ function cloneCombat(combat) {
   return copy;
 }
 
-// Насколько хорошо положение после хода врагов. Больше — лучше
+// В руке остаются 2 самые тяжёлые карты, которые не поставлены: их проще всего разыграть потом
+function chooseKeep(combat) {
+  const playable = combat.piles.hand.filter((card) => cardWeight(card) !== null);
+  playable.sort((a, b) => cardWeight(b) - cardWeight(a));
+  setKeep(combat, playable.slice(0, CONFIG.timeline.keepInHand).map((card) => card.uid));
+}
+
+// Насколько хорошо положение после конца шкалы. Больше — лучше
 function evaluate(combat) {
   const hero = combat.hero;
   if (combat.status === "lost") return -1e6;
   if (combat.status === "won") return 1e6 + hero.hp * 10 + combat.potions.length * 5;
 
   const s = hero.statuses;
-  let score = hero.hp * 10;
-  score += (s.strength ?? 0) * 12 + (s.dexterity ?? 0) * 10;
+  let score = hero.hp * 10 + hero.block * 3; // блок переживает конец хода
+  score += (s.strength ?? 0) * 12 + (s.dexterity ?? 0) * 6 + (s.haste ?? 0) * 4;
   score += (s.rage ?? 0) * 2 + (s.darkness ?? 0) * 2 + (s.surge ?? 0) * 3 + (s.reagents ?? 0) * 2;
   score -= (s.poison ?? 0) * 8 + (s.burning ?? 0) * 6 + (s.weak ?? 0) * 6 + (s.vulnerable ?? 0) * 8;
+  score -= (s.slow ?? 0) * 6 + (s.stun ?? 0) * 15 + (s.bleed ?? 0) * 8;
   score += hero.powers.length * 15;
-  score += combat.potions.length * 5;
+  score += combat.potions.length * 5 + combat.prepared.length * 8;
 
   for (const enemy of combat.enemies) {
     if (enemy.hp <= 0) {
@@ -122,56 +154,61 @@ function evaluate(combat) {
     const es = enemy.statuses;
     score -= enemy.hp * 4 + enemy.block * 2;
     score += (es.poison ?? 0) * 5 + (es.burning ?? 0) * 4 + (es.leech ?? 0) * 6 + (es.vulnerable ?? 0) * 6 + (es.weak ?? 0) * 5;
+    score += (es.slow ?? 0) * 5 + (es.stun ?? 0) * 15 + (es.bleed ?? 0) * 5;
     score -= (es.strength ?? 0) * 10;
   }
   return score;
 }
 
-// Перебор: в каждой точке можно закончить ход или сделать ещё одно действие.
-// Возвращает лучшую последовательность действий на этот ход
+// Доигрывает копию до конца шкалы: паузы пропускает, выбор варки — первое зелье
+function finishOnCopy(state) {
+  const copy = cloneCombat(state);
+  if (copy.status !== "planning") return copy;
+  chooseKeep(copy);
+  endTurn(copy);
+  return copy;
+}
+
+// Поиск лучом: на каждом шаге из всех расстановок «на одну карту длиннее» оставляем BEAM лучших
+// и продолжаем только их. Любую из них можно запустить — лучшая из всех проверенных и есть план хода
 function planTurn(combat) {
-  let best = { score: -Infinity, actions: [] };
-  let budget = BUDGET;
-
-  function explore(state, actions) {
-    if (budget <= 0) return;
-    budget -= 1;
-
-    // Вариант «закончить ход здесь»: доигрываем ход врагов на копии
-    const ended = cloneCombat(state);
-    if (ended.status === "playerTurn") endTurn(ended);
-    const score = evaluate(ended);
-    if (score > best.score) best = { score, actions };
-    if (state.status !== "playerTurn") return;
-
-    for (const action of listActions(state)) {
-      const next = cloneCombat(state);
-      if (!applyAction(next, action)) continue;
-      explore(next, [...actions, action]);
-      if (budget <= 0) return;
+  const score = (state) => (state.brewChoices.length > 0 ? -Infinity : evaluate(finishOnCopy(state)));
+  let best = { score: score(combat), actions: [] };
+  let frontier = [{ state: combat, actions: [] }];
+  while (frontier.length > 0) {
+    const children = [];
+    for (const node of frontier) {
+      if (node.state.status !== "planning") continue;
+      for (const action of listActions(node.state)) {
+        const next = cloneCombat(node.state);
+        if (!applyAction(next, action)) continue;
+        // Пока зелье варки не выбрано, запускать нельзя: оцениваем по лучшему выбору на следующем шаге
+        const value = next.brewChoices.length > 0 ? evaluate(finishOnCopy(next)) : score(next);
+        const child = { state: next, actions: [...node.actions, action], value };
+        if (next.brewChoices.length === 0 && value > best.score) best = { score: value, actions: child.actions };
+        children.push(child);
+      }
     }
+    children.sort((x, y) => y.value - x.value);
+    frontier = children.slice(0, BEAM);
   }
-
-  explore(combat, []);
   return best.actions;
 }
 
-// Играет один бой до конца. Карты ищем заново по названию и цели: uid в копии совпадают с настоящими
+// Играет один бой до конца. uid и номера зелий в копии совпадают с настоящими: копия — точный слепок боя
 function runFight(heroId, enemyIds, seed, setup) {
   const combat = createCombat({ heroId, enemyIds, seed, relics: HEROES[heroId].relics, ...setup });
   const startHp = combat.hero.hp;
 
-  while (combat.status === "playerTurn" && combat.turn <= MAX_TURNS) {
+  while (combat.status === "planning" && combat.turn <= MAX_TURNS) {
     for (const action of planTurn(combat)) {
-      if (combat.status !== "playerTurn") break;
-      // Зелья сдвигают номера в сумке: ищем то же зелье заново
-      if (action.kind === "potion") {
-        const potionId = combat.potions[action.index];
-        action.index = combat.potions.indexOf(potionId);
-      }
-      applyAction(combat, action);
+      if (!applyAction(combat, action)) break;
     }
-    if (combat.status === "playerTurn") endTurn(combat);
+    // Если варка осталась невыбранной (бюджет кончился), берём первое зелье
+    while (combat.brewChoices.length > 0) chooseBrew(combat, 0, combat.brewChoices[0].options[0]);
+    chooseKeep(combat);
+    // Розыгрыш может встать на паузу: тогда бот снова планирует с этого места
+    launch(combat);
   }
 
   const won = combat.status === "won";
@@ -213,7 +250,7 @@ const encounters = listEncounters(act);
 const results = [];
 const started = Date.now();
 
-console.log(`Акт ${ACT_INDEX + 1} «${act.name}», этаж ${FLOOR}, боёв на пару: ${FIGHTS}, перебор: ${BUDGET} вариантов за ход, Сила ×${STRENGTH_SCALE}\n`);
+console.log(`Акт ${ACT_INDEX + 1} «${act.name}», этаж ${FLOOR}, боёв на пару: ${FIGHTS}, ширина поиска: ${BEAM}, Сила ×${STRENGTH_SCALE}\n`);
 
 for (const heroId of HERO_IDS) {
   for (const encounter of encounters) {
@@ -248,7 +285,7 @@ console.log(`Готово за ${round((Date.now() - started) / 1000)} с`);
 
 // ---------- Сохранение ----------
 if (args.out) {
-  const meta = { date: new Date().toISOString().slice(0, 10), act: ACT_INDEX + 1, actName: act.name, floor: FLOOR, fights: FIGHTS, budget: BUDGET, strengthScale: STRENGTH_SCALE };
+  const meta = { date: new Date().toISOString().slice(0, 10), act: ACT_INDEX + 1, actName: act.name, floor: FLOOR, fights: FIGHTS, beam: BEAM, strengthScale: STRENGTH_SCALE };
   mkdirSync(dirname(args.out), { recursive: true });
   writeFileSync(`${args.out}.json`, JSON.stringify({ meta, results }, null, 2));
   writeFileSync(`${args.out}.md`, toMarkdown(meta, results));
@@ -262,7 +299,7 @@ function toMarkdown(meta, rows) {
   const lines = [
     `# Эталон сложности: акт ${meta.act} «${meta.actName}»`,
     "",
-    `Дата: ${meta.date}. Этаж: ${meta.floor}. Боёв на пару: ${meta.fights}. Бот проверяет ${meta.budget} вариантов за ход.`,
+    `Дата: ${meta.date}. Этаж: ${meta.floor}. Боёв на пару: ${meta.fights}. Ширина поиска бота: ${meta.beam}.`,
     "Герой со стартовой колодой, стартовой реликвией и полным HP, без зелий. В клетке: победы / потеря HP / ходов.",
     "",
     `| Бой | ${heroes.map((id) => HEROES[id].name).join(" | ")} |`,
