@@ -48,7 +48,7 @@ export const HEROES: Record<HeroId, HeroData> = {
     },
     deck: [
       "a_strike", "a_strike", "a_strike", "a_strike",
-      "a_dodge", "a_dodge", "a_dodge", "a_dodge",
+      "a_dodge", "a_dodge", "a_dodge", "a_tighten",
       "a_dart", "a_finisher",
     ],
     relics: ["venom_ring"],

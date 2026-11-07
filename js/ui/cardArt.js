@@ -325,6 +325,7 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 // Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
 const BORROWED_ART = {
   patch: "bandage", pierce_armor: "sunder", rivets: "iron_skin", reforge: "brace", forged_armor: "iron_wall", counter_blow: "counterattack",
+  a_tighten: "a_smoke", a_blood_flourish: "a_garrote", a_bloodletting: "a_bleed",
 };
 for (const [id, source] of Object.entries(BORROWED_ART)) {
   CARD_ART[id] = CARD_ART[source];
