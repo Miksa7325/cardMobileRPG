@@ -26,7 +26,8 @@ export const HEROES: Record<HeroId, HeroData> = {
       ],
     },
     deck: [
-      "strike", "strike", "strike", "strike",
+      // Рассечение вместо одного Удара: урон по всем врагам (подобрано симулятором)
+      "strike", "strike", "strike", "cleave",
       "defend", "defend", "defend", "patch",
       "bash", "rage_burst",
     ],
@@ -47,7 +48,8 @@ export const HEROES: Record<HeroId, HeroData> = {
       passives: [{ trigger: "onCardPlayed", effects: gain("combo") }],
     },
     deck: [
-      "a_strike", "a_strike", "a_strike", "a_strike",
+      // Метательные ножи вместо одного Удара: урон по всем при весе 0 (подобрано симулятором)
+      "a_strike", "a_strike", "a_strike", "a_throwing_knives",
       "a_dodge", "a_dodge", "a_dodge", "a_tighten",
       "a_dart", "a_finisher",
     ],
@@ -97,7 +99,8 @@ export const HEROES: Record<HeroId, HeroData> = {
       ],
     },
     deck: [
-      "al_toss", "al_toss", "al_toss", "al_toss",
+      // Бомба вместо одного Броска: без урона по всем Алхимик проигрывал группам (подобрано симулятором)
+      "al_toss", "al_toss", "al_toss", "al_bomb",
       "al_guard", "al_guard", "al_guard", "al_resin",
       "al_brew", "al_catalyst",
     ],

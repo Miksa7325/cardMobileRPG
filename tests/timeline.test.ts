@@ -277,9 +277,9 @@ describe("Маг: подготовка", () => {
     launch(combat);
     expect(enemy.hp).toBe(hp - 7);
   });
-  it("на подготовке не больше 4 веса", () => {
+  it("на подготовке не больше 3 веса", () => {
     const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
-    for (let i = 0; i < 4; i++) expect(placeCard(combat, uidAt(combat), 0, firstEnemy(combat), { prepare: true }).ok).toBe(true);
+    for (let i = 0; i < 3; i++) expect(placeCard(combat, uidAt(combat), 0, firstEnemy(combat), { prepare: true }).ok).toBe(true);
     expect(placeCard(combat, uidAt(combat), 0, firstEnemy(combat), { prepare: true })).toEqual({ ok: false, reason: "noPrepCapacity" });
   });
   it("Оглушение Мага срывает ближайшее подготовленное заклинание, оно уходит в сброс", () => {

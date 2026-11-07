@@ -8,12 +8,13 @@
 // Запуск:   node tools/sim-run.js
 // Параметры (все необязательные):
 //   --runs=30            сколько забегов на каждого героя
+//   --first=0            с какого номера забега начать: так один большой прогон делится на части, которые идут параллельно
 //   --beam=32            ширина поиска бота в бою
 //   --act=1              какой акт проходить (герой начинает с него)
 //   --heroes=warrior,mage   только эти герои
 //   --strength-scale=2   умножить все числа Силы — для подбора чисел
 //   --patch=вариант.js   поменять данные только в памяти перед прогоном: export default (data) => { data.ENEMIES… }
-//                        (data: ENEMIES, CARDS, ACTS, CONFIG) — для подбора чисел, файлы игры не меняются
+//                        (data: ENEMIES, CARDS, ACTS, CONFIG, HEROES) — для подбора чисел, файлы игры не меняются
 //   --out=tools/baseline/run-act1   сохранить итог в .json и .md
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -36,10 +37,11 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
   return [key, value ?? "true"];
 }));
 const RUNS = Number(args.runs ?? 30);
+const FIRST = Number(args.first ?? 0);
 const ACT = Number(args.act ?? 1);
 const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 setBeam(Number(args.beam ?? 32));
-if (args.patch) (await import(pathToFileURL(resolve(args.patch)).href)).default({ ENEMIES, CARDS, ACTS, CONFIG });
+if (args.patch) (await import(pathToFileURL(resolve(args.patch)).href)).default({ ENEMIES, CARDS, ACTS, CONFIG, HEROES });
 applyStrengthScale(Number(args["strength-scale"] ?? 1));
 
 // ---------- Выбор пути ----------
@@ -175,7 +177,7 @@ const results = [];
 console.log(`Акт ${ACT} «${ACTS[ACT - 1].name}», забегов на героя: ${RUNS}\n`);
 for (const heroId of HERO_IDS) {
   const logs = [];
-  for (let i = 0; i < RUNS; i++) logs.push(playRun(heroId, 5000 + i));
+  for (let i = 0; i < RUNS; i++) logs.push(playRun(heroId, 5000 + FIRST + i));
   const won = logs.filter((log) => log.won).length;
   const reachedBoss = logs.filter((log) => log.hpBeforeBoss !== null);
   const avg = (items, pick) => (items.length ? Math.round((items.reduce((sum, item) => sum + pick(item), 0) / items.length) * 10) / 10 : null);
