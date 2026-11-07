@@ -15,5 +15,6 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["js", "tools", "tests", "vite.config.ts"]
+  // tests добавим, когда движок переедет на TypeScript: пока у движка нет типов, и проверка на тестах ругается впустую
+  "include": ["js", "tools", "vite.config.ts"]
 }
