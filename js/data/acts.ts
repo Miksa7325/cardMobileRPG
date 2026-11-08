@@ -128,8 +128,8 @@ export const ACTS: ActData[] = [
     name: "Кузня демонов",
     mechanic: {
       name: "Жар",
-      text: "В конце каждого своего хода герой теряет 3 HP.",
-      heroPassives: [{ trigger: "onTactEnd", effects: [{ type: "loseHp", amount: 3 }] }],
+      text: "В конце каждого такта герой теряет 2 HP.",
+      heroPassives: [{ trigger: "onTactEnd", effects: [{ type: "loseHp", amount: 2 }] }],
     },
     encounters: [
       ["hellhound", "hellhound"],

@@ -5,7 +5,7 @@ import type { Effect, EnemyData, EnemyMove, Statuses } from "../types.ts";
 // options у каждого хода: w — вес (сколько клеток шкалы он занимает), sunder — Сокрушение N (Уязвимость герою до удара),
 // repair — Починка N (враг снимает с себя Уязвимость), lifesteal — вампиризм (доля урона по HP, на которую враг лечится),
 // hidden — скрытый ход: виден как «?», пока до срабатывания больше 2 клеток.
-// Если w не указан: атака 3, защита, усиление и ослабление 2 (так было на этапе 2; у врагов из актов 2–10 уточним на этапе 6)
+// Если w не указан: атака 3, защита, усиление и ослабление 2 (у врагов актов 1–3 веса указаны везде)
 interface MoveOptions {
   w?: number;
   sunder?: number;
@@ -134,35 +134,39 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "ghoul",
     name: "Упырь",
     hp: [48, 54],
-    moves: { claw: attack(8), infect: debuff({ poison: 5 }), frenzy: attack(5, 2) },
+    // Быстрый: три хода за шкалу
+    moves: { claw: attack(8, 1, { w: 2 }), infect: debuff({ poison: 3 }, 0, { w: 2 }), frenzy: attack(5, 2, { w: 2 }) },
     pattern: ["claw", "infect", "frenzy"],
   },
   bandit: {
     id: "bandit",
     name: "Разбойник",
     hp: [35, 40],
-    moves: { stab: attack(9), dodge: guard(12), trip: debuff({ vulnerable: 2 }) },
+    // Скрытный: не видно, когда ударит
+    moves: { stab: attack(9, 1, { w: 2, hidden: true }), dodge: guard(12, { w: 2 }), trip: debuff({ vulnerable: 2 }, 0, { w: 1 }) },
     pattern: ["trip", "stab", "dodge"],
   },
   banshee: {
     id: "banshee",
     name: "Банши",
     hp: [30, 35],
-    moves: { wail: debuff({ weak: 2, slow: 2 }), scream: attack(7, 2) },
+    // Замедляющая: отодвигает карты героя
+    moves: { wail: debuff({ weak: 1, slow: 2 }, 0, { w: 2 }), scream: attack(7, 2, { w: 3 }) },
     pattern: ["wail", "scream"],
   },
   gargoyle: {
     id: "gargoyle",
     name: "Горгулья",
     hp: [56, 62],
-    moves: { harden: guard(16), dive: attack(12) },
+    // Медленная: долгий тяжёлый удар, пока она в камне
+    moves: { harden: guard(16, { w: 2, repair: 1 }), dive: attack(18, 1, { w: 4, sunder: 1 }) },
     pattern: ["harden", "dive"],
   },
   warlock: {
     id: "warlock",
     name: "Чернокнижник",
     hp: [42, 46],
-    moves: { ritual: buff(6), bolt: attack(8), wither: debuff({ vulnerable: 2 }, 1) },
+    moves: { ritual: buff(6, 0, { w: 2 }), bolt: attack(8, 1, { w: 2 }), wither: debuff({ vulnerable: 2 }, 1, { w: 2 }) },
     pattern: ["ritual", "bolt", "wither"],
   },
   rat_swarm: {
@@ -179,15 +183,22 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "bone_colossus",
     name: "Костяной колосс",
     hp: [100, 108],
-    moves: { smash: attack(15), brace: buff(4, 18), sweep: attack(6, 3) },
+    // Медленный: один огромный удар на почти всю шкалу
+    moves: { smash: attack(26, 1, { w: 5, sunder: 2 }), brace: buff(4, 18, { w: 2, repair: 2 }), sweep: attack(6, 3, { w: 3 }) },
     pattern: ["sweep", "brace", "smash"],
   },
   witch_queen: {
     id: "witch_queen",
     name: "Королева ведьм",
     hp: [80, 88],
-    moves: { hex: debuff({ vulnerable: 2, weak: 2 }, 1), curse: debuff({ poison: 8 }), lash: attack(8, 2) },
-    pattern: ["hex", "lash", "curse", "lash"],
+    // Прерыватель: оцепенение срывает ход героя (у Мага — подготовку)
+    moves: {
+      hex: debuff({ vulnerable: 2, weak: 2 }, 1, { w: 2 }),
+      curse: debuff({ poison: 4 }, 0, { w: 2 }),
+      lash: attack(8, 2, { w: 2 }),
+      stupor: debuff({ stun: 1 }, 0, { w: 2 }),
+    },
+    pattern: ["hex", "lash", "stupor", "curse"],
   },
 
   // Акт 2: босс
@@ -214,43 +225,49 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "wraith",
     name: "Призрак",
     hp: [44, 50],
-    moves: { touch: attack(10), fade: guard(16), chill: debuff({ weak: 2, slow: 2 }) },
+    // Замедляющий и скрытный
+    moves: { touch: attack(10, 1, { w: 2, hidden: true }), fade: guard(16, { w: 2 }), chill: debuff({ weak: 1, slow: 2 }, 0, { w: 2 }) },
     pattern: ["chill", "touch", "fade"],
   },
   golem: {
     id: "golem",
     name: "Голем",
     hp: [79, 86],
-    moves: { slam: attack(15), rebuild: guard(20), stomp: attack(6, 2) },
+    // Медленный: один удар на почти всю шкалу
+    moves: { slam: attack(28, 1, { w: 5, sunder: 2 }), rebuild: guard(20, { w: 2, repair: 2 }), stomp: attack(6, 2, { w: 3 }) },
     pattern: ["stomp", "rebuild", "slam"],
   },
   blood_priest: {
     id: "blood_priest",
     name: "Жрец крови",
     hp: [54, 60],
-    moves: { offering: buff(8), sacrifice: attack(9), curse: debuff({ vulnerable: 2 }, 2) },
+    // Лечится ударами: Кровотечение и Яд по нему особенно хороши
+    moves: { offering: buff(8, 0, { w: 2 }), sacrifice: attack(9, 1, { w: 2, lifesteal: 0.5 }), curse: debuff({ vulnerable: 2 }, 2, { w: 2 }) },
     pattern: ["offering", "sacrifice", "curse"],
   },
   assassin: {
     id: "assassin",
     name: "Убийца",
     hp: [38, 42],
-    moves: { mark: debuff({ vulnerable: 3 }), strike: attack(17), vanish: guard(18) },
+    // Скрытный: метит и бьёт из тени
+    moves: { mark: debuff({ vulnerable: 3 }, 0, { w: 1 }), strike: attack(17, 1, { w: 3, hidden: true, sunder: 1 }), vanish: guard(18, { w: 2 }) },
     pattern: ["mark", "strike", "vanish"],
   },
   hellhound: {
     id: "hellhound",
     name: "Адская гончая",
     hp: [50, 54],
-    moves: { bite: attack(5, 3), burn: debuff({ burning: 7 }), lunge: attack(13) },
+    // Быстрая
+    moves: { bite: attack(4, 3, { w: 2 }), burn: debuff({ burning: 7 }, 0, { w: 1 }), lunge: attack(13, 1, { w: 3 }) },
     pattern: ["bite", "burn", "lunge"],
   },
   acolyte: {
     id: "acolyte",
     name: "Послушник лича",
     hp: [35, 39],
-    moves: { bolt: attack(11), ward: guard(14), drain: debuff({ weak: 2 }, 1) },
-    pattern: ["bolt", "drain", "ward"],
+    // Прерыватель: как его хозяин Король-лич
+    moves: { bolt: attack(11, 1, { w: 2 }), ward: guard(14, { w: 2, repair: 1 }), stupor: debuff({ stun: 1 }, 1, { w: 2 }) },
+    pattern: ["bolt", "stupor", "ward"],
   },
 
   // Акт 3: элита
@@ -271,7 +288,8 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "demon",
     name: "Демон бездны",
     hp: [113, 124],
-    moves: { rend: attack(6, 4), flames: debuff({ burning: 10 }), roar: buff(8), crush: attack(21) },
+    // Тяжёлый: быстро копит Силу перед ударом
+    moves: { rend: attack(6, 4, { w: 3 }), flames: debuff({ burning: 10 }, 0, { w: 2 }), roar: buff(8, 0, { w: 1 }), crush: attack(21, 1, { w: 4, sunder: 2 }) },
     pattern: ["rend", "flames", "roar", "crush"],
   },
 
