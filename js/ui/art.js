@@ -42,6 +42,14 @@ const STAND_IN_SPRITES = {
   forge_golem: "golem",
   flame_succubus: "witch_queen",
   forge_lord: "demon",
+  plague_zombie: "ghoul",
+  carrion_fly: "rat_swarm",
+  plague_doctor: "cultist",
+  corpse_eater: "ghoul",
+  necromancer: "warlock",
+  rot_giant: "bone_colossus",
+  plague_reaper: "wraith",
+  plague_lord: "lich_king",
 };
 
 export function enemySprite(enemyId) {
@@ -104,6 +112,11 @@ export const ATTACK_STYLES = {
   ash_wraith: { kind: "magic", color: "#c9b8a8" },
   flame_succubus: { kind: "magic", color: "#ff5a3a" },
   forge_lord: { kind: "claw" },
+  plague_zombie: { kind: "claw" },
+  carrion_fly: { kind: "claw" },
+  corpse_eater: { kind: "claw" },
+  necromancer: { kind: "magic", color: "#8de07d" },
+  plague_lord: { kind: "magic", color: "#a3c94a" },
 };
 
 // Как двигается модель в покое. Кого нет в таблице, тот просто дышит
@@ -132,6 +145,9 @@ export const IDLE_STYLES = {
   ash_wraith: "float",
   forge_golem: "heavy",
   magma_elemental: "heavy",
+  carrion_fly: "float",
+  plague_reaper: "float",
+  rot_giant: "heavy",
 };
 
 export const LOGO_ART = `<svg viewBox="0 0 512 512" aria-hidden="true"><g transform="rotate(-10 256 256)"><rect x="146" y="106" width="220" height="300" rx="22" fill="#5e2626" stroke="#e0b84c" stroke-width="12"/><g transform="rotate(45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g><g transform="rotate(-45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g></g></svg>`;

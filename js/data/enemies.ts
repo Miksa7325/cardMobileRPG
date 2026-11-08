@@ -691,4 +691,101 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["bellows", "hammer", "heat", "plate"],
     phases: [{ below: 0.5, pattern: ["bellows", "hammer", "cast", "heat"] }],
   },
+
+  // Акт 8 «Чумной некрополь»: обычные
+  plague_zombie: {
+    id: "plague_zombie",
+    name: "Чумной зомби",
+    hp: [44, 50],
+    // Обычный темп: подкидывает Раны
+    moves: { bite: attack(9, 1, { w: 2 }), infect: debuff({ poison: 2 }, 1, { w: 2 }), shamble: guard(8, { w: 2 }) },
+    pattern: ["bite", "infect", "shamble"],
+  },
+  carrion_fly: {
+    id: "carrion_fly",
+    name: "Трупная муха",
+    hp: [18, 22],
+    // Быстрая и скрытная
+    moves: { buzz: debuff({ weak: 1 }, 0, { w: 1 }), bite: attack(2, 2, { w: 1, hidden: true }) },
+    pattern: ["bite", "buzz", "bite"],
+  },
+  plague_doctor: {
+    id: "plague_doctor",
+    name: "Чумной лекарь",
+    hp: [40, 46],
+    // Скрытный, чинится
+    moves: {
+      powder: debuff({ poison: 3, weak: 1 }, 0, { w: 2 }),
+      lancet: attack(8, 1, { w: 2, hidden: true }),
+      herbs: guard(12, { w: 2, repair: 2 }),
+    },
+    pattern: ["powder", "lancet", "herbs"],
+  },
+  corpse_eater: {
+    id: "corpse_eater",
+    name: "Трупоед",
+    hp: [60, 68],
+    // Лечится ударами
+    moves: { devour: attack(14, 1, { w: 3, lifesteal: 0.5 }), retch: debuff({ poison: 3 }, 1, { w: 2 }) },
+    pattern: ["retch", "devour"],
+  },
+  necromancer: {
+    id: "necromancer",
+    name: "Некромант",
+    hp: [38, 42],
+    // Призыватель
+    moves: {
+      raise: summon("plague_zombie", { w: 2 }),
+      bolt: attack(10, 1, { w: 2 }),
+      rot: debuff({ vulnerable: 2 }, 1, { w: 2 }),
+    },
+    pattern: ["raise", "bolt", "rot"],
+  },
+
+  // Акт 8: элита
+  rot_giant: {
+    id: "rot_giant",
+    name: "Гниющий великан",
+    hp: [160, 170],
+    // Медленный: забивает колоду
+    moves: {
+      smash: attack(28, 1, { w: 5, sunder: 2 }),
+      cloud: debuff({ poison: 5 }, 2, { w: 2 }),
+      flesh: guard(20, { w: 2, repair: 2 }),
+    },
+    pattern: ["cloud", "smash", "flesh"],
+  },
+  plague_reaper: {
+    id: "plague_reaper",
+    name: "Чумной жнец",
+    hp: [120, 130],
+    // Прерыватель и скрытный
+    moves: {
+      scythe: attack(10, 2, { w: 3, hidden: true }),
+      harvest: debuff({ stun: 1 }, 1, { w: 2 }),
+      pestilence: debuff({ poison: 6 }, 0, { w: 2 }),
+    },
+    pattern: ["harvest", "scythe", "pestilence"],
+  },
+
+  // Акт 8: босс
+  plague_lord: {
+    id: "plague_lord",
+    name: "Чумной владыка",
+    hp: [400, 400],
+    // Приём — чумной дар: Раны сразу в руку героя. На половине HP «Эпидемия»: поднимает зомби
+    moves: {
+      gift: {
+        intent: "debuff",
+        weight: 2,
+        effects: [{ type: "addCard", cardId: "wound", pile: "hand" }, { type: "addCard", cardId: "wound", pile: "hand" }],
+      },
+      strike: attack(22, 1, { w: 3, sunder: 2 }),
+      miasma: debuff({ poison: 5, weak: 2 }, 0, { w: 2 }),
+      shroud: guard(26, { w: 2, repair: 3 }),
+      raise: summon("plague_zombie", { w: 2 }, 2),
+    },
+    pattern: ["gift", "strike", "miasma", "shroud"],
+    phases: [{ below: 0.5, pattern: ["gift", "raise", "strike", "miasma"] }],
+  },
 };
