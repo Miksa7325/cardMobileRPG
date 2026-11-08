@@ -58,6 +58,14 @@ const STAND_IN_SPRITES = {
   dead_general: "death_knight",
   death_rider: "fallen_knight",
   legion_king: "crypt_warden",
+  faceless: "wraith",
+  abyss_spawn: "spider",
+  mind_flayer: "acolyte",
+  void_colossus: "bone_colossus",
+  abyss_eye: "banshee",
+  herald_of_madness: "blood_priest",
+  abyss_warden: "golem",
+  abyss_core: "demon",
 };
 
 export function enemySprite(enemyId) {
@@ -126,6 +134,12 @@ export const ATTACK_STYLES = {
   necromancer: { kind: "magic", color: "#8de07d" },
   plague_lord: { kind: "magic", color: "#a3c94a" },
   war_hound: { kind: "claw" },
+  abyss_spawn: { kind: "claw" },
+  faceless: { kind: "magic", color: "#9b7dff" },
+  mind_flayer: { kind: "magic", color: "#d07dff" },
+  abyss_eye: { kind: "magic", color: "#ff3df0" },
+  herald_of_madness: { kind: "magic", color: "#b05aff" },
+  abyss_core: { kind: "magic", color: "#7a2bff" },
 };
 
 // Как двигается модель в покое. Кого нет в таблице, тот просто дышит
@@ -159,6 +173,11 @@ export const IDLE_STYLES = {
   rot_giant: "heavy",
   war_hound: "pant",
   bone_ram: "heavy",
+  abyss_spawn: "scuttle",
+  faceless: "float",
+  abyss_eye: "float",
+  void_colossus: "heavy",
+  abyss_warden: "heavy",
 };
 
 export const LOGO_ART = `<svg viewBox="0 0 512 512" aria-hidden="true"><g transform="rotate(-10 256 256)"><rect x="146" y="106" width="220" height="300" rx="22" fill="#5e2626" stroke="#e0b84c" stroke-width="12"/><g transform="rotate(45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g><g transform="rotate(-45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g></g></svg>`;

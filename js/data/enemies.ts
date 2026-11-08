@@ -883,4 +883,101 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["rollcall", "sword", "shield", "warcry"],
     phases: [{ below: 0.5, pattern: ["quick", "quick", "slash", "shout", "quick", "rollcall"] }],
   },
+
+  // Акт 10 «Сердце бездны»: обычные
+  faceless: {
+    id: "faceless",
+    name: "Безликий",
+    hp: [40, 46],
+    // Скрытный
+    moves: { whisper: debuff({ weak: 1, vulnerable: 1 }, 0, { w: 2 }), touch: attack(10, 1, { w: 2, hidden: true }) },
+    pattern: ["whisper", "touch"],
+  },
+  abyss_spawn: {
+    id: "abyss_spawn",
+    name: "Отродье бездны",
+    hp: [22, 26],
+    // Быстрое: с Безумием разгоняется за один ход
+    moves: { bite: attack(3, 2, { w: 1 }), rend: attack(5, 1, { w: 1 }) },
+    pattern: ["bite", "bite", "rend"],
+  },
+  mind_flayer: {
+    id: "mind_flayer",
+    name: "Пожиратель разума",
+    hp: [44, 50],
+    // Прерыватель
+    moves: {
+      psychic: debuff({ stun: 1 }, 0, { w: 2 }),
+      tentacles: attack(6, 2, { w: 2 }),
+      absorb: guard(12, { w: 2, repair: 1 }),
+    },
+    pattern: ["tentacles", "psychic", "absorb"],
+  },
+  void_colossus: {
+    id: "void_colossus",
+    name: "Колосс пустоты",
+    hp: [80, 88],
+    // Медленный: от Безумия растёт мало, но бьёт страшно
+    moves: { decay: attack(32, 1, { w: 5, sunder: 3 }), void: guard(18, { w: 2, repair: 2 }) },
+    pattern: ["void", "decay"],
+  },
+  abyss_eye: {
+    id: "abyss_eye",
+    name: "Глаз бездны",
+    hp: [36, 40],
+    // Замедляющий
+    moves: { gaze: debuff({ slow: 2 }, 0, { w: 2 }), beam: attack(12, 1, { w: 3 }), blink: guard(10, { w: 1 }) },
+    pattern: ["gaze", "beam", "blink"],
+  },
+
+  // Акт 10: элита
+  herald_of_madness: {
+    id: "herald_of_madness",
+    name: "Вестник безумия",
+    hp: [160, 170],
+    // Призыватель: его отродья разгоняются от Безумия
+    moves: {
+      spawn: summon("abyss_spawn", { w: 2 }, 2),
+      scream: debuff({ weak: 2, vulnerable: 2 }, 1, { w: 2 }),
+      strikes: attack(12, 2, { w: 3, hidden: true }),
+    },
+    pattern: ["spawn", "scream", "strikes"],
+  },
+  abyss_warden: {
+    id: "abyss_warden",
+    name: "Страж бездны",
+    hp: [170, 180],
+    // Медленный, отнимает клетку: ледяная печать каждый ход
+    freezeCell: true,
+    moves: {
+      judgment: attack(30, 1, { w: 5, sunder: 3 }),
+      bastion: guard(26, { w: 2, repair: 3 }),
+      seal: debuff({ weak: 1 }, 0, { w: 1 }),
+    },
+    pattern: ["seal", "judgment", "bastion"],
+  },
+
+  // Акт 10: финальный босс
+  abyss_core: {
+    id: "abyss_core",
+    name: "Сердце бездны",
+    hp: [480, 480],
+    // Три фазы: весь бой ледяная печать и скрытые удары; на ⅔ HP «Рой» — зовёт отродий;
+    // на ⅓ HP «Агония» — ускоряет сам себя и лечится ударами
+    freezeCell: true,
+    moves: {
+      dark: debuff({ weak: 2, vulnerable: 2 }, 0, { w: 2 }),
+      pulse: attack(20, 1, { w: 3, hidden: true, sunder: 2 }),
+      shield: guard(28, { w: 2, repair: 3 }),
+      swarm: summon("abyss_spawn", { w: 2 }, 2),
+      frenzy: { intent: "buff", weight: 1, effects: [{ type: "applyStatus", status: "haste", amount: 2, target: "self" }] },
+      hungryPulse: attack(20, 1, { w: 3, hidden: true, sunder: 2, lifesteal: 0.5 }),
+      tentacles: attack(6, 4, { w: 3, lifesteal: 0.5 }),
+    },
+    pattern: ["dark", "pulse", "shield"],
+    phases: [
+      { below: 0.66, pattern: ["swarm", "pulse", "dark", "shield"] },
+      { below: 0.33, pattern: ["frenzy", "hungryPulse", "tentacles", "shield"] },
+    ],
+  },
 };
