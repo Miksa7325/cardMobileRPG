@@ -12,7 +12,6 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Воин",
     description: "Ярость: чем дольше бой, тем страшнее его удары.",
     maxHp: CONFIG.warriorMaxHp,
-    capacity: CONFIG.capacity.warrior,
     drawPerTurn: CONFIG.drawPerTurn.warrior,
     potionWeight: CONFIG.potionWeight,
     mechanic: {
@@ -38,7 +37,6 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Убийца",
     description: "Комбо: много дешёвых карт за ход, а потом — добивание.",
     maxHp: CONFIG.assassinMaxHp,
-    capacity: CONFIG.capacity.assassin,
     drawPerTurn: CONFIG.drawPerTurn.assassin,
     potionWeight: CONFIG.potionWeight,
     mechanic: {
@@ -61,7 +59,6 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Чернокнижник",
     description: "Тьма: растёт от полученного урона и сожжённых карт.",
     maxHp: CONFIG.warlockMaxHp,
-    capacity: CONFIG.capacity.warlock,
     drawPerTurn: CONFIG.drawPerTurn.warlock,
     potionWeight: CONFIG.potionWeight,
     mechanic: {
@@ -87,7 +84,6 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Алхимик",
     description: "Варка: носит 4 зелья и варит их прямо в бою.",
     maxHp: CONFIG.alchemistMaxHp,
-    capacity: CONFIG.capacity.alchemist,
     drawPerTurn: CONFIG.drawPerTurn.alchemist,
     potionWeight: 0, // зелья Алхимика весят 0
     maxPotions: 4,
@@ -113,17 +109,16 @@ export const HEROES: Record<HeroId, HeroData> = {
     name: "Маг",
     description: "Подготовка: ставит сильные заклинания заранее, и они срабатывают сами.",
     maxHp: CONFIG.mageMaxHp,
-    capacity: CONFIG.capacity.mage,
     drawPerTurn: CONFIG.drawPerTurn.mage,
     potionWeight: CONFIG.potionWeight,
     prepares: true,
     mechanic: {
       name: "Прилив",
       resource: "surge",
-      text: "Любое заклинание можно поставить на подготовку: оно готовится 2 × вес клеток и срабатывает само, на 50% сильнее. Заклинания готовятся по очереди, каждая пустая клетка шкалы ускоряет подготовку на 1. В начале каждого хода +1 Прилив: чародейские карты сильнее за каждый Прилив.",
+      text: "Любое заклинание можно поставить на подготовку: оно готовится 2 × вес клеток и срабатывает само, на 50% сильнее. Заклинания готовятся по очереди, каждая пустая клетка шкалы ускоряет подготовку на 1. В начале каждого такта +1 Прилив: чародейские карты сильнее за каждый Прилив.",
       passives: [
         // Прилив растёт каждый ход: от него сильнее чародейские карты
-        { trigger: "onTurnStart", effects: gain("surge") },
+        { trigger: "onTactStart", effects: gain("surge") },
       ],
     },
     deck: [

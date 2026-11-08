@@ -80,12 +80,15 @@ function appendTestTools(picker: HTMLElement): void {
     const moves: HTMLElement = el("div", "picker__grid");
     for (const [key, move] of Object.entries(data.moves)) {
       moves.append(createRow(`${key} (${TEXTS.test.intentNames[move.intent]}, вес ${move.weight})`, () => {
-        enemy.lane.push({ move: key, weight: move.weight, resolved: false });
+        enemy.lane.push({ id: enemy.nextActionId, move: key, weight: move.weight, resolved: false });
+        enemy.nextActionId += 1;
         showScreen("combat");
       }));
     }
     moves.append(createRow(TEXTS.test.clearLane, () => {
+      // Пустая дорожка так и останется пустой: враг больше не ставит ходов сам
       enemy.lane = enemy.lane.filter((action) => action.resolved);
+      enemy.idle = true;
       showScreen("combat");
     }));
     picker.append(moves);

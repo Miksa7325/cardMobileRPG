@@ -6,6 +6,9 @@ import { pointOnTrack } from "./components/timeline.ts";
 const DRAG_THRESHOLD_PX = 8; // меньшее движение пальца — обычное нажатие
 const GESTURE_END_DELAY_MS = 30; // за это время браузер успевает закончить жест
 
+// Палец сейчас несёт карту: бой идёт вдвое медленнее, а экран не перерисовывается, чтобы перенос не сорвался
+export const dragState = { active: false };
+
 export type DropTarget =
   | { kind: "lane"; cell: number; boundary: number }
   | { kind: "prep" }
@@ -104,6 +107,7 @@ export function enableTimelineDrag(element: HTMLElement, options: DragOptions): 
     ghost.style.width = `${rect.width}px`;
     ghost.style.height = `${rect.height}px`;
     document.body.append(ghost);
+    dragState.active = true;
     element.classList.add("card--lifted");
     element.dataset.justDragged = "1";
     document.querySelector(".timeline")?.classList.add("timeline--dropping");
@@ -122,6 +126,7 @@ export function enableTimelineDrag(element: HTMLElement, options: DragOptions): 
   }
 
   function endDrag(): void {
+    dragState.active = false;
     hovered = null;
     options.onHover(null);
     document.querySelector(".timeline")?.classList.remove("timeline--dropping");

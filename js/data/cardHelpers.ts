@@ -11,7 +11,8 @@ export const status = (name: StatusId, amount: number): EffectOf<"applyStatus"> 
 export const selfStatus = (name: StatusId, amount: number): EffectOf<"applyStatus"> => ({ ...status(name, amount), target: "self" });
 export const allStatus = (name: StatusId, amount: number): EffectOf<"applyStatus"> => ({ ...status(name, amount), target: "allEnemies" });
 export const draw = (amount: number): EffectOf<"draw"> => ({ type: "draw", amount });
-export const energy = (amount: number): EffectOf<"gainEnergy"> => ({ type: "gainEnergy", amount });
+// Бывшее «+N вместимости»: на бесконечной шкале вместимости нет, вместо неё — Ускорение N (следующие N действий легче)
+export const energy = (amount: number): EffectOf<"applyStatus"> => selfStatus("haste", amount);
 export const heal = (amount: number): EffectOf<"heal"> => ({ type: "heal", amount });
 export const loseHp = (amount: number): EffectOf<"loseHp"> => ({ type: "loseHp", amount });
 export const multiplyStatus = (name: StatusId, factor: number): EffectOf<"multiplyStatus"> => ({ type: "multiplyStatus", status: name, factor });

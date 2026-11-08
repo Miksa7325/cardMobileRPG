@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { CARDS } from "../js/data/cards.ts";
 import { RELICS } from "../js/data/relics.ts";
 import {
-  createCombat, findFreeStart, getUpcomingDraws, launch, placeCard, placePotion, totalCapacity,
+  createCombat, getUpcomingDraws, launch, placeCard, placePotion,
 } from "../js/engine/combat.ts";
 import { addBlock } from "../js/engine/effects.ts";
 import { createMeta } from "../js/engine/meta.ts";
@@ -23,8 +23,12 @@ beforeAll(() => {
 });
 
 describe("Правила-реликвии", () => {
-  it("Корона углей: +1 клетка вместимости", () => {
-    expect(totalCapacity(fight({ relics: ["crown_of_embers"] }))).toBe(totalCapacity(fight()) + 1);
+  it("Корона углей: сработавшая карта приводит две новые", () => {
+    const combat = fight({ deck: deckOf("strike", 20), relics: ["crown_of_embers"] });
+    quiet(combat);
+    placeCard(combat, combat.piles.hand[0].uid, 1, combat.enemies[0].instanceId);
+    launch(combat);
+    expect(combat.piles.hand).toHaveLength(6 + 2);
   });
 
   it("Карманные часы: +1 переброс за ход", () => {
@@ -45,13 +49,15 @@ describe("Правила-реликвии", () => {
     expect(expires(fight({ relics: ["hourglass"] })) - expires(fight())).toBe(2);
   });
 
-  it("Кости теней: третья карта весом 0 за ход", () => {
-    const combat = fight();
-    combat.zeroUsed = 2;
-    expect(findFreeStart(combat, 0)).toBeNull();
-    const lucky = fight({ relics: ["shadow_dice"] });
-    lucky.zeroUsed = 2;
-    expect(findFreeStart(lucky, 0)).toBe(0);
+  it("Кости теней: третья карта весом 0 за такт", () => {
+    const place = (relics: string[]) => {
+      const combat = fight({ deck: deckOf("tourniquet"), relics });
+      placeCard(combat, combat.piles.hand[0].uid, 0);
+      placeCard(combat, combat.piles.hand[0].uid, 1);
+      return placeCard(combat, combat.piles.hand[0].uid, 2);
+    };
+    expect(place([])).toEqual({ ok: false, reason: "zeroLimit" });
+    expect(place(["shadow_dice"]).ok).toBe(true);
   });
 
   it("Аламбик: при варке 3 зелья на выбор", () => {

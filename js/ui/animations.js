@@ -208,6 +208,30 @@ export async function playLaunch(before, combat, { onCardPlayed = null, stepMode
   skipping = false;
 }
 
+// Одна клетка непрерывного боя: события клетки коротко показываются на экране. Нажатия не блокируются —
+// игрок может ставить карты, пока идёт анимация. Длится не дольше maxMs
+export async function playTick(before, combat, { onCardPlayed = null, maxMs = 1000 } = {}) {
+  const started = Date.now();
+  for (const event of combat.events) {
+    if (Date.now() - started > maxMs) skipping = true;
+    if (event.type === "cardPlayed") {
+      onCardPlayed?.(event);
+      heroLunge();
+    } else if (event.type === "enemyAction") {
+      if (event.intent !== "attack") castAnimation(event.enemyId);
+    } else if (event.type === "hit" && event.sourceId !== "hero") {
+      await strike(event, before);
+    } else if (event.type === "chainBonus") {
+      const chip = document.querySelector(`.lane-chip[data-lane-id="${event.laneId}"]`);
+      chip?.classList.add("lane-chip--bonus-fired");
+      playSound("gem"); // временный звук бонуса цепочки
+    } else if (event.type !== "tactStart") {
+      showEvent(event, before);
+    }
+  }
+  skipping = false;
+}
+
 // Рука уходит в сброс сразу, как только ход закончен
 function discardHandView() {
   for (const card of document.querySelectorAll(".hand .card")) {

@@ -39,7 +39,7 @@ function bonusesFired(combat: Combat): string[] {
 }
 
 describe("позиция", () => {
-  it("«Первая»: карта первая на дорожке, пустые клетки перед ней не мешают", () => {
+  it("«Первая»: карта начинает цепочку", () => {
     const { combat, uids, target } = setup(["t_first", "strike"]);
     placeCard(combat, uids[0], 2, target);
     placeCard(combat, uids[1], 4, target);
@@ -53,12 +53,51 @@ describe("позиция", () => {
     launch(combat);
     expect(bonusesFired(combat)).toEqual([]);
   });
-  it("«Финал»: после карты на дорожке больше нет карт", () => {
+  it("«Финал»: после карты встык больше нет карт", () => {
     const { combat, uids, target } = setup(["t_final", "strike"]);
     placeCard(combat, uids[0], 5, target);
     placeCard(combat, uids[1], 1, target);
     launch(combat);
     expect(bonusesFired(combat)).toEqual(["t_final"]);
+  });
+  it("«Первая» начинает каждую цепочку: после пустой клетки карта снова первая", () => {
+    const { combat, uids, target } = setup(["strike", "t_first"]);
+    placeCard(combat, uids[0], 1, target);
+    placeCard(combat, uids[1], 3, target);
+    launch(combat);
+    expect(bonusesFired(combat)).toEqual(["t_first"]);
+  });
+  it("«Первая» и при смене цели: бьёт другого врага, чем предыдущая карта цепочки", () => {
+    const { combat, uids } = setup(["strike", "t_first"]);
+    const twoEnemies = fight({ enemyIds: ["skeleton", "skeleton"] });
+    Object.assign(combat, { enemies: twoEnemies.enemies });
+    quiet(combat);
+    const [a, b] = combat.enemies;
+    placeCard(combat, uids[0], 1, a.instanceId);
+    placeCard(combat, uids[1], 2, b.instanceId);
+    launch(combat);
+    expect(bonusesFired(combat)).toEqual(["t_first"]);
+  });
+  it("«Финал» в середине цепочки не срабатывает", () => {
+    const { combat, uids, target } = setup(["t_final", "strike"]);
+    placeCard(combat, uids[0], 1, target);
+    placeCard(combat, uids[1], 2, target);
+    launch(combat);
+    expect(bonusesFired(combat)).toEqual([]);
+  });
+  it("«Финал» и при добивании: бонус бьёт следующего врага", () => {
+    const { combat, uids } = setup(["t_final", "strike"]);
+    const twoEnemies = fight({ enemyIds: ["skeleton", "skeleton"] });
+    Object.assign(combat, { enemies: twoEnemies.enemies });
+    quiet(combat);
+    const [a, b] = combat.enemies;
+    a.hp = 1;
+    const hp = b.hp;
+    placeCard(combat, uids[0], 1, a.instanceId);
+    placeCard(combat, uids[1], 2, b.instanceId);
+    launch(combat);
+    expect(bonusesFired(combat)).toEqual(["t_final"]);
+    expect(b.hp).toBe(hp - 10 - 6); // бонус «Финала» 10 и удар 6
   });
   it("зелье после «Финала» его не отменяет: зелья не звенья", () => {
     const { combat, uids, target } = setup(["t_final"]);
@@ -128,13 +167,21 @@ describe("символы-стыки", () => {
 });
 
 describe("«Цепь N»", () => {
-  it("карта третья или дальше; пустые клетки счёт не сбивают", () => {
+  it("третья карта цепочки встык — бонус есть", () => {
+    const { combat, uids, target } = setup(["strike", "strike", "t_chain3"]);
+    placeCard(combat, uids[0], 1, target);
+    placeCard(combat, uids[1], 2, target);
+    placeCard(combat, uids[2], 3, target);
+    launch(combat);
+    expect(bonusesFired(combat)).toEqual(["t_chain3"]);
+  });
+  it("пустая клетка рвёт цепочку: счёт начинается заново", () => {
     const { combat, uids, target } = setup(["strike", "strike", "t_chain3"]);
     placeCard(combat, uids[0], 1, target);
     placeCard(combat, uids[1], 3, target);
     placeCard(combat, uids[2], 5, target);
     launch(combat);
-    expect(bonusesFired(combat)).toEqual(["t_chain3"]);
+    expect(bonusesFired(combat)).toEqual([]);
   });
   it("второй по счёту — ещё рано", () => {
     const { combat, uids, target } = setup(["strike", "t_chain3"]);

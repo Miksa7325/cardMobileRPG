@@ -69,18 +69,19 @@ describe("Лорд вампиров", () => {
 });
 
 describe("Король-лич", () => {
-  it("в начале хода замораживает клетку дорожки героя: туда не поставить", () => {
+  it("замораживает по клетке в каждом такте, заранее — на такты, куда ещё нельзя ставить", () => {
     const combat = fightWith("lich_king");
-    expect(combat.frozenCells).toHaveLength(1);
-    const cell = combat.frozenCells[0];
+    // Такты 1–3 решены в начале боя: по одной клетке в каждом
+    expect(combat.frozenCells.map((cell) => Math.ceil(cell / 3)).sort()).toEqual([1, 2, 3]);
+    const cell = combat.frozenCells.find((frozen) => frozen <= 6)!;
     expect(placeCard(combat, combat.piles.hand[0].uid, cell)).toEqual({ ok: false, reason: "frozen" });
   });
 });
 
 describe("Особенности шкалы актов 4–10", () => {
-  it("Трясина: шестая клетка героя закрыта каждый ход", () => {
-    const combat = fight({ blockedCells: [6] });
-    expect(combat.frozenCells).toContain(6);
+  it("Трясина: последняя клетка каждого такта закрыта", () => {
+    const combat = fight({ blockedCells: [3] });
+    expect(combat.frozenCells.filter((cell) => cell <= 9)).toEqual([3, 6, 9]);
     expect(placeCard(combat, combat.piles.hand[0].uid, 6, combat.enemies[0].instanceId)).toEqual({ ok: false, reason: "frozen" });
   });
   it("Железная дисциплина: карта весом 0 весит 1", () => {

@@ -7,7 +7,7 @@ import { ENEMIES } from "../js/data/enemies.ts";
 import { HEROES } from "../js/data/heroes.ts";
 import { POTIONS } from "../js/data/potions.ts";
 import { RELICS } from "../js/data/relics.ts";
-import { cardWeight, chooseBrew, createCombat, endTurn, launch, placeCard, placePotion, setKeep } from "../js/engine/combat.ts";
+import { advance, cardWeight, chooseBrew, createCombat, endTurn, placeCard, placePotion } from "../js/engine/combat.ts";
 import { getCardData } from "../js/engine/deck.ts";
 
 const MAX_TURNS = 60; // бой дольше считается поражением: бот застрял
@@ -55,7 +55,7 @@ function laneEnd(combat) {
 // Первая клетка не раньше from, с которой карта такого веса ляжет мимо замёрзших клеток (Иней, Трясина, ледяная печать).
 // Если такой нет, возвращаем from: постановка не пройдёт, и бот это действие отбросит
 function freeStart(combat, from, weight) {
-  for (let start = from; start + weight - 1 <= CONFIG.timeline.cells; start++) {
+  for (let start = from; start + weight - 1 <= combat.clock + CONFIG.timeline.cells; start++) {
     let free = true;
     for (let cell = start; cell < start + weight; cell++) if (combat.frozenCells.includes(cell)) free = false;
     if (free) return start;
@@ -116,13 +116,6 @@ function cloneCombat(combat) {
   return copy;
 }
 
-// В руке остаются 2 самые тяжёлые карты, которые не поставлены: их проще всего разыграть потом
-function chooseKeep(combat) {
-  const playable = combat.piles.hand.filter((card) => cardWeight(card, combat) !== null);
-  playable.sort((a, b) => cardWeight(b, combat) - cardWeight(a, combat));
-  setKeep(combat, playable.slice(0, CONFIG.timeline.keepInHand).map((card) => card.uid));
-}
-
 // Насколько хорошо положение после конца шкалы. Больше — лучше
 function evaluate(combat) {
   const hero = combat.hero;
@@ -152,13 +145,16 @@ function evaluate(combat) {
   return score;
 }
 
-// Доигрывает копию до конца шкалы: паузы пропускает, выбор варки — первое зелье
+// Доигрывает копию на 6 клеток вперёд: выбор варки — первое зелье
 function finishOnCopy(state) {
   const copy = cloneCombat(state);
-  if (copy.status !== "planning") return copy;
-  chooseKeep(copy);
+  if (!canAct(copy)) return copy;
   endTurn(copy);
   return copy;
+}
+
+function canAct(combat) {
+  return combat.status === "planning" || combat.status === "running";
 }
 
 // Поиск лучом: на каждом шаге из всех расстановок «на одну карту длиннее» оставляем BEAM лучших
@@ -170,7 +166,7 @@ export function planTurn(combat) {
   while (frontier.length > 0) {
     const children = [];
     for (const node of frontier) {
-      if (node.state.status !== "planning") continue;
+      if (!canAct(node.state)) continue;
       for (const action of listActions(node.state)) {
         const next = cloneCombat(node.state);
         if (!applyAction(next, action)) continue;
@@ -187,21 +183,19 @@ export function planTurn(combat) {
   return best.actions;
 }
 
-// Доигрывает уже созданный бой до конца: каждый ход бот планирует, ставит и запускает.
+// Доигрывает уже созданный бой до конца: каждый такт бот планирует на 6 клеток вперёд, ставит и пропускает 3 клетки.
 // uid и номера зелий в копии совпадают с настоящими: копия — точный слепок боя
 export function playCombat(combat) {
-  while (combat.status === "planning" && combat.turn <= MAX_TURNS) {
+  while (canAct(combat) && combat.turn <= MAX_TURNS * 2) {
     for (const action of planTurn(combat)) {
       if (!applyAction(combat, action)) break;
     }
     // Если варка осталась невыбранной, берём первое зелье
     while (combat.brewChoices.length > 0) chooseBrew(combat, 0, combat.brewChoices[0].options[0]);
-    chooseKeep(combat);
-    // Розыгрыш может встать на паузу: тогда бот снова планирует с этого места
-    launch(combat);
+    advance(combat, CONFIG.timeline.tactCells);
   }
-  // Застрял дольше MAX_TURNS — считаем поражением
-  if (combat.status === "planning") combat.status = "lost";
+  // Застрял дольше MAX_TURNS ходов (по 2 такта) — считаем поражением
+  if (canAct(combat)) combat.status = "lost";
   return combat;
 }
 

@@ -55,8 +55,8 @@ export const POTIONS: Record<string, PotionData> = {
     name: "Зелье простора",
     icon: "⚡",
     target: "self",
-    description: "+2 вместимости в этом ходу.",
-    effects: [{ type: "gainEnergy", amount: 2 }],
+    description: "Получить 2 Ускорения: следующие 2 действия на 1 легче.",
+    effects: [{ type: "applyStatus", status: "haste", amount: 2, target: "self" }],
   },
   // Открываются Лавкой алхимика
   weakness_potion: {

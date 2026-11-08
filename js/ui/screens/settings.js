@@ -35,6 +35,12 @@ export function renderSettingsScreen(root) {
       changeSettings((s) => { s.fastAnimations = !s.fastAnimations; });
       showScreen("settings");
     }),
+    createToggle(TEXTS.settings.combatSpeed[settings.combatSpeed ?? "normal"], () => {
+      // Медленно → обычно → быстро → снова медленно
+      const order = ["slow", "normal", "fast"];
+      changeSettings((s) => { s.combatSpeed = order[(order.indexOf(s.combatSpeed ?? "normal") + 1) % order.length]; });
+      showScreen("settings");
+    }),
     createVibrationControl(settings),
     createGraphicsControl(settings),
     createButton(TEXTS.settings.replayTutorial, "button--secondary", () => {

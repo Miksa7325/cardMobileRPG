@@ -13,12 +13,13 @@ function relicBonus(combat: Combat, rule: NumberRule): number {
 
 const T = CONFIG.timeline;
 
-export const rerollsPerTurn = (combat: Combat): number => T.rerolls + relicBonus(combat, "rerolls");
+export const rerollsPerTact = (combat: Combat): number => T.rerolls + relicBonus(combat, "rerolls");
 export const openDrawCount = (combat: Combat): number => T.openDraws + relicBonus(combat, "openDraws");
 export const blockCells = (combat: Combat): number => T.blockCells + relicBonus(combat, "blockCells");
-export const zeroWeightPerTurn = (combat: Combat): number => T.maxZeroWeight + relicBonus(combat, "zeroWeight");
+export const zeroWeightPerTact = (combat: Combat): number => T.maxZeroWeight + relicBonus(combat, "zeroWeight");
 export const brewOptionCount = (combat: Combat): number => 2 + relicBonus(combat, "brewOptions");
-export const capacityBonus = (combat: Combat): number => relicBonus(combat, "capacity");
+// Сколько новых карт приводит сработавшая карта (Корона углей — на одну больше)
+export const drawOnResolve = (combat: Combat): number => T.drawOnResolve + relicBonus(combat, "extraDraw");
 
 // Есть ли у героя подготовка (только у Мага; реликвия её не даёт)
 export function canPrepare(combat: Combat): boolean {

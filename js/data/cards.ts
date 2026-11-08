@@ -10,16 +10,17 @@ import { WARRIOR_CARDS } from "./cardsWarrior.ts";
 import type { CardData, HeroId } from "../types.ts";
 
 export const CARDS: Record<string, CardData> = {
-  // Рана: мусор в колоде, её нельзя разыграть. Своего героя у неё нет
+  // Рана: мусор в колоде. Весит 1 и ничего не делает: чтобы избавиться, её ставят на шкалу и теряют клетку времени.
+  // Своего героя у неё нет
   wound: {
     id: "wound",
     name: "Рана",
     type: "status",
     rarity: "common",
-    cost: null, // null — карту нельзя разыграть
+    cost: 1,
     target: "none",
     effects: [],
-    description: "Нельзя разыграть.",
+    description: "Ничего не делает. Чтобы избавиться, поставь её на шкалу: она займёт клетку.",
   },
 };
 

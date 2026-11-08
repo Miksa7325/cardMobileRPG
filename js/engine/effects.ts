@@ -45,9 +45,9 @@ export function calculateBlock(base: number, _unit: HasStatuses, _fromCard: bool
 
 // ---------- Время и блок ----------
 
-// Абсолютное время боя в клетках: ход 1 — клетки 1–6, ход 2 — 7–12. Нужно для блока, который переживает конец хода
+// Время боя в клетках: шкала бесконечная, указатель уже считает клетки с начала боя
 export function absoluteTime(combat: Combat, cell = combat.clock): number {
-  return (combat.turn - 1) * CONFIG.timeline.cells + cell;
+  return cell;
 }
 
 // Новая порция блока: держится blockCells клеток с этого момента
@@ -84,7 +84,7 @@ export function isOver(combat: Combat): boolean {
 }
 
 // Эффекты, которые срабатывают сразу при постановке карты на шкалу, а не в её клетке
-export const PLANNING_EFFECTS: ReadonlySet<EffectType> = new Set(["draw", "gainEnergy", "brewPotion"]);
+export const PLANNING_EFFECTS: ReadonlySet<EffectType> = new Set(["draw", "brewPotion"]);
 
 // Подготовленное заклинание Мага сильнее: урон, блок, статусы и Сокрушение × boost, с округлением вниз
 export function boostEffects(effects: Effect[], boost: number): Effect[] {
@@ -399,17 +399,13 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
       fireTrigger(combat, "onHpLost");
     }
   },
-  // Во время розыгрыша новые карты можно доложить на шкалу: розыгрыш встанет на паузу
   draw(combat, effect) {
-    const before = combat.piles.hand.length;
     drawCards(combat.piles, effect.amount, combat.rng);
-    if (combat.status === "resolving" && combat.piles.hand.length > before) combat.launchGains = true;
   },
-  // Бывшая энергия: +N вместимости шкалы в этом ходу
+  // Бывшая энергия: вместимости больше нет, «+N» стало Ускорением N у того, кто играет карту
   gainEnergy(combat, effect, context) {
     const amount = effect.amount + getBonus(effect, context.source);
-    combat.capacityBonus += amount;
-    if (combat.status === "resolving" && amount > 0) combat.launchGains = true;
+    if (amount > 0) addStatus(context.source, "haste", amount);
   },
   addCard(combat, effect) {
     if (!effect.cardId || !effect.pile) throw new Error("addCard в бою: нужны cardId и pile");

@@ -1,40 +1,44 @@
-// Автотесты шкалы хода: расстановка, вместимость, розыгрыш по клеткам, ходы врагов, такты, новые статусы,
-// подготовка Мага, варка Алхимика, пауза посреди розыгрыша. Запуск: npm test
+// Автотесты бесконечной шкалы: расстановка, горизонт, розыгрыш по клеткам, ходы врагов, такты, рука, новые статусы,
+// подготовка Мага, варка Алхимика, карты во время боя. Запуск: npm test
 import { describe, expect, it } from "vitest";
-import { CONFIG } from "../js/config.ts";
 import {
-  addCardToHand, chooseBrew, createCombat, getEnemyLane, heroSchedule, launch, moveLaneItem, placeCard, placePotion, previewLaunch,
-  removeFromLane, rerollCard, setKeep, totalCapacity,
+  addCardToHand, advance, chooseBrew, createCombat, getEnemyLane, heroSchedule, launch, moveLaneItem, placeCard, placePotion, previewLaunch,
+  removeFromLane, rerollCard,
 } from "../js/engine/combat.ts";
 import { deckOf, fight, quiet, setLane } from "./helpers.ts";
 
 const uidAt = (combat: ReturnType<typeof fight>, index = 0) => combat.piles.hand[index].uid;
 const firstEnemy = (combat: ReturnType<typeof fight>) => combat.enemies[0].instanceId;
 
-describe("начало хода", () => {
-  it("добор по классу: Воин 7, Убийца 8", () => {
+describe("начало боя", () => {
+  it("рука по классу: Воин 7, Убийца 8", () => {
     expect(fight().piles.hand).toHaveLength(7);
     expect(fight({ heroId: "assassin", deck: deckOf("a_strike") }).piles.hand).toHaveLength(8);
   });
-  it("враг ставит ходы встык, пока влезают в 6 клеток", () => {
+  it("враг ставит ходы встык, пока его дорожка не дотянется на 6 клеток вперёд", () => {
     const combat = fight();
     const lane = getEnemyLane(combat, combat.enemies[0]);
+    // У Скелета по кругу: рубка (3), защита (2), шквал (2)
     expect(lane.map(({ move, start, end }) => ({ move, start, end }))).toEqual([
       { move: "hack", start: 1, end: 3 },
       { move: "guard", start: 4, end: 5 },
+      { move: "flurry", start: 6, end: 7 },
     ]);
   });
-  it("ход, который не влез, встаёт первым в следующем ходу", () => {
+  it("время идёт — враг добавляет ходы непрерывно", () => {
     const combat = fight();
-    quiet(combat);
-    launch(combat);
-    // У Скелета по кругу: рубка, защита, шквал. Шквал (вес 3) не влез в первый ход
-    expect(combat.enemies[0].lane.map((action) => action.move)).toEqual(["flurry", "hack"]);
+    launch(combat); // клетки 1–6: дорожка должна дотянуться до клетки 12
+    const lane = getEnemyLane(combat, combat.enemies[0]).filter((entry) => !entry.resolved);
+    expect(lane.map(({ move, start, end }) => ({ move, start, end }))).toEqual([
+      { move: "flurry", start: 6, end: 7 },
+      { move: "hack", start: 8, end: 10 },
+      { move: "guard", start: 11, end: 12 },
+    ]);
   });
 });
 
 describe("расстановка", () => {
-  it("карта стоит на шкале, а срабатывает только после «Запуска»", () => {
+  it("карта стоит на шкале, а срабатывает только когда пошло время", () => {
     const combat = fight();
     quiet(combat);
     const enemy = combat.enemies[0];
@@ -53,7 +57,7 @@ describe("расстановка", () => {
     launch(combat);
     expect(combat.events.find((event) => event.type === "cardPlayed")?.cell).toBe(3);
   });
-  it("карты не накладываются и не вылезают за шкалу, пустые клетки между ними можно", () => {
+  it("карты не накладываются и не ставятся дальше 6 клеток, пустые клетки между ними можно", () => {
     const combat = fight({ deck: deckOf("bash") });
     const target = firstEnemy(combat);
     expect(placeCard(combat, uidAt(combat), 1, target).ok).toBe(true);
@@ -61,21 +65,25 @@ describe("расстановка", () => {
     expect(placeCard(combat, uidAt(combat), 6, target)).toEqual({ ok: false, reason: "outOfTimeline" });
     expect(placeCard(combat, uidAt(combat), 5, target).ok).toBe(true);
   });
-  it("вместимость: у Мага 4, пятая карта не встанет", () => {
+  it("вместимости нет: все 6 клеток можно занять, седьмую — только когда время дойдёт", () => {
     const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
+    quiet(combat);
     const target = firstEnemy(combat);
-    for (const cell of [1, 2, 3, 4]) expect(placeCard(combat, uidAt(combat), cell, target).ok).toBe(true);
-    expect(placeCard(combat, uidAt(combat), 5, target)).toEqual({ ok: false, reason: "noCapacity" });
+    for (const cell of [1, 2, 3, 4, 5, 6]) expect(placeCard(combat, uidAt(combat), cell, target).ok).toBe(true);
+    expect(placeCard(combat, uidAt(combat), 7, target)).toEqual({ ok: false, reason: "outOfTimeline" });
+    advance(combat, 1);
+    expect(placeCard(combat, uidAt(combat), 7, target).ok).toBe(true);
   });
-  it("карты весом 0 — на стыке клеток, не больше 2 за ход, срабатывают на своём стыке", () => {
+  it("карты весом 0 — на стыке клеток, не больше 2 за такт, срабатывают на своём стыке", () => {
     const combat = fight({ deck: deckOf("tourniquet") }); // Жгут: вес 0, лечит 2 HP
     quiet(combat);
     combat.hero.hp = 50;
     expect(placeCard(combat, uidAt(combat), 0).ok).toBe(true);
-    expect(placeCard(combat, uidAt(combat), 3).ok).toBe(true);
-    expect(placeCard(combat, uidAt(combat), 4)).toEqual({ ok: false, reason: "zeroLimit" });
+    expect(placeCard(combat, uidAt(combat), 2).ok).toBe(true);
+    expect(placeCard(combat, uidAt(combat), 1)).toEqual({ ok: false, reason: "zeroLimit" }); // такт 1: стыки 0–2
+    expect(placeCard(combat, uidAt(combat), 3).ok).toBe(true); // стык 3 — уже такт 2
     launch(combat);
-    expect(combat.events.filter((event) => event.type === "heal").map((event) => event.cell)).toEqual([0, 3]);
+    expect(combat.events.filter((event) => event.type === "heal").map((event) => event.cell)).toEqual([0, 2, 3]);
   });
   it("карту можно вернуть в руку и переставить", () => {
     const combat = fight();
@@ -93,12 +101,14 @@ describe("расстановка", () => {
     expect(combat.piles.hand).toHaveLength(6 + 2);
     expect(removeFromLane(combat, combat.lane[0].id)).toEqual({ ok: false, reason: "locked" });
   });
-  it("«+N вместимости» тоже сразу: Выброс адреналина даёт +1", () => {
+  it("бывшее «+N вместимости» — Ускорение N: Боевой задор даёт Ускорение 1", () => {
     const combat = fight({ deck: deckOf("adrenaline") }); // вес 0
+    quiet(combat);
     placeCard(combat, uidAt(combat), 0);
-    expect(totalCapacity(combat)).toBe(CONFIG.capacity.warrior + 1);
+    advance(combat, 1);
+    expect(combat.hero.statuses.haste).toBe(1);
   });
-  it("переброс: один раз за ход карта уходит в сброс, вместо неё новая", () => {
+  it("переброс: один раз за такт карта уходит в сброс, вместо неё новая", () => {
     const combat = fight();
     expect(rerollCard(combat, uidAt(combat)).ok).toBe(true);
     expect(combat.piles.hand).toHaveLength(7);
@@ -142,47 +152,56 @@ describe("розыгрыш по клеткам", () => {
     expect(a.hp).toBe(0);
     expect(b.hp).toBe(hp - 6);
   });
-  it("блок держится 6 клеток: защита в клетке 6 прикрывает начало следующего хода", () => {
+  it("блок держится 6 клеток: защита в клетке 6 прикрывает удар в клетке 9", () => {
     const combat = fight({ deck: deckOf("defend") }); // 5 блока
     quiet(combat);
     placeCard(combat, uidAt(combat), 6);
     launch(combat);
-    setLane(combat.enemies[0], ["hack"]); // клетка 3 следующего хода: блок ещё есть
+    setLane(combat.enemies[0], ["hack"], combat.clock); // клетки 7–9: блок ещё есть
     const hp = combat.hero.hp;
     launch(combat);
     expect(combat.hero.hp).toBe(hp - 2); // 7 урона − 5 блока
   });
-  it("блок из клетки 1 к клетке 3 следующего хода уже исчез", () => {
+  it("блок из клетки 1 к удару в клетке 9 уже исчез", () => {
     const combat = fight({ deck: deckOf("defend") });
     quiet(combat);
     placeCard(combat, uidAt(combat), 1);
     launch(combat);
-    setLane(combat.enemies[0], ["hack"]);
+    setLane(combat.enemies[0], ["hack"], combat.clock);
     const hp = combat.hero.hp;
     launch(combat);
     expect(combat.hero.hp).toBe(hp - 7);
   });
 });
 
-describe("рука в конце хода", () => {
-  it("отмеченные карты (до 2) остаются, остальные уходят в сброс", () => {
-    const combat = fight();
+describe("рука", () => {
+  it("рука не сбрасывается, а сработавшая карта приводит новую", () => {
+    const combat = fight({ deck: deckOf("strike", 20) });
     quiet(combat);
-    const kept = [uidAt(combat, 0), uidAt(combat, 1)];
-    expect(setKeep(combat, kept).ok).toBe(true);
-    launch(combat);
-    expect(combat.piles.hand).toHaveLength(7 + 2);
-    for (const uid of kept) expect(combat.piles.hand.some((card) => card.uid === uid)).toBe(true);
-  });
-  it("если ничего не отметили, не остаётся ни одной", () => {
-    const combat = fight();
-    quiet(combat);
+    const rest = combat.piles.hand.slice(1).map((card) => card.uid);
+    placeCard(combat, uidAt(combat), 1, firstEnemy(combat));
+    expect(combat.piles.hand).toHaveLength(6);
     launch(combat);
     expect(combat.piles.hand).toHaveLength(7);
+    for (const uid of rest) expect(combat.piles.hand.some((card) => card.uid === uid)).toBe(true);
   });
-  it("больше 2 отметить нельзя", () => {
-    const combat = fight();
-    expect(setKeep(combat, [uidAt(combat, 0), uidAt(combat, 1), uidAt(combat, 2)])).toEqual({ ok: false, reason: "tooMany" });
+  it("в руке не больше 10 карт", () => {
+    const combat = fight({ deck: deckOf("strike", 20) });
+    quiet(combat);
+    placeCard(combat, uidAt(combat), 1, firstEnemy(combat));
+    while (addCardToHand(combat, "strike"));
+    expect(combat.piles.hand).toHaveLength(10);
+    launch(combat);
+    expect(combat.piles.hand).toHaveLength(10);
+  });
+  it("Рану ставят на шкалу: вес 1, ничего не делает, уходит в сброс и приводит карту", () => {
+    const combat = fight({ deck: [...deckOf("wound", 1), ...deckOf("strike", 20)] });
+    quiet(combat);
+    addCardToHand(combat, "wound");
+    const wound = combat.piles.hand.find((card) => card.cardId === "wound")!;
+    expect(placeCard(combat, wound.uid, 1).ok).toBe(true);
+    launch(combat);
+    expect(combat.piles.discard.some((card) => card.uid === wound.uid)).toBe(true);
   });
 });
 
@@ -191,27 +210,26 @@ describe("новые статусы", () => {
     const combat = fight();
     const enemy = combat.enemies[0];
     enemy.statuses.slow = 1;
-    expect(getEnemyLane(combat, enemy).map((entry) => entry.end)).toEqual([4, 6]);
+    expect(getEnemyLane(combat, enemy).map((entry) => entry.end)).toEqual([4, 6, 8]);
     launch(combat);
     expect(enemy.statuses.slow).toBeUndefined();
   });
-  it("ход врага, вытолкнутый Замедлением за клетку 6, переносится на следующий ход", () => {
+  it("Замедление сдвигает и все следующие ходы врага", () => {
     const combat = fight();
     const enemy = combat.enemies[0];
-    enemy.statuses.slow = 2; // рубка 1–4, защита 5–7: не влезла
-    launch(combat);
-    expect(enemy.lane[0].move).toBe("guard");
+    enemy.statuses.slow = 2; // рубка 1–4, защита 5–7, шквал 8–9
+    expect(getEnemyLane(combat, enemy).slice(0, 3).map((entry) => entry.end)).toEqual([4, 7, 9]);
   });
-  it("Замедление героя посреди розыгрыша сдвигает его карты, вылезшие возвращаются в руку", () => {
+  it("Замедление героя посреди боя сдвигает его карты позже", () => {
     const combat = fight({ enemyIds: ["spider"] });
-    setLane(combat.enemies[0], ["web"]); // клетка 1: Слабость 1 и Замедление 1 герою
+    setLane(combat.enemies[0], ["web"]); // клетки 1–2: Слабость 1 и Замедление 1 герою
+    combat.enemies[0].hp = combat.enemies[0].maxHp = 500;
     const uids = [0, 1, 2, 3].map((index) => uidAt(combat, index));
     uids.forEach((uid, index) => placeCard(combat, uid, 3 + index, firstEnemy(combat)));
-    launch(combat);
-    // Удар в клетке 3 стал весом 2 (клетки 3–4), остальные сдвинулись в 5 и 6, последний не влез
+    advance(combat, 7);
+    // Удар в клетке 3 стал весом 2 (клетки 3–4), остальные сдвинулись на клетку позже
     const played = combat.events.filter((event) => event.type === "cardPlayed");
-    expect(played.map((event) => event.cell)).toEqual([4, 5, 6]);
-    expect(combat.piles.hand.some((card) => card.uid === uids[3])).toBe(true);
+    expect(played.map((event) => event.cell)).toEqual([4, 5, 6, 7]);
   });
   it("Ускорение героя: карта весит на 1 меньше", () => {
     const combat = fight({ deck: deckOf("bash") });
@@ -219,7 +237,7 @@ describe("новые статусы", () => {
     placeCard(combat, uidAt(combat), 1, firstEnemy(combat)); // вес 1 вместо 2
     expect(placeCard(combat, uidAt(combat), 2, firstEnemy(combat)).ok).toBe(true);
   });
-  it("Ловкость: каждые 2 стака — первая карта хода на 1 легче", () => {
+  it("Ловкость: каждые 2 стака — первая карта боя на 1 легче", () => {
     const combat = fight({ deck: deckOf("bash") });
     combat.hero.statuses.dexterity = 2;
     placeCard(combat, uidAt(combat), 1, firstEnemy(combat));
@@ -249,20 +267,20 @@ describe("новые статусы", () => {
 });
 
 describe("такты", () => {
-  it("Яд бьёт в начале каждого такта: начало хода и после клетки 3", () => {
+  it("Яд бьёт в начале каждого такта: в начале боя и после клеток 3 и 6", () => {
     const combat = fight({ heroStatuses: { poison: 3 } });
     const max = combat.hero.maxHp;
-    expect(combat.hero.hp).toBe(max - 3); // такт 1 — уже в начале хода
+    expect(combat.hero.hp).toBe(max - 3); // такт 1 — уже в начале боя
     quiet(combat);
-    launch(combat); // такт 2 (−2), потом начало следующего хода (−1)
+    launch(combat); // такт 2 (−2), такт 3 (−1)
     expect(combat.hero.hp).toBe(max - 6);
     expect(combat.hero.statuses.poison).toBeUndefined();
   });
-  it("сила «в начале такта» срабатывает 2 раза за ход", () => {
+  it("сила «в начале такта» срабатывает каждые 3 клетки", () => {
     const combat = fight({ deck: deckOf("rage") }); // +2 Силы в начале такта
     quiet(combat);
     placeCard(combat, uidAt(combat), 1);
-    launch(combat); // такт 2 этого хода и такт 1 следующего
+    launch(combat); // такты 2 и 3
     expect(combat.hero.statuses.strength).toBe(4);
   });
 });
@@ -379,21 +397,32 @@ describe("предпросмотр", () => {
   });
 });
 
-describe("пауза посреди розыгрыша", () => {
-  it("карта пришла во время розыгрыша — пауза, её можно доложить дальше по шкале", () => {
-    const combat = createCombat({
-      heroId: "warrior", enemyIds: ["skeleton", "skeleton"], seed: 1, deck: deckOf("strike"), relics: ["memorial_candle"],
-    }); // когда враг умирает — взять карту
+describe("карты во время боя", () => {
+  it("пока идёт время, карты ставятся не раньше следующей клетки и не дальше 6 клеток вперёд", () => {
+    const combat = fight({ deck: deckOf("strike", 20) });
     quiet(combat);
-    combat.enemies[0].hp = 1;
-    placeCard(combat, uidAt(combat), 1, firstEnemy(combat));
-    launch(combat);
-    expect(combat.status).toBe("planning");
-    expect(combat.clock).toBe(1);
-    expect(placeCard(combat, uidAt(combat), 1, combat.enemies[1].instanceId)).toEqual({ ok: false, reason: "pastCell" });
-    expect(placeCard(combat, uidAt(combat), 2, combat.enemies[1].instanceId).ok).toBe(true);
-    const turn = combat.turn;
-    launch(combat);
-    expect(combat.turn).toBe(turn + 1);
+    advance(combat, 2);
+    expect(combat.status).toBe("running");
+    const target = firstEnemy(combat);
+    expect(placeCard(combat, uidAt(combat), 2, target)).toEqual({ ok: false, reason: "pastCell" });
+    expect(placeCard(combat, uidAt(combat), 9, target)).toEqual({ ok: false, reason: "outOfTimeline" });
+    expect(placeCard(combat, uidAt(combat), 8, target).ok).toBe(true);
+    expect(placeCard(combat, uidAt(combat), 3, target).ok).toBe(true);
+  });
+  it("карту, которая уже срабатывает, нельзя ни убрать, ни передвинуть", () => {
+    const combat = fight({ deck: deckOf("bash", 20) }); // вес 2
+    quiet(combat);
+    placeCard(combat, uidAt(combat), 1, firstEnemy(combat)); // клетки 1–2
+    advance(combat, 1);
+    const id = combat.lane[0].id;
+    expect(removeFromLane(combat, id)).toEqual({ ok: false, reason: "locked" });
+    expect(moveLaneItem(combat, id, 4)).toEqual({ ok: false, reason: "locked" });
+  });
+  it("такты идут один за другим: номер такта растёт каждые 3 клетки", () => {
+    const combat = fight();
+    quiet(combat);
+    expect(combat.turn).toBe(1);
+    advance(combat, 7);
+    expect(combat.turn).toBe(3);
   });
 });

@@ -1,4 +1,5 @@
 // Применяет настройки игрока: громкость и скорость анимаций. Настройки общие для всех ячеек сохранения.
+import { CONFIG } from "../config.ts";
 import { loadSettings } from "../save.ts";
 import { setVolumes } from "./audio.js";
 
@@ -29,6 +30,11 @@ export function applySettings() {
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) speedFactor = 0.01;
   // CSS берёт скорость из этой переменной
   document.documentElement.style.setProperty("--anim-speed", speedFactor);
+}
+
+// Сколько миллисекунд идёт одна клетка боя: настройка «медленно / обычно / быстро»
+export function getCellMs() {
+  return CONFIG.timeline.cellMs[loadSettings().combatSpeed ?? "normal"];
 }
 
 // Множитель скорости анимаций: 1 — обычно, 0.5 — ускорено. Его читают эффекты, чтобы не спрашивать CSS на каждой частице

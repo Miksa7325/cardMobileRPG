@@ -145,13 +145,13 @@ function isValidRun(run: Untrusted): run is Run {
     && run.potions.every((potionId: string) => POTIONS[potionId]);
 }
 
-// Проверяет бой из сохранения: те же причины, что и у забега. Бой сохраняется посреди планирования целиком:
-// расстановка на шкале, подготовка Мага, переброс, отмеченные карты и выбор варки
+// Проверяет бой из сохранения: те же причины, что и у забега. Бой сохраняется в любой момент целиком (на паузе):
+// расстановка на шкале, подготовка Мага, переброс и выбор варки
 function isValidCombat(combat: Untrusted): combat is Combat {
-  if (combat.status !== "planning" || !combat.rng || !combat.hero || !Array.isArray(combat.enemies)) return false;
-  if (!Array.isArray(combat.lane) || !Array.isArray(combat.prepared) || !Array.isArray(combat.keep) || !Array.isArray(combat.brewChoices)) return false;
-  if (!Number.isInteger(combat.clock) || !Number.isFinite(combat.capacity) || !Array.isArray(combat.hero.blocks)) return false;
-  if (!combat.enemies.every((enemy: Untrusted) => Array.isArray(enemy.lane) && Array.isArray(enemy.carry) && Array.isArray(enemy.blocks))) return false;
+  if (!["planning", "running"].includes(combat.status) || !combat.rng || !combat.hero || !Array.isArray(combat.enemies)) return false;
+  if (!Array.isArray(combat.lane) || !Array.isArray(combat.prepared) || !Array.isArray(combat.brewChoices)) return false;
+  if (!Number.isInteger(combat.clock) || !Array.isArray(combat.hero.blocks)) return false;
+  if (!combat.enemies.every((enemy: Untrusted) => Array.isArray(enemy.lane) && Number.isInteger(enemy.nextActionId) && Array.isArray(enemy.blocks))) return false;
   const { draw, hand, discard, exhaust } = combat.piles ?? {};
   if (![draw, hand, discard, exhaust].every(Array.isArray)) return false;
   const onLane = [

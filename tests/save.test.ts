@@ -16,7 +16,7 @@ globalThis.localStorage = {
 
 const { exportSave, importSave, loadMeta, loadRun, saveMeta, saveRun, SAVE_VERSION } = await import("../js/save.ts");
 const { createRun } = await import("../js/engine/run.ts");
-const { createCombat, launch, placeCard, rerollCard, setKeep } = await import("../js/engine/combat.ts");
+const { advance, createCombat, launch, placeCard, rerollCard } = await import("../js/engine/combat.ts");
 
 const encode = (data: unknown) => btoa(unescape(encodeURIComponent(JSON.stringify(data))));
 
@@ -42,13 +42,13 @@ describe("перенос сохранения", () => {
     expect(importSave("это не сохранение")).toEqual({ ok: false, reason: "invalid" });
   });
 
-  it("бой посреди планирования сохраняется целиком и доигрывается так же", () => {
+  it("бой посреди боя сохраняется целиком и доигрывается так же", () => {
     const run = createRun({ heroId: "alchemist", seed: 7 });
     const combat = createCombat({ heroId: "alchemist", enemyIds: ["skeleton"], seed: 3, deck: run.deck });
     rerollCard(combat, combat.piles.hand[0].uid);
     const toss = combat.piles.hand.find((card) => card.cardId === "al_toss")!;
     placeCard(combat, toss.uid, 2, combat.enemies[0].instanceId);
-    setKeep(combat, [combat.piles.hand[0].uid]);
+    advance(combat, 1); // время уже идёт
     run.savedCombat = structuredClone(combat);
     expect(saveRun(run)).toBe(true);
 

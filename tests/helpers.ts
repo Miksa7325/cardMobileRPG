@@ -14,14 +14,20 @@ export function fight(options: Partial<CombatSetup> = {}): Combat {
   return createCombat({ heroId: "warrior", enemyIds: ["skeleton"], seed: 1, deck: deckOf("strike"), ...options });
 }
 
-// Враги в этом ходу ничего не делают: так проверяем одного героя
+// Враги ничего не делают и не ставят новых ходов: так проверяем одного героя
 export function quiet(combat: Combat): void {
-  for (const enemy of combat.enemies) enemy.lane = [];
+  for (const enemy of combat.enemies) {
+    enemy.lane = [];
+    enemy.idle = true;
+  }
 }
 
-// Ставит врагу на дорожку эти ходы (встык с клетки 1)
-export function setLane(enemy: EnemyUnit, moves: string[]): void {
-  enemy.lane = moves.map((move) => ({ move, weight: ENEMIES[enemy.enemyId].moves[move].weight, resolved: false }));
+// Ставит врагу на дорожку эти ходы (встык со стыка from: по умолчанию с клетки 1) — и больше он сам ничего не ставит
+export function setLane(enemy: EnemyUnit, moves: string[], from = 0): void {
+  enemy.lane = moves.map((move, id) => ({ id, move, weight: ENEMIES[enemy.enemyId].moves[move].weight, resolved: false }));
+  enemy.nextActionId = moves.length;
+  enemy.laneStart = from;
+  enemy.idle = true;
 }
 
 // Блок, который не исчезнет до конца теста

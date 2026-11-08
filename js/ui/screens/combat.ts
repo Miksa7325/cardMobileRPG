@@ -1,21 +1,24 @@
-// Экран боя на шкале хода: враги, шкала, герой, рука. Показывает состояние боя и передаёт действия игрока в логику.
-// Как играть: карту перетаскивают на клетку шкалы (или на врага), либо нажимают карту, потом клетку или врага.
-// Нажатие на карту на шкале возвращает её в руку. «Запуск» — розыгрыш по клеткам.
+// Экран боя на бесконечной шкале: враги, шкала, герой, рука. Показывает состояние боя и передаёт действия игрока в логику.
+// Как играть: сначала карты расставляют на первые 6 клеток и жмут «Начать». Дальше время идёт само, клетка за клеткой,
+// а карты можно ставить, убирать и переставлять прямо во время боя (не дальше 6 клеток вперёд). Карту перетаскивают
+// на клетку шкалы (или на врага), либо нажимают карту, потом клетку или врага. Нажатие на карту на шкале возвращает её
+// в руку. Кнопка паузы останавливает время; пока палец тащит карту, время идёт вдвое медленнее.
 import { CARDS } from "../../data/cards.ts";
 import { ENEMIES } from "../../data/enemies.ts";
 import { HEROES } from "../../data/heroes.ts";
 import { POTIONS } from "../../data/potions.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
+import { CONFIG } from "../../config.ts";
 import {
-  cardWeight, chooseBrew, createCombat, findFreeStart, getEnemyIntent, getUpcomingDraws, launch, moveLaneItem, placeCard, placePotion,
-  previewLaunch, removeFromLane, rerollCard, setKeep, totalCapacity, usedCapacity,
+  cardWeight, chooseBrew, createCombat, findFreeStart, getEnemyIntent, getUpcomingDraws, moveLaneItem, placeCard, placePotion,
+  previewLaunch, removeFromLane, rerollCard, startCombat, tick,
 } from "../../engine/combat.ts";
 import { getCardData } from "../../engine/deck.ts";
 import { createNodeCombat, finishCombat } from "../../engine/run.ts";
 import { saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
 import type { ActionResult, CardData, CardInstance, Combat, EnemyUnit, Equipment, HeroId, Run, Unit } from "../../types.ts";
-import { captureCombatView, playLaunch, showDrawnCards } from "../animations.js";
+import { captureCombatView, playTick, showDrawnCards } from "../animations.js";
 import { enemySprite, heroSprite, IDLE_STYLES, setHeroLookVariable } from "../art.js";
 import { playSound } from "../audio.js";
 import { createCardElement, shakeCard } from "../components/card.ts";
@@ -30,8 +33,8 @@ import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { createIcon } from "../icons.js";
 import { showScreen } from "../router.js";
-import { animationMs } from "../settings.js";
-import { type DropTarget, enableTimelineDrag } from "../timelineDrag.ts";
+import { animationMs, getCellMs } from "../settings.js";
+import { type DropTarget, dragState, enableTimelineDrag } from "../timelineDrag.ts";
 import {
   applyTutorialHighlights, createTutorialBanner, finishTutorial, finishTutorialBattle, isTutorialBattle, notifyTutorial, tutorialActionForCard,
 } from "../tutorial.ts";
@@ -42,7 +45,7 @@ type Untyped = (...args: any[]) => any;
 const ui = {
   createTutorialBanner: createTutorialBanner as Untyped,
   createRunBar: createRunBar as Untyped,
-  playLaunch: playLaunch as Untyped,
+  playTick: playTick as Untyped,
 };
 const IDLE = IDLE_STYLES as Record<string, string>;
 
@@ -61,7 +64,98 @@ function combat(): Combat {
 function resetView(): void {
   selection = null;
   selectedEnemyId = null;
+  paused = false;
+  progress = 0;
 }
+
+// ---------- Время ----------
+//
+// «Сердцебиение» раз в 100 мс копит долю клетки (во время перетаскивания — вдвое медленнее). Набралась клетка —
+// логика делает шаг (tick), экран коротко показывает её события и рисуется заново. Указатель плавно ползёт по клетке.
+// Время стоит: до «Начать», на паузе, пока не выбрано зелье варки, пока открыта панель тестового режима и когда
+// игрок ушёл с экрана боя или свернул игру
+
+const HEARTBEAT_MS = 100;
+let heartbeat: ReturnType<typeof setInterval> | null = null;
+let paused = false;
+let progress = 0; // доля текущей клетки, которая уже прошла
+let ticking = false; // идёт шаг и его анимация
+let pendingRender = false; // экран надо перерисовать, как только палец отпустит карту
+
+function onCombatScreen(): boolean {
+  return Boolean(document.querySelector("main.combat"));
+}
+
+function timeStands(current: Combat): boolean {
+  return current.status !== "running" || paused || current.brewChoices.length > 0 || state.test.pickerOpen;
+}
+
+function ensureClock(): void {
+  if (!heartbeat) heartbeat = setInterval(onHeartbeat, HEARTBEAT_MS);
+}
+
+function stopClock(): void {
+  if (heartbeat) clearInterval(heartbeat);
+  heartbeat = null;
+}
+
+function onHeartbeat(): void {
+  const current = state.combat as Combat | null;
+  if (!current || !onCombatScreen()) {
+    // Ушли с экрана боя: время встаёт, а вернувшись, игрок продолжит с паузы
+    stopClock();
+    paused = true;
+    return;
+  }
+  if (pendingRender && !dragState.active && !ticking) {
+    pendingRender = false;
+    showScreen("combat");
+    return;
+  }
+  if (timeStands(current) || ticking) return;
+  progress += HEARTBEAT_MS / (getCellMs() * (dragState.active ? CONFIG.timeline.dragSlowdown : 1));
+  if (progress < 1) {
+    document.querySelector<HTMLElement>(".timeline__pointer")?.style.setProperty("--clock", String(progress));
+    return;
+  }
+  progress = 0;
+  void doTick(current);
+}
+
+// Один шаг времени: логика проходит клетку, экран показывает её события и рисуется заново
+async function doTick(current: Combat): Promise<void> {
+  ticking = true;
+  const before = captureCombatView(current);
+  const result = tick(current);
+  if (!result.ok) {
+    ticking = false;
+    return;
+  }
+  if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
+  await ui.playTick(before, current, {
+    maxMs: getCellMs() * 0.7,
+    onCardPlayed: (event: { cardId: string; targetId: string | null }) => {
+      const card = CARDS[event.cardId];
+      playCardEffect(card, getVfxPositions(before, card, event.targetId));
+    },
+  });
+  ticking = false;
+  if (state.combat !== current) return;
+  savePlanning();
+  if (dragState.active) pendingRender = true;
+  else {
+    showScreen("combat");
+    showDrawnCards(before.handUids, current);
+  }
+  finishCombatIfOver();
+}
+
+// Свернули игру — время встаёт и бой сохраняется
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden" || !state.combat || !onCombatScreen()) return;
+  paused = true;
+  savePlanning();
+});
 
 // ---------- Начало боя ----------
 
@@ -76,12 +170,13 @@ export function startNodeCombat(): void {
   showScreen("combat");
 }
 
-// Продолжает бой из сохранения: со всей расстановкой на шкале
+// Продолжает бой из сохранения: со всей расстановкой на шкале. Начатый бой продолжается с паузы
 export function resumeCombat(): void {
   state.combat = (state.run as Run).savedCombat;
   state.test.enabled = false;
   state.arena = null;
   resetView();
+  paused = true;
   showScreen("combat");
 }
 
@@ -106,7 +201,7 @@ export function startArenaCombat(heroId: HeroId, gear: Equipment, fight: { id: s
   showScreen("combat");
 }
 
-// Бой сохраняется после каждого действия: закрытая игра продолжится со всей расстановкой
+// Бой сохраняется после каждого действия и каждой клетки: закрытая игра продолжится со всей расстановкой
 function savePlanning(): void {
   if (state.test.enabled || !state.run) return;
   state.run.savedCombat = state.combat;
@@ -154,6 +249,9 @@ export function renderCombatScreen(root: HTMLElement): void {
   if (banner) screen.append(banner);
   applyTutorialHighlights(screen);
   root.append(screen);
+  // Указатель продолжает ползти с того места клетки, где был до перерисовки
+  (screen.querySelector(".timeline__pointer") as HTMLElement | null)?.style.setProperty("--clock", String(progress));
+  if (current.status === "running") ensureClock();
 }
 
 function createTopBar(current: Combat): HTMLElement {
@@ -263,10 +361,10 @@ function createHero(current: Combat): HTMLElement {
 }
 
 function getHint(current: Combat): string {
-  if (current.clock > 0) return TEXTS.timeline.hintPaused(current.clock + 1);
   if (selection?.kind === "card") return TEXTS.timeline.hintSelected;
   if (selection?.kind === "potion") return TEXTS.timeline.hintPotion;
-  return TEXTS.timeline.hintPlan;
+  if (current.status === "planning") return TEXTS.timeline.hintPlan;
+  return paused ? TEXTS.timeline.hintPausedNow : TEXTS.timeline.hintRunning;
 }
 
 // ---------- Рука и выбранная карта ----------
@@ -284,7 +382,7 @@ function canPrepare(current: Combat): boolean {
 // Можно ли поставить карту хоть куда-нибудь
 function isPlayable(current: Combat, instance: CardInstance): boolean {
   const weight = cardWeight(instance, current);
-  if (weight === null || current.status !== "planning") return false;
+  if (weight === null || (current.status !== "planning" && current.status !== "running")) return false;
   return findFreeStart(current, weight) !== null || canPrepare(current);
 }
 
@@ -304,10 +402,6 @@ function createHand(current: Combat): HTMLElement {
       onTap: () => onCardTap(instance),
       onHold: () => openCardPreview(instance, current.hero),
     });
-    if (current.keep.includes(instance.uid)) {
-      element.classList.add("card--kept");
-      element.append(el("div", "card__kept", "📌"));
-    }
     enableTimelineDrag(element, {
       canDrag: () => isPlayable(current, instance),
       onBlocked: shakeCard,
@@ -366,16 +460,12 @@ function moveItem(id: number, target: DropTarget): void {
   afterChange();
 }
 
-// Под выбранной картой — что ещё с ней можно сделать: оставить на следующий ход, перебросить, подготовить
+// Под выбранной картой — что ещё с ней можно сделать: перебросить (раз в такт), подготовить
 function createSelectionBar(current: Combat): HTMLElement {
   const bar = el("div", "combat__selection");
   const instance = selectedCard();
   if (!instance) return bar;
-  const kept = current.keep.includes(instance.uid);
-  bar.append(
-    actionButton(kept ? TEXTS.timeline.unkeep : TEXTS.timeline.keep, () => toggleKeep(instance.uid)),
-    actionButton(`${TEXTS.timeline.rerollCard} (${current.rerollsLeft})`, () => reroll(instance.uid), current.rerollsLeft <= 0),
-  );
+  bar.append(actionButton(`${TEXTS.timeline.rerollCard} (${current.rerollsLeft})`, () => reroll(instance.uid), current.rerollsLeft <= 0));
   if (canPrepare(current)) bar.append(actionButton(TEXTS.timeline.prepare, () => placeSelected({ kind: "prep" })));
   bar.append(actionButton(TEXTS.timeline.details, () => openCardPreview(instance, current.hero)));
   return bar;
@@ -391,7 +481,7 @@ function actionButton(text: string, onTap: () => void, disabled = false): HTMLEl
 
 function createBottomBar(current: Combat): HTMLElement {
   const bar = el("div", "combat__bottom-bar");
-  const capacity = el("div", "combat__capacity", TEXTS.timeline.capacity(usedCapacity(current), totalCapacity(current)));
+  const clock = el("div", "combat__capacity", TEXTS.timeline.clock(current.turn, current.clock));
 
   const piles = el("button", "combat__piles") as HTMLButtonElement;
   piles.type = "button";
@@ -402,11 +492,13 @@ function createBottomBar(current: Combat): HTMLElement {
   );
   piles.addEventListener("click", () => openPiles(current));
 
-  const launchButton = el("button", "button combat__launch", TEXTS.timeline.launch) as HTMLButtonElement;
+  // До начала боя — «Начать», потом — пауза и продолжение
+  const label = current.status === "planning" ? TEXTS.timeline.launch : paused ? TEXTS.timeline.resume : TEXTS.timeline.pause;
+  const launchButton = el("button", "button combat__launch", label) as HTMLButtonElement;
   launchButton.type = "button";
-  launchButton.addEventListener("click", onLaunchTap);
+  launchButton.addEventListener("click", onClockButtonTap);
 
-  bar.append(capacity, piles, launchButton);
+  bar.append(clock, piles, launchButton);
   return bar;
 }
 
@@ -537,7 +629,6 @@ function placeCardAt(instance: CardInstance, target: DropTarget): void {
   }
   if (!result.ok) return showError(result);
   selection = null;
-  current.keep = current.keep.filter((uid) => uid !== instance.uid);
   const tutorialAction = tutorialActionForCard(instance);
   if (tutorialAction) notifyTutorial(tutorialAction);
   playSound("cardPick");
@@ -549,14 +640,6 @@ function returnToHand(id: number): void {
   const result = removeFromLane(combat(), id);
   if (!result.ok) return showError(result);
   playSound("draw");
-  afterChange();
-}
-
-function toggleKeep(uid: number): void {
-  const current = combat();
-  const keep = current.keep.includes(uid) ? current.keep.filter((kept) => kept !== uid) : [...current.keep, uid];
-  const result = setKeep(current, keep);
-  if (!result.ok) return showError(result);
   afterChange();
 }
 
@@ -590,7 +673,6 @@ function unitName(current: Combat, id: string): string {
 function buildDamageLog(current: Combat): string[] {
   const lines: string[] = [];
   for (const event of current.events) {
-    if (event.type === "turnEnd") break;
     if (event.type !== "hit") continue;
     const b = event.breakdown as { base: number; strength: number; weak: number; vulnerable: number; reduction: number; fixed: boolean } | undefined;
     const who = `${unitName(current, event.sourceId as string)} → ${unitName(current, event.targetId as string)}`;
@@ -602,32 +684,30 @@ function buildDamageLog(current: Combat): string[] {
   return lines;
 }
 
-// «Запуск»: логика считает розыгрыш мгновенно, а экран показывает его по клеткам и потом рисует новый ход
-async function onLaunchTap(): Promise<void> {
+// «Начать» запускает время; потом та же кнопка ставит бой на паузу и снимает с неё
+function onClockButtonTap(): void {
   const current = combat();
-  const before = captureCombatView(current);
-  const result = launch(current);
-  if (!result.ok) return showError(result);
-  selection = null;
-  notifyTutorial("launched");
-  if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
   playSound("click");
-  await ui.playLaunch(before, current, {
-    stepMode: state.test.enabled && state.test.stepMode,
-    onCardPlayed: (event: { cardId: string; targetId: string | null }) => {
-      const card = CARDS[event.cardId];
-      playCardEffect(card, getVfxPositions(before, card, event.targetId));
-    },
-  });
-  if (current.status === "planning") savePlanning();
+  if (current.status === "planning") {
+    const result = startCombat(current);
+    if (!result.ok) return showError(result);
+    paused = false;
+    progress = 0;
+    selection = null;
+    notifyTutorial("launched");
+    afterChange();
+    finishCombatIfOver();
+    return;
+  }
+  paused = !paused;
+  if (paused) savePlanning();
   showScreen("combat");
-  showDrawnCards(before.handUids, current);
-  finishCombatIfOver();
 }
 
 function finishCombatIfOver(): void {
   const current = combat();
-  if (current.status === "planning" || current.status === "resolving") return;
+  if (current.status === "planning" || current.status === "running") return;
+  stopClock();
   // Пока идёт пауза, нажатия не должны доходить до экрана
   document.getElementById("app")?.append(el("div", "input-blocker"));
   setTimeout(showCombatEnd, animationMs(2));

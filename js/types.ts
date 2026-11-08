@@ -176,7 +176,6 @@ export interface HeroData {
   description: string;
   maxHp: number;
   maxPotions?: number;
-  capacity: number; // вместимость шкалы: сколько клеток веса карт за ход
   drawPerTurn: number; // сколько карт добирается в начале хода
   potionWeight: number; // вес зелья на шкале: у Алхимика 0
   prepares?: boolean; // Маг: есть дорожка подготовки
@@ -193,7 +192,6 @@ export interface HeroData {
 
 // Правило-реликвия меняет само правило шкалы, а не срабатывает по событию. Числа прибавляются к обычным
 export interface RelicRules {
-  capacity?: number; // клетки вместимости
   rerolls?: number; // перебросы за ход
   openDraws?: number; // открытые карты добора
   blockCells?: number; // сколько клеток держится блок
@@ -201,6 +199,7 @@ export interface RelicRules {
   brewOptions?: number; // зелий на выбор при варке
   prepEmptyBonus?: number; // пустая клетка ускоряет подготовку Мага ещё на столько
   finalTwice?: boolean; // бонус «Финал» срабатывает дважды
+  extraDraw?: number; // сработавшая карта приводит больше новых карт
 }
 
 export interface RelicData {
@@ -241,7 +240,7 @@ export interface ActMechanic {
   wounds?: number;
   extraEnemy?: boolean;
   enemyRamp?: number;
-  blockedCells?: number[]; // клетки шкалы героя, закрытые каждый ход (Трясина — 6, Иней — 1)
+  blockedCells?: number[]; // клетки каждого такта (1–3), закрытые для героя (Трясина — 3, Иней — 1)
   minCardWeight?: number; // карты легче этого весят столько (Железная дисциплина: вес 0 → 1)
   enemyHaste?: number; // враги начинают бой с Ускорением (Натиск)
 }
@@ -367,6 +366,7 @@ export interface HeroUnit extends Unit {
 
 // Ход врага на его дорожке. Ходы стоят встык с клетки 1, где кончается — считает движок по весам и статусам
 export interface EnemyAction {
+  id: number; // номер хода у этого врага: по нему интерфейс узнаёт ход, даже когда старые ходы убраны с дорожки
   move: string; // имя хода из moves
   weight: number; // вес хода без статусов
   resolved: boolean;
@@ -377,9 +377,10 @@ export interface EnemyUnit extends Unit {
   instanceId: string;
   enemyId: string;
   patternIndex: number; // какой ход из pattern встанет на дорожку следующим
-  lane: EnemyAction[]; // ходы этого хода
-  carry: string[]; // ходы, которые не влезли в прошлый ход: встают первыми
-  laneStart: number; // с какого стыка начинается дорожка: у призванного посреди хода — с момента призыва
+  lane: EnemyAction[]; // ходы на дорожке: недавно сработавшие и запланированные на 6 клеток вперёд
+  nextActionId: number;
+  idle?: boolean; // тестовый режим и автотесты: враг не ставит новых ходов сам
+  laneStart: number; // с какого стыка идут ходы: у призванного посреди боя — с момента призыва
   phase: number; // фаза босса: 0 — начальная
 }
 
@@ -401,7 +402,7 @@ export interface LaneItem {
 export interface PreparedSpell {
   id: number;
   card: CardInstance;
-  turn: number; // в каком ходу поставлено: вернуть в руку можно только в этом же ходу
+  turn: number; // в каком такте поставлено
   locked: boolean;
   weight: number;
   targetId: string | null;
@@ -420,26 +421,21 @@ export interface CombatEvent {
 }
 
 // planning — игрок расставляет карты (в том числе на паузе посреди розыгрыша), resolving — идёт розыгрыш
-export type CombatStatus = "planning" | "resolving" | "won" | "lost";
+// planning — первая расстановка, время стоит; running — время идёт (пауза — это просто остановленный таймер экрана)
+export type CombatStatus = "planning" | "running" | "won" | "lost";
 
 export interface Combat {
   rng: Rng;
   status: CombatStatus;
-  turn: number;
-  clock: number; // последняя разыгранная граница клеток этого хода: 0 — розыгрыш ещё не начался
-  capacity: number; // вместимость шкалы героя
-  capacityBonus: number; // «+N вместимости в этом ходу»
+  turn: number; // номер такта, который сейчас идёт (с 1)
+  clock: number; // последняя пройденная граница клеток: 0 — бой ещё не начался. Шкала бесконечная
   lane: LaneItem[];
-  prepared: PreparedSpell[]; // дорожка подготовки Мага, живёт между ходами
+  prepared: PreparedSpell[]; // дорожка подготовки Мага
   nextLaneId: number;
-  zeroUsed: number; // сколько карт весом 0 поставлено за ход
-  rerollsLeft: number;
-  keep: number[]; // карты, которые игрок оставит в руке
-  carried: number[]; // карты, вытолкнутые со шкалы: остаются в руке
+  rerollsLeft: number; // перебросов осталось в этом такте
   brewChoices: BrewChoice[];
-  launchGains: boolean; // во время розыгрыша пришли карты или вместимость: может быть пауза
-  frozenCells: number[]; // замороженные клетки дорожки героя в этом ходу: в них нельзя ставить
-  blockedCells?: number[]; // клетки, закрытые особенностью акта каждый ход
+  frozenCells: number[]; // замороженные клетки дорожки героя (номера клеток с начала боя): в них нельзя ставить
+  blockedCells?: number[]; // клетки каждого такта (1–3), закрытые особенностью акта
   minCardWeight?: number; // особенность акта: карты легче этого весят столько
   acting?: string; // чьё действие сейчас идёт: «lane:3», «prep:5», «enemy:skeleton-0:1», «tact». Попадает в события как by
   hero: HeroUnit;
@@ -633,4 +629,5 @@ export interface Settings {
   fastAnimations: boolean;
   vibration: boolean;
   graphics: string;
+  combatSpeed?: "slow" | "normal" | "fast"; // как быстро идут клетки боя
 }
