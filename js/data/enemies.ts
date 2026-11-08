@@ -597,4 +597,98 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["dark", "grasp", "tendrils", "condense"],
     phases: [{ below: 0.5, pattern: ["call", "hungryGrasp", "hungryTendrils", "condense"] }],
   },
+
+  // Акт 7 «Кузня демонов»: обычные
+  imp: {
+    id: "imp",
+    name: "Бес",
+    hp: [24, 28],
+    // Быстрый: 6 ходов за шкалу
+    moves: { spark: debuff({ burning: 2 }, 0, { w: 1 }), claws: attack(3, 2, { w: 1 }) },
+    pattern: ["claws", "spark", "claws"],
+  },
+  demon_smith: {
+    id: "demon_smith",
+    name: "Демон-кузнец",
+    hp: [60, 66],
+    // Медленный: ломает броню
+    moves: { hammer: attack(20, 1, { w: 4, sunder: 2 }), temper: buff(2, 14, { w: 2, repair: 1 }) },
+    pattern: ["temper", "hammer"],
+  },
+  magma_elemental: {
+    id: "magma_elemental",
+    name: "Магмовый элементаль",
+    hp: [54, 60],
+    // Прячется и жжёт: тянет время, пока Жар работает на него
+    moves: {
+      erupt: debuff({ burning: 6 }, 0, { w: 2 }),
+      slam: attack(10, 1, { w: 2 }),
+      cool: guard(16, { w: 2, repair: 2 }),
+    },
+    pattern: ["erupt", "cool", "slam"],
+  },
+  ash_wraith: {
+    id: "ash_wraith",
+    name: "Пепельный дух",
+    hp: [36, 40],
+    // Замедляющий и скрытный
+    moves: { ash: debuff({ weak: 1, slow: 1 }, 0, { w: 2 }), scorch: attack(7, 2, { w: 2, hidden: true }) },
+    pattern: ["ash", "scorch"],
+  },
+  overseer: {
+    id: "overseer",
+    name: "Надсмотрщик",
+    hp: [44, 50],
+    // Призыватель
+    moves: {
+      whip: attack(8, 1, { w: 2 }),
+      summonImp: summon("imp", { w: 2 }, 2),
+      brand: debuff({ burning: 4, vulnerable: 1 }, 0, { w: 2 }),
+    },
+    pattern: ["summonImp", "whip", "brand"],
+  },
+
+  // Акт 7: элита
+  forge_golem: {
+    id: "forge_golem",
+    name: "Литейный голем",
+    hp: [160, 170],
+    // Медленный и бронированный
+    moves: {
+      fist: attack(30, 1, { w: 5, sunder: 3 }),
+      temper: guard(24, { w: 2, repair: 3 }),
+      splash: debuff({ burning: 6 }, 0, { w: 2 }),
+    },
+    pattern: ["splash", "fist", "temper"],
+  },
+  flame_succubus: {
+    id: "flame_succubus",
+    name: "Огненная суккуба",
+    hp: [120, 130],
+    // Прерыватель, лечится ударами
+    moves: {
+      kiss: attack(12, 1, { w: 2, lifesteal: 0.5 }),
+      charm: debuff({ stun: 1 }, 0, { w: 2 }),
+      lash: attack(7, 3, { w: 3 }),
+    },
+    pattern: ["charm", "kiss", "lash"],
+  },
+
+  // Акт 7: босс
+  forge_lord: {
+    id: "forge_lord",
+    name: "Повелитель горна",
+    hp: [380, 380],
+    // Приём — ускоряет сам себя: следующие ходы легче и при ничьей идут раньше героя.
+    // На половине HP «Плавка»: литьё с Сокрушением
+    moves: {
+      bellows: { intent: "buff", weight: 1, effects: [{ type: "applyStatus", status: "haste", amount: 2, target: "self" }] },
+      hammer: attack(24, 1, { w: 3, sunder: 2 }),
+      heat: debuff({ burning: 8 }, 0, { w: 2 }),
+      plate: guard(26, { w: 2, repair: 3 }),
+      cast: attack(8, 3, { w: 3, sunder: 1 }),
+    },
+    pattern: ["bellows", "hammer", "heat", "plate"],
+    phases: [{ below: 0.5, pattern: ["bellows", "hammer", "cast", "heat"] }],
+  },
 };
