@@ -60,6 +60,9 @@ function actSetup(act, type) {
     enemyRamp: act.mechanic.enemyRamp ?? 0,
     heroStatuses: act.mechanic.heroPoison ? { poison: act.mechanic.heroPoison } : {},
     extraPassives: act.mechanic.heroPassives ?? [],
+    blockedCells: act.mechanic.blockedCells ?? [],
+    minCardWeight: act.mechanic.minCardWeight ?? 0,
+    enemyHaste: act.mechanic.enemyHaste ?? 0,
   };
 }
 

@@ -310,6 +310,9 @@ export function createNodeCombat(run: Run): Combat {
     heroStatuses: act.mechanic.heroPoison ? { poison: act.mechanic.heroPoison } : {},
     extraPassives: act.mechanic.heroPassives ?? [],
     potionPool: getPotionPool(run),
+    blockedCells: act.mechanic.blockedCells ?? [],
+    minCardWeight: act.mechanic.minCardWeight ?? 0,
+    enemyHaste: act.mechanic.enemyHaste ?? 0,
   });
 }
 

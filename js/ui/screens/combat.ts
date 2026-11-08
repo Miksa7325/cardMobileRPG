@@ -283,7 +283,7 @@ function canPrepare(current: Combat): boolean {
 
 // Можно ли поставить карту хоть куда-нибудь
 function isPlayable(current: Combat, instance: CardInstance): boolean {
-  const weight = cardWeight(instance);
+  const weight = cardWeight(instance, current);
   if (weight === null || current.status !== "planning") return false;
   return findFreeStart(current, weight) !== null || canPrepare(current);
 }
@@ -327,7 +327,7 @@ function createHand(current: Combat): HTMLElement {
 
 // Пока палец несёт карту, на дорожке героя видно, куда она встанет и можно ли туда
 function previewSlot(instance: CardInstance, target: DropTarget): void {
-  const weight = cardWeight(instance) ?? 1;
+  const weight = cardWeight(instance, combat()) ?? 1;
   if (target?.kind !== "lane") {
     showLaneSlot(null, weight, false);
     return;
@@ -523,7 +523,7 @@ function placeCardAt(instance: CardInstance, target: DropTarget): void {
   if (!target) return;
   const current = combat();
   const card = getCardData(instance);
-  const weight = cardWeight(instance);
+  const weight = cardWeight(instance, current);
   if (weight === null) return showError({ ok: false, reason: "cannotPlay" });
 
   let result: ActionResult;

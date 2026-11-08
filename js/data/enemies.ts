@@ -54,11 +54,11 @@ const debuff = (statuses: Statuses, wounds = 0, options: MoveOptions = {}): Enem
     ...Array.from({ length: wounds }, (): Effect => ({ type: "addCard", cardId: "wound", pile: "discard" })),
   ],
 });
-// Призыв помощника (если живых помощников этого вида нет)
-const summon = (enemyId: string, options: MoveOptions = {}): EnemyMove => ({
+// Призыв помощника, если живых помощников этого вида меньше max (по умолчанию 1)
+const summon = (enemyId: string, options: MoveOptions = {}, max = 1): EnemyMove => ({
   intent: "buff",
   weight: options.w ?? 2,
-  effects: [{ type: "summon", enemyId }],
+  effects: [{ type: "summon", enemyId, ...(max > 1 ? { max } : {}) }],
 });
 
 export const ENEMIES: Record<string, EnemyData> = {
@@ -311,5 +311,100 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["doom", "soulfire", "barrage", "plague", "phylactery"],
     // На половине HP «Вечная зима»: добавляет оглушающий вой
     phases: [{ below: 0.5, pattern: ["howl", "soulfire", "barrage", "phylactery"] }],
+  },
+
+  // Акт 4 «Ядовитые топи»: обычные
+  bog_leech: {
+    id: "bog_leech",
+    name: "Болотная пиявка",
+    hp: [20, 24],
+    // Быстрая: 6 ходов за шкалу, лечится укусами. Кровотечение бьёт её на каждом ходу
+    moves: { latch: attack(3, 2, { w: 1, lifesteal: 0.5 }), inject: debuff({ poison: 1 }, 0, { w: 1 }) },
+    pattern: ["latch", "latch", "inject"],
+  },
+  toad: {
+    id: "toad",
+    name: "Ядовитая жаба",
+    hp: [40, 46],
+    // Травит и прячется
+    moves: { spit: debuff({ poison: 3 }, 0, { w: 2 }), tongue: attack(7, 1, { w: 2 }), puff: guard(8, { w: 2, repair: 1 }) },
+    pattern: ["spit", "tongue", "puff"],
+  },
+  drowned: {
+    id: "drowned",
+    name: "Утопленник",
+    hp: [58, 64],
+    // Медленный: тянет за собой, пока ты вязнешь
+    moves: { mire: debuff({ slow: 1 }, 0, { w: 1 }), drag: attack(24, 1, { w: 5, sunder: 2 }) },
+    pattern: ["mire", "drag"],
+  },
+  myconid: {
+    id: "myconid",
+    name: "Грибник",
+    hp: [44, 50],
+    // Призыватель: убей его первым, пока не размножился
+    moves: {
+      spores: debuff({ poison: 2, weak: 1 }, 0, { w: 2 }),
+      club: attack(9, 1, { w: 2 }),
+      sprout: summon("bog_leech", { w: 2 }),
+    },
+    pattern: ["spores", "club", "sprout"],
+  },
+  bog_hag: {
+    id: "bog_hag",
+    name: "Болотная ведьма",
+    hp: [36, 42],
+    // Прерыватель и скрытная
+    moves: {
+      hex: debuff({ stun: 1 }, 0, { w: 2 }),
+      brew: debuff({ poison: 4 }, 0, { w: 2 }),
+      staff: attack(10, 1, { w: 2, hidden: true }),
+    },
+    pattern: ["brew", "staff", "hex"],
+  },
+
+  // Акт 4: элита
+  hydra: {
+    id: "hydra",
+    name: "Гидра",
+    hp: [120, 130],
+    // Становится опаснее к концу боя: на половине HP отращивает головы
+    moves: {
+      bites: attack(6, 3, { w: 3 }),
+      breath: debuff({ poison: 4 }, 0, { w: 2 }),
+      regrow: guard(15, { w: 2, repair: 2 }),
+      heads: attack(6, 4, { w: 3 }),
+    },
+    pattern: ["bites", "breath", "regrow"],
+    phases: [{ below: 0.5, pattern: ["heads", "breath", "regrow"] }],
+  },
+  mire_golem: {
+    id: "mire_golem",
+    name: "Трясинный голем",
+    hp: [135, 145],
+    // Медленный: замедлит и раздавит
+    moves: {
+      bog: debuff({ slow: 2 }, 0, { w: 2 }),
+      crush: attack(30, 1, { w: 5, sunder: 2 }),
+      overgrow: guard(20, { w: 2, repair: 2 }),
+    },
+    pattern: ["bog", "crush", "overgrow"],
+  },
+
+  // Акт 4: босс
+  bog_mother: {
+    id: "bog_mother",
+    name: "Матерь топей",
+    hp: [300, 300],
+    // Приём — зовёт пиявок; на половине HP «Разлив»: хлёст лечит её на половину урона по HP
+    moves: {
+      fog: debuff({ poison: 5 }, 0, { w: 2 }),
+      lash: attack(8, 2, { w: 3 }),
+      call: summon("bog_leech", { w: 2 }, 2),
+      absorb: guard(20, { w: 2, repair: 2 }),
+      thirstLash: attack(8, 2, { w: 3, lifesteal: 0.5 }),
+    },
+    pattern: ["fog", "lash", "call", "absorb"],
+    phases: [{ below: 0.5, pattern: ["fog", "thirstLash", "call", "thirstLash"] }],
   },
 };

@@ -241,6 +241,9 @@ export interface ActMechanic {
   wounds?: number;
   extraEnemy?: boolean;
   enemyRamp?: number;
+  blockedCells?: number[]; // клетки шкалы героя, закрытые каждый ход (Трясина — 6, Иней — 1)
+  minCardWeight?: number; // карты легче этого весят столько (Железная дисциплина: вес 0 → 1)
+  enemyHaste?: number; // враги начинают бой с Ускорением (Натиск)
 }
 
 export type RarityWeights = Record<"common" | "uncommon" | "rare", number>;
@@ -436,6 +439,8 @@ export interface Combat {
   brewChoices: BrewChoice[];
   launchGains: boolean; // во время розыгрыша пришли карты или вместимость: может быть пауза
   frozenCells: number[]; // замороженные клетки дорожки героя в этом ходу: в них нельзя ставить
+  blockedCells?: number[]; // клетки, закрытые особенностью акта каждый ход
+  minCardWeight?: number; // особенность акта: карты легче этого весят столько
   acting?: string; // чьё действие сейчас идёт: «lane:3», «prep:5», «enemy:skeleton-0:1», «tact». Попадает в события как by
   hero: HeroUnit;
   enemies: EnemyUnit[];

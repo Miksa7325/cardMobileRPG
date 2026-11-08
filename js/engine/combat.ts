@@ -59,11 +59,15 @@ export interface CombatSetup {
   heroStatuses?: Statuses;
   extraPassives?: Power[];
   potionPool?: string[];
+  blockedCells?: number[]; // особенность акта: клетки героя, закрытые каждый ход
+  minCardWeight?: number; // особенность акта: карты легче этого весят столько
+  enemyHaste?: number; // особенность акта: враги начинают бой с Ускорением
 }
 
 export function createCombat({
   heroId, enemyIds, seed, hp, maxHp, deck, relics = [], potions = [], enemyHpMultiplier = 1, enemyStrength = 0, enemyBlock = 0,
-  enemyRamp = 0, heroStatuses = {}, extraPassives = [], potionPool = Object.keys(POTIONS),
+  enemyRamp = 0, heroStatuses = {}, extraPassives = [], potionPool = Object.keys(POTIONS), blockedCells = [], minCardWeight = 0,
+  enemyHaste = 0,
 }: CombatSetup): Combat {
   const rng = createRng(seed);
   const heroData = HEROES[heroId];
@@ -86,6 +90,8 @@ export function createCombat({
     brewChoices: [],
     launchGains: false,
     frozenCells: [],
+    blockedCells: [...blockedCells],
+    minCardWeight,
     hero: {
       heroId,
       hp: hp ?? heroData.maxHp,
@@ -98,7 +104,11 @@ export function createCombat({
       passives: [...(heroData.mechanic?.passives ?? []), ...extraPassives],
       damageReduction: heroData.mechanic.damageReduction ?? 0,
     },
-    enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng, enemyHpMultiplier, enemyStrength, enemyBlock)),
+    enemies: enemyIds.map((enemyId, index) => {
+      const enemy = createEnemy(enemyId, index, rng, enemyHpMultiplier, enemyStrength, enemyBlock);
+      if (enemyHaste > 0) enemy.statuses.haste = enemyHaste;
+      return enemy;
+    }),
     piles: createPiles(deck ?? startingDeck, rng),
     relics: [...relics],
     relicCounters: {}, // счётчики реликвий «каждый N-й раз»
@@ -361,7 +371,8 @@ function checkPhases(combat: Combat): void {
 
 // Король-лич: в начале хода замораживает случайную клетку дорожки героя
 function freezeCells(combat: Combat): void {
-  combat.frozenCells = [];
+  // Клетки, закрытые особенностью акта (Трясина, Иней), закрыты каждый ход; Король-лич замораживает ещё одну
+  combat.frozenCells = [...(combat.blockedCells ?? [])];
   for (const enemy of aliveEnemies(combat)) {
     if (!ENEMIES[enemy.enemyId].freezeCell) continue;
     const free = [1, 2, 3, 4, 5, 6].filter((cell) => !combat.frozenCells.includes(cell));
@@ -374,8 +385,11 @@ function freezeCells(combat: Combat): void {
 // ---------- Планирование ----------
 
 // Вес карты на шкале — её старая стоимость. null — карту нельзя разыграть (Рана)
-export function cardWeight(instance: CardInstance): number | null {
-  return getCardData(instance).cost;
+// Вес карты в этом бою. Особенность акта может поднять вес лёгких карт (Железная дисциплина: вес 0 → 1)
+export function cardWeight(instance: CardInstance, combat?: Combat): number | null {
+  const cost = getCardData(instance).cost;
+  if (cost === null || !combat?.minCardWeight) return cost;
+  return Math.max(cost, combat.minCardWeight);
 }
 
 function potionWeight(combat: Combat): number {
@@ -454,7 +468,7 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   if (combat.status !== "planning") return fail("notPlanning");
   const instance = combat.piles.hand.find((card) => card.uid === uid);
   if (!instance) return fail("cardNotInHand");
-  const weight = cardWeight(instance);
+  const weight = cardWeight(instance, combat);
   if (weight === null) return fail("cannotPlay");
   const card = getCardData(instance);
   const targetError = checkTarget(combat, card.target, targetId);
@@ -603,7 +617,7 @@ export function findFreeStart(combat: Combat, weight: number): number | null {
 // Можно ли ещё что-то поставить: есть карта, для которой найдётся место
 function canPlaceSomething(combat: Combat): boolean {
   return combat.piles.hand.some((card) => {
-    const weight = cardWeight(card);
+    const weight = cardWeight(card, combat);
     return weight !== null && findFreeStart(combat, weight) !== null;
   });
 }
@@ -1046,7 +1060,7 @@ export function getEnemyIntent(combat: Combat, enemy: EnemyUnit): EnemyIntent & 
 
 // Можно ли поставить карту хоть куда-нибудь
 export function canPlayCard(combat: Combat, instance: CardInstance): boolean {
-  const weight = cardWeight(instance);
+  const weight = cardWeight(instance, combat);
   return combat.status === "planning" && weight !== null && findFreeStart(combat, weight) !== null;
 }
 
@@ -1054,7 +1068,7 @@ export function canPlayCard(combat: Combat, instance: CardInstance): boolean {
 export function playCard(combat: Combat, uid: number, targetId?: string | null): ActionResult {
   const instance = combat.piles.hand.find((card) => card.uid === uid);
   if (!instance) return fail("cardNotInHand");
-  const weight = cardWeight(instance);
+  const weight = cardWeight(instance, combat);
   const start = weight === null ? null : findFreeStart(combat, weight);
   if (start === null) return fail("cannotPlay");
   return placeCard(combat, uid, start, targetId ?? null);

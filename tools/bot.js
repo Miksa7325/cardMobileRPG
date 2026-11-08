@@ -65,7 +65,7 @@ function listActions(combat) {
   const targetsFor = (target) => (target === "enemy" ? alive.map((enemy) => enemy.instanceId) : [null]);
 
   for (const instance of combat.piles.hand) {
-    const weight = cardWeight(instance);
+    const weight = cardWeight(instance, combat);
     if (weight === null) continue;
     const card = getCardData(instance);
     const start = weight === 0 ? end : end + 1;
@@ -107,8 +107,8 @@ function cloneCombat(combat) {
 
 // В руке остаются 2 самые тяжёлые карты, которые не поставлены: их проще всего разыграть потом
 function chooseKeep(combat) {
-  const playable = combat.piles.hand.filter((card) => cardWeight(card) !== null);
-  playable.sort((a, b) => cardWeight(b) - cardWeight(a));
+  const playable = combat.piles.hand.filter((card) => cardWeight(card, combat) !== null);
+  playable.sort((a, b) => cardWeight(b, combat) - cardWeight(a, combat));
   setKeep(combat, playable.slice(0, CONFIG.timeline.keepInHand).map((card) => card.uid));
 }
 

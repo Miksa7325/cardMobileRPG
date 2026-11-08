@@ -1,9 +1,10 @@
 // Автотесты приёмов врагов: Сокрушение и Починка, фазы боссов, призыв, вампиризм, скрытые ходы, замороженная клетка.
 // Запуск: npm test
 import { describe, expect, it } from "vitest";
-import { createCombat, getEnemyLane, launch, placeCard } from "../js/engine/combat.ts";
+import { cardWeight, createCombat, getEnemyLane, launch, placeCard } from "../js/engine/combat.ts";
+import { ENEMIES } from "../js/data/enemies.ts";
 import { executeEffects } from "../js/engine/effects.ts";
-import { deckOf, quiet, setLane } from "./helpers.ts";
+import { deckOf, fight, quiet, setLane } from "./helpers.ts";
 
 const fightWith = (enemyId: string) => createCombat({ heroId: "mage", enemyIds: [enemyId], seed: 3, deck: deckOf("m_barrier") });
 
@@ -73,5 +74,30 @@ describe("Король-лич", () => {
     expect(combat.frozenCells).toHaveLength(1);
     const cell = combat.frozenCells[0];
     expect(placeCard(combat, combat.piles.hand[0].uid, cell)).toEqual({ ok: false, reason: "frozen" });
+  });
+});
+
+describe("Особенности шкалы актов 4–10", () => {
+  it("Трясина: шестая клетка героя закрыта каждый ход", () => {
+    const combat = fight({ blockedCells: [6] });
+    expect(combat.frozenCells).toContain(6);
+    expect(placeCard(combat, combat.piles.hand[0].uid, 6, combat.enemies[0].instanceId)).toEqual({ ok: false, reason: "frozen" });
+  });
+  it("Железная дисциплина: карта весом 0 весит 1", () => {
+    const combat = fight({ deck: deckOf("tourniquet"), minCardWeight: 1 });
+    expect(cardWeight(combat.piles.hand[0], combat)).toBe(1);
+    expect(cardWeight(combat.piles.hand[0])).toBe(0);
+  });
+  it("Натиск: враги начинают бой с Ускорением", () => {
+    expect(fight({ enemyHaste: 1 }).enemies[0].statuses.haste).toBe(1);
+  });
+});
+
+describe("Акт 4", () => {
+  it("Грибник и Матерь топей зовут пиявок: Матерь — до двух", () => {
+    const mother = createCombat({ heroId: "warrior", enemyIds: ["bog_mother"], seed: 1 });
+    const call = ENEMIES.bog_mother.moves.call.effects[0];
+    expect(call).toMatchObject({ type: "summon", enemyId: "bog_leech", max: 2 });
+    expect(mother.enemies).toHaveLength(1);
   });
 });

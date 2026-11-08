@@ -8,8 +8,20 @@ export function heroSprite(heroId) {
   return `assets/images/units/${HEROES[heroId]?.sprite ?? `hero-${heroId}`}.png`;
 }
 
+// Новые враги актов 4–10 пока без своих рисунков: берут рисунок похожего врага (финальные — на этапе 9)
+const STAND_IN_SPRITES = {
+  bog_leech: "spider",
+  toad: "gargoyle",
+  drowned: "ghoul",
+  myconid: "cultist",
+  bog_hag: "acolyte",
+  hydra: "demon",
+  mire_golem: "golem",
+  bog_mother: "witch_queen",
+};
+
 export function enemySprite(enemyId) {
-  return `assets/images/units/enemy-${enemyId}.png`;
+  return `assets/images/units/enemy-${STAND_IN_SPRITES[enemyId] ?? enemyId}.png`;
 }
 
 // Окраска героя из лавки красок: одна и та же в городе, в доме героев, в коллекции и в бою
@@ -50,6 +62,11 @@ export const ATTACK_STYLES = {
   blood_priest: { kind: "magic", color: "#ff5a5a" },
   acolyte: { kind: "magic", color: "#8ce0c4" },
   lich_king: { kind: "magic", color: "#7dd3ff" },
+  bog_leech: { kind: "claw" },
+  toad: { kind: "claw" },
+  hydra: { kind: "claw" },
+  bog_hag: { kind: "magic", color: "#9be35a" },
+  bog_mother: { kind: "magic", color: "#7fc94a" },
 };
 
 // Как двигается модель в покое. Кого нет в таблице, тот просто дышит
@@ -63,6 +80,10 @@ export const IDLE_STYLES = {
   bone_colossus: "heavy",
   grave_hound: "pant",
   hellhound: "pant",
+  bog_leech: "scuttle",
+  drowned: "float",
+  mire_golem: "heavy",
+  hydra: "heavy",
 };
 
 export const LOGO_ART = `<svg viewBox="0 0 512 512" aria-hidden="true"><g transform="rotate(-10 256 256)"><rect x="146" y="106" width="220" height="300" rx="22" fill="#5e2626" stroke="#e0b84c" stroke-width="12"/><g transform="rotate(45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g><g transform="rotate(-45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g></g></svg>`;
