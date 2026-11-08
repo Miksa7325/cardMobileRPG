@@ -242,13 +242,6 @@ export function travelTo(run: Run, nodeId: string | null): { ok: true; event: bo
   return { ok: true, event };
 }
 
-// Сколько золота из казны стоит вернуться в подземелье. Из начальной комнаты акта — бесплатно,
-// из комнаты сохранения — плата растёт с актом
-export function getReturnPrice(run: Run): number {
-  if (!run.currentNodeId || getCurrentNode(run).type !== "save") return 0;
-  return CONFIG.returnPrice.base + CONFIG.returnPrice.perAct * run.act;
-}
-
 // Светлячки из банки освещают одну неизведанную соседнюю комнату: видно, что там, хотя герой туда не ходил.
 // После этого банка пуста до следующего отдыха или комнаты сохранения. Возвращает false, если светить нечего или нечем
 export function releaseFireflies(run: Run, nodeId: string | null): boolean {
@@ -677,8 +670,8 @@ export function restHeal(run: Run): void {
   run.hp += getRestHealAmount(run);
 }
 
-// В городе герой отдыхает и полностью залечивает раны. Без конца этим не воспользоваться:
-// вернуться в подземелье из комнаты сохранения стоит золота (getReturnPrice). Возвращает, сколько HP вылечено
+// В городе герой отдыхает и полностью залечивает раны: подняться в город можно только из 2–3 комнат сохранения
+// на акт. Возвращает, сколько HP вылечено
 export function healInCity(run: Run): number {
   const healed = run.maxHp - run.hp;
   run.hp = run.maxHp;

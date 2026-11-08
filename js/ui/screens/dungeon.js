@@ -5,7 +5,7 @@ import { CONFIG } from "../../config.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { getEventData, startEvent, startTravelEvent } from "../../engine/events.ts";
 import {
-  bankLoot, countReadyQuests, getHeroEquipment, getLockedContent, isHeroDead, keepEquipment, mergeSeen, payForActStart, takeSupplies,
+  bankLoot, canStartAct, countReadyQuests, getHeroEquipment, getLockedContent, isHeroDead, keepEquipment, mergeSeen, takeSupplies,
 } from "../../engine/meta.ts";
 import {
   canReturnToCity, createRun, enterNode, getAct, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId, getStepCost,
@@ -31,14 +31,14 @@ const WALK_ANIMATIONS = 2.4; // шаг в туннель длится столь
 // Сложенная карта для кнопки карты: три листа и пунктир пути с крестиком
 const MAP_ICON = `<svg class="map-button__icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 8l8-3 10 3 8-3v19l-8 3-10-3-8 3z" fill="#e8d3a2" stroke="#5a3d1e" stroke-width="2" stroke-linejoin="round"/><path d="M11 5v19M21 8v19" stroke="#5a3d1e" stroke-width="1.5" opacity=".55"/><path d="M6 21c3-1 4-6 8-6s4 4 9-1" fill="none" stroke="#8a2a1e" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M22 10l3 3m0-3-3 3" stroke="#b0281a" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-// Запускает новый забег с начала акта: первый бесплатно, остальные за золото из казны. Комнаты каждый раз новые.
+// Запускает новый забег с начала акта: с любого, до которого герой уже доходил. Вход бесплатный, комнаты каждый раз новые.
 // Время как seed задаём здесь: в логике случайность только через rng.js.
 // Герой берёт своё снаряжение с прошлых забегов и припасы, купленные у торговца: из казны они уходят.
 // Если идёт другой забег, он заканчивается: его герой возвращается домой со всем, что у него есть.
-// Возвращает false, если герой погиб или не хватило золота
+// Возвращает false, если герой погиб или этот акт ему ещё не открыт
 export function startNewRun(heroId, startAct = 1) {
   const meta = loadMeta();
-  if (isHeroDead(meta, heroId) || !payForActStart(meta, startAct)) return false;
+  if (isHeroDead(meta, heroId) || !canStartAct(meta, heroId, startAct)) return false;
   const previous = loadRun();
   if (previous) {
     bankLoot(meta, previous);

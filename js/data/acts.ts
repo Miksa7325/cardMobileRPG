@@ -14,7 +14,6 @@
 // enemyStrength акта — Сила всех его врагов: поздние акты собраны из знакомых врагов, и без неё они били бы слабо
 // rewards: essences — множитель эссенций за бои, rarityWeights — шансы редкости карт в наградах,
 //   relics — какой редкости реликвии у элит и в сундуках, potionChance — шанс зелья после боя.
-// startPrice — сколько золота из казны стоит начать забег с этого акта: так можно не проходить уже пройденные
 import type { ActData } from "../types.ts";
 export const ACTS: ActData[] = [
   {
@@ -34,7 +33,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 0.92,
     enemyStrength: 0,
     rewards: { essences: 1, rarityWeights: { common: 60, uncommon: 30, rare: 10 }, relics: ["common", "uncommon"], potionChance: 0.4 },
-    startPrice: 0,
   },
   {
     name: "Затопленный склеп",
@@ -53,7 +51,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.15,
     enemyStrength: 2,
     rewards: { essences: 1.4, rarityWeights: { common: 50, uncommon: 35, rare: 15 }, relics: ["common", "uncommon"], potionChance: 0.45 },
-    startPrice: 20,
   },
   {
     name: "Логово нежити",
@@ -72,7 +69,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.1,
     enemyStrength: 2,
     rewards: { essences: 1.8, rarityWeights: { common: 40, uncommon: 40, rare: 20 }, relics: ["uncommon"], potionChance: 0.5 },
-    startPrice: 40,
   },
   {
     name: "Ядовитые топи",
@@ -91,7 +87,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.35,
     enemyStrength: 2,
     rewards: { essences: 2.3, rarityWeights: { common: 30, uncommon: 42, rare: 28 }, relics: ["uncommon"], potionChance: 0.55 },
-    startPrice: 60,
   },
   {
     name: "Цитадель тьмы",
@@ -110,7 +105,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.1,
     enemyStrength: 2,
     rewards: { essences: 2.8, rarityWeights: { common: 20, uncommon: 45, rare: 35 }, relics: ["uncommon", "boss"], potionChance: 0.6 },
-    startPrice: 90,
   },
   {
     name: "Безлунные пещеры",
@@ -129,7 +123,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.95,
     enemyStrength: 2,
     rewards: { essences: 3.3, rarityWeights: { common: 20, uncommon: 45, rare: 35 }, relics: ["uncommon", "boss"], potionChance: 0.6 },
-    startPrice: 120,
   },
   {
     name: "Кузня демонов",
@@ -152,7 +145,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.5,
     enemyStrength: 4,
     rewards: { essences: 3.8, rarityWeights: { common: 18, uncommon: 45, rare: 37 }, relics: ["uncommon", "boss"], potionChance: 0.62 },
-    startPrice: 150,
   },
   {
     name: "Чумной некрополь",
@@ -171,7 +163,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 0.9,
     enemyStrength: 4,
     rewards: { essences: 4.4, rarityWeights: { common: 15, uncommon: 45, rare: 40 }, relics: ["uncommon", "boss"], potionChance: 0.65 },
-    startPrice: 190,
   },
   {
     name: "Легион мёртвых",
@@ -190,7 +181,6 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.65,
     enemyStrength: 4,
     rewards: { essences: 5, rarityWeights: { common: 12, uncommon: 43, rare: 45 }, relics: ["uncommon", "boss"], potionChance: 0.68 },
-    startPrice: 240,
   },
   {
     name: "Сердце бездны",
@@ -209,6 +199,5 @@ export const ACTS: ActData[] = [
     bossHpMultiplier: 1.25,
     enemyStrength: 4,
     rewards: { essences: 5.8, rarityWeights: { common: 10, uncommon: 40, rare: 50 }, relics: ["uncommon", "boss"], potionChance: 0.7 },
-    startPrice: 290,
   },
 ];

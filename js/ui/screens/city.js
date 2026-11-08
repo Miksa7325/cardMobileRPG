@@ -11,9 +11,9 @@ import { HEROES } from "../../data/heroes.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import {
   bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getHeroEquipment, getStartableActs, getTraderGoods,
-  isHeroDead, payForReturn, selectHero, throwWishCoin,
+  isHeroDead, selectHero, throwWishCoin,
 } from "../../engine/meta.ts";
-import { canReturnToCity, getCurrentFloor, getReturnPrice, healInCity } from "../../engine/run.ts";
+import { canReturnToCity, getCurrentFloor, healInCity } from "../../engine/run.ts";
 import { isBuilt } from "../../engine/town.ts";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
@@ -392,7 +392,7 @@ function openGate() {
     const name = HEROES[meta.selectedHero].name;
     dialog.append(el("p", "quests__hint", run ? TEXTS.city.newRunOverRun(name) : TEXTS.city.gateHero(name)));
     const list = el("div", "quest-dialog__list");
-    for (const act of getStartableActs(meta)) list.append(createActChoice(meta, act, run !== null));
+    for (const act of getStartableActs(meta, meta.selectedHero)) list.append(createActChoice(meta, act, run !== null));
     dialog.append(list);
   }
   dialog.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
@@ -401,24 +401,12 @@ function openGate() {
   document.getElementById("app").append(overlay);
 }
 
-// Продолжить забег. Из комнаты сохранения в подземелье пускают за золото из казны, из начальной комнаты акта — даром
+// Продолжить забег: вернуться в подземелье можно бесплатно
 function createContinueChoice(meta, run) {
-  const price = getReturnPrice(run);
-  if (price === 0) return [createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run))];
-  const button = createButton(TEXTS.city.returnRun(price), "button--large", () => {
-    if (!payForReturn(meta, price)) {
-      shakeCard(button);
-      showTooltip(TEXTS.trader.notEnoughGold);
-      return;
-    }
-    if (!saveMeta(meta)) showTooltip(TEXTS.saveFailed);
-    continueRun(run);
-  });
-  button.disabled = meta.gold < price;
-  return [el("p", "quests__hint", TEXTS.city.returnHint), button];
+  return [createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run))];
 }
 
-// Начало акта: его название, особенность и цена. Если забег уже идёт, новый его закончит — просим нажать дважды
+// Начало акта: его название и особенность. Вход бесплатный. Если забег уже идёт, новый его закончит — просим нажать дважды
 function createActChoice(meta, act, replacesRun) {
   const row = el("div", "quest");
   row.append(
@@ -426,19 +414,14 @@ function createActChoice(meta, act, replacesRun) {
     el("div", "quest__description", TEXTS.city.actMechanic(act.mechanic.name, act.mechanic.text)),
   );
   let confirmed = !replacesRun;
-  const price = act.startPrice > 0 ? TEXTS.city.actPrice(act.startPrice) : TEXTS.city.actFree;
-  const button = createButton(price, "", () => {
+  const button = createButton(TEXTS.city.actStart, "", () => {
     if (!confirmed) {
       confirmed = true;
       button.textContent = TEXTS.confirmNewRun;
       return;
     }
-    if (!startNewRun(meta.selectedHero, act.number)) {
-      shakeCard(button);
-      showTooltip(TEXTS.trader.notEnoughGold);
-    }
+    if (!startNewRun(meta.selectedHero, act.number)) shakeCard(button);
   });
-  button.disabled = meta.gold < act.startPrice;
   const actions = el("div", "quest__row");
   actions.append(button);
   row.append(actions);

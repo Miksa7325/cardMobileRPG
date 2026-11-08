@@ -254,7 +254,6 @@ export interface ActData {
   bossHpMultiplier?: number;
   enemyStrength: number;
   rewards: { essences: number; rarityWeights: RarityWeights; relics: RelicRarity[]; potionChance: number };
-  startPrice: number;
 }
 
 export interface EventChoice {
@@ -599,6 +598,7 @@ export interface Supplies {
 export interface HeroRecord {
   dead: boolean;
   equipment?: Equipment;
+  bestAct?: number; // самый дальний акт, куда доходил герой: с начала любого из них он может начать забег
 }
 
 export interface Meta {
@@ -614,7 +614,6 @@ export interface Meta {
   runsPlayed: number;
   wins: number;
   bestFloor: number;
-  bestAct: number;
   heroStats: Partial<Record<HeroId, { runs: number; wins: number }>>;
   seen: SeenLists;
   tutorialDone: boolean;

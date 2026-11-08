@@ -73,3 +73,18 @@ describe("Тайник", () => {
     expect(run.shards).toBe(offer.shards);
   });
 });
+
+describe("Вход в подземелье и открытые акты", () => {
+  it("акты открываются у каждого героя свои, вход бесплатный", async () => {
+    const { applyRunToMeta, canStartAct, createMeta, getStartableActs } = await import("../js/engine/meta.ts");
+    const meta = createMeta();
+    const run = createRun({ heroId: "warrior", seed: 1 });
+    run.act = 3;
+    run.status = "won";
+    applyRunToMeta(meta, run, 0);
+    expect(getStartableActs(meta, "warrior")).toHaveLength(3);
+    expect(getStartableActs(meta, "mage")).toHaveLength(1);
+    expect(canStartAct(meta, "warrior", 3)).toBe(true);
+    expect(canStartAct(meta, "mage", 2)).toBe(false);
+  });
+});

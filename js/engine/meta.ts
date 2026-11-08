@@ -26,7 +26,6 @@ export function createMeta(): Meta {
     runsPlayed: 0,
     wins: 0,
     bestFloor: 0, // самый дальний этаж за все забеги, считая этажи всех актов
-    bestAct: 1, // самый дальний акт, куда доходил герой: с начала любого из них можно начать забег
     heroStats: {}, // { warrior: { runs: 3, wins: 1 } }
     seen: { cards: [], enemies: [], relics: [], potions: [] }, // коллекция: всё, что игрок встретил
     tutorialDone: false, // пройдено ли обучение в первом бою
@@ -96,7 +95,7 @@ export function getAliveHeroIds(meta: Meta): HeroId[] {
 
 // Герой вернулся из подземелья живым: всё, что при нём, остаётся у него до следующего забега
 export function keepEquipment(meta: Meta, run: Run): void {
-  meta.heroes[run.heroId] = { dead: false, equipment: getEquipment(run) };
+  meta.heroes[run.heroId] = { ...meta.heroes[run.heroId], dead: false, equipment: getEquipment(run) };
 }
 
 // Герой погиб навсегда: снаряжение пропадает вместе с ним. Если он был выбран, выбираем первого живого
@@ -115,34 +114,25 @@ export function exchangeEssences(meta: Meta): number {
   return gold;
 }
 
-// Запоминает, что герой дошёл до этого акта
-function reachAct(meta: Meta, act: number): void {
-  meta.bestAct = Math.max(meta.bestAct, act);
+// Запоминает, что герой дошёл до этого акта (победил босса предыдущего). Открытые акты у каждого героя свои:
+// нанятый вместо павшего начинает с 1 акта
+function reachAct(meta: Meta, heroId: HeroId, act: number): void {
+  const record = (meta.heroes[heroId] ??= { dead: false });
+  record.bestAct = Math.max(record.bestAct ?? 1, act);
 }
 
-// С каких актов можно начать забег: с первого и со всех, до которых уже доходил
-export function getStartableActs(meta: Meta): (ActData & { number: number })[] {
-  return ACTS.slice(0, meta.bestAct).map((act, index) => ({ number: index + 1, ...act }));
+// С каких актов герой может начать забег: с первого и со всех, до которых он уже доходил. Вход бесплатный
+export function getStartableActs(meta: Meta, heroId: HeroId): (ActData & { number: number })[] {
+  return ACTS.slice(0, meta.heroes[heroId]?.bestAct ?? 1).map((act, index) => ({ number: index + 1, ...act }));
 }
 
-// Начало забега с акта: первый бесплатно, остальные за золото из казны. Возвращает false, если нельзя или не хватает
-// Возвращение в подземелье через комнату сохранения стоит золота из казны. Возвращает false, если не хватает
-export function payForReturn(meta: Meta, price: number): boolean {
-  if (meta.gold < price) return false;
-  meta.gold -= price;
-  return true;
-}
-
-export function payForActStart(meta: Meta, actNumber: number): boolean {
-  const act = ACTS[actNumber - 1];
-  if (!act || actNumber > meta.bestAct || meta.gold < act.startPrice) return false;
-  meta.gold -= act.startPrice;
-  return true;
+export function canStartAct(meta: Meta, heroId: HeroId, actNumber: number): boolean {
+  return actNumber >= 1 && actNumber <= getStartableActs(meta, heroId).length;
 }
 
 // Сдаёт в казну добычу, которую герой несёт из подземелья. Возвращает, сколько сдано
 export function bankLoot(meta: Meta, run: Run): { gold: number; essences: number; shards: number } {
-  reachAct(meta, run.act);
+  reachAct(meta, run.heroId, run.act);
   const loot = { gold: run.gold, essences: run.essences, shards: run.shards };
   meta.gold += run.gold;
   meta.essences += run.essences;
@@ -254,7 +244,7 @@ export function mergeSeen(meta: Meta, run: Run): void {
 export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
   const died = run.status === "lost";
-  reachAct(meta, run.act);
+  reachAct(meta, run.heroId, run.act);
   // Погибший теряет всё несданное: и золото, и эссенции, и Осколки
   const loot = died ? { gold: 0, essences: 0, shards: 0 } : bankLoot(meta, run);
   if (died) buryHero(meta, run.heroId);
