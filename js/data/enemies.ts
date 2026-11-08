@@ -407,4 +407,98 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["fog", "lash", "call", "absorb"],
     phases: [{ below: 0.5, pattern: ["fog", "thirstLash", "call", "thirstLash"] }],
   },
+
+  // Акт 5 «Цитадель тьмы»: обычные
+  citadel_guard: {
+    id: "citadel_guard",
+    name: "Страж цитадели",
+    hp: [50, 56],
+    // Медленный и бронированный
+    moves: { shield: guard(14, { w: 2, repair: 1 }), halberd: attack(16, 1, { w: 4, sunder: 1 }) },
+    pattern: ["shield", "halberd"],
+  },
+  crossbowman: {
+    id: "crossbowman",
+    name: "Тёмный арбалетчик",
+    hp: [34, 38],
+    // Скрытный: не видно, когда выстрелит
+    moves: { aim: debuff({ vulnerable: 1 }, 0, { w: 1 }), bolt: attack(12, 1, { w: 3, hidden: true }) },
+    pattern: ["aim", "bolt"],
+  },
+  inquisitor: {
+    id: "inquisitor",
+    name: "Инквизитор",
+    hp: [46, 52],
+    // Прерыватель
+    moves: {
+      interrogate: debuff({ stun: 1 }, 0, { w: 2 }),
+      brand: debuff({ burning: 5 }, 0, { w: 2 }),
+      whip: attack(6, 2, { w: 2 }),
+    },
+    pattern: ["brand", "whip", "interrogate"],
+  },
+  shadow_hound: {
+    id: "shadow_hound",
+    name: "Теневой пёс",
+    hp: [30, 34],
+    // Быстрый: 6 ходов за шкалу
+    moves: { bite: attack(3, 2, { w: 1 }), howl: buff(2, 0, { w: 1 }) },
+    pattern: ["bite", "bite", "howl"],
+  },
+  dark_mage: {
+    id: "dark_mage",
+    name: "Тёмный маг",
+    hp: [36, 40],
+    // Ослабляет и прячется
+    moves: {
+      curse: debuff({ weak: 2, vulnerable: 1 }, 0, { w: 2 }),
+      bolt: attack(9, 1, { w: 2 }),
+      ward: guard(10, { w: 2, repair: 1 }),
+    },
+    pattern: ["curse", "bolt", "ward"],
+  },
+
+  // Акт 5: элита
+  black_knight: {
+    id: "black_knight",
+    name: "Чёрный рыцарь",
+    hp: [140, 150],
+    // Тяжёлый: ломает броню и чинит свою
+    moves: {
+      charge: attack(7, 3, { w: 3 }),
+      smite: attack(22, 1, { w: 4, sunder: 2 }),
+      oath: buff(4, 16, { w: 2, repair: 2 }),
+    },
+    pattern: ["charge", "oath", "smite"],
+  },
+  dark_cardinal: {
+    id: "dark_cardinal",
+    name: "Тёмный кардинал",
+    hp: [110, 120],
+    // Прерыватель и скрытный
+    moves: {
+      anathema: debuff({ stun: 1 }, 1, { w: 2 }),
+      smite: attack(12, 2, { w: 3, hidden: true }),
+      prayer: buff(4, 20, { w: 2 }),
+    },
+    pattern: ["anathema", "smite", "prayer"],
+  },
+
+  // Акт 5: босс
+  citadel_lord: {
+    id: "citadel_lord",
+    name: "Владыка цитадели",
+    hp: [340, 340],
+    // Два приёма: зовёт Стражей (до двух), а на половине HP «Тёмный приказ» — удары скрытые
+    moves: {
+      command: summon("citadel_guard", { w: 2 }, 2),
+      sword: attack(18, 1, { w: 3, sunder: 2 }),
+      shadow: debuff({ weak: 2, vulnerable: 2 }, 0, { w: 2 }),
+      bastion: guard(24, { w: 2, repair: 3 }),
+      darkSword: attack(18, 1, { w: 3, sunder: 2, hidden: true }),
+      whirl: attack(7, 3, { w: 3, hidden: true }),
+    },
+    pattern: ["command", "sword", "shadow", "bastion"],
+    phases: [{ below: 0.5, pattern: ["darkSword", "whirl", "command", "bastion"] }],
+  },
 };
