@@ -29,7 +29,7 @@ import { POTIONS } from "../js/data/potions.ts";
 import { chooseEventOption, finishEvent, getEventData, startEvent } from "../js/engine/events.ts";
 import {
   completeReward, createNodeCombat, createRun, enterNode, finishCombat, getAvailableNodeIds, getCurrentNode, getUpgradableCards,
-  openChest, restHeal,
+  openCache, openChest, restHeal, takeFromCache,
 } from "../js/engine/run.ts";
 import { upgradeCard } from "../js/engine/deck.ts";
 import { applyStrengthScale, playCombat, setBeam } from "./bot.js";
@@ -56,7 +56,8 @@ function roomValue(type, hpShare) {
     case "rest": return hpShare < 0.55 ? 9 : 2;
     case "event": return 2;
     case "chest": return 5;
-    default: return 0; // лавка, комната сохранения
+    case "cache": return 3;
+    default: return 0; // комната сохранения
   }
 }
 
@@ -164,6 +165,9 @@ function playRun(heroId, seed) {
       rest(run);
     } else if (node.type === "event") {
       playEvent(run);
+    } else if (node.type === "cache") {
+      const offer = openCache(run);
+      takeFromCache(run, offer.potionId ? "potion" : "shards");
     } else if (node.type === "chest") {
       openChest(run);
       completeReward(run, null);

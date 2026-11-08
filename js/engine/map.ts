@@ -31,9 +31,26 @@ export function generateMap(rng: Rng, mechanic: ActMechanic = {}): DungeonMap {
   }
 
   assignNodeTypes(rng, nodes, rows, mechanic);
+  placeSaveRooms(rng, nodes, rows);
   addDeadEnds(rng, nodes, mechanic.deadEnds ?? CONFIG.map.deadEnds);
   placeBoss(rng, nodes, rows);
   return { nodes, rows };
+}
+
+// Комнаты сохранения: 2–3 на акт в случайных комнатах основных путей — не ниже saveMinFloor, не ближе saveGap этажей
+// друг к другу и каждая в своей колонке (на своём пути). Сундук и верхний отдых не трогаем
+function placeSaveRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][]): void {
+  const { saveRooms, saveMinFloor, saveGap, chestFloor, restFloor } = CONFIG.map;
+  const count = nextInt(rng, saveRooms[0], saveRooms[1]);
+  const candidates = rows.flat().map((id) => nodes[id])
+    .filter((node) => node.floor >= saveMinFloor && node.floor !== chestFloor && node.floor !== restFloor);
+  const chosen: MapNode[] = [];
+  while (chosen.length < count && candidates.length > 0) {
+    const node = candidates.splice(nextInt(rng, 0, candidates.length - 1), 1)[0];
+    const fits = chosen.every((other) => Math.abs(other.floor - node.floor) >= saveGap && other.column !== node.column);
+    if (fits) chosen.push(node);
+  }
+  for (const node of chosen) node.type = "save";
 }
 
 // Комната босса в каждом акте в случайном месте: туннель к ней отходит от случайной комнаты основных путей
@@ -132,20 +149,19 @@ function assignNodeTypes(rng: Rng, nodes: Record<string, MapNode>, rows: string[
 
 // В акте без передышки отдыха нет: верхний этаж отдыха становится событием
 function pickNodeType(rng: Rng, floor: number, parentNodes: MapNode[], mechanic: ActMechanic): NodeType {
-  const { chestFloor, saveFloors, restFloor, eliteMinFloor, nodeWeights } = CONFIG.map;
+  const { chestFloor, restFloor, eliteMinFloor, nodeWeights } = CONFIG.map;
   if (floor === 1) return "battle";
   if (floor === chestFloor) return "chest";
-  if (saveFloors.includes(floor)) return "save";
   if (floor === restFloor) return mechanic.noRest ? "event" : "rest";
 
   const weights: Partial<Record<NodeType, number>> = { ...nodeWeights };
   if (mechanic.noRest) delete weights.rest;
   if (floor < eliteMinFloor) delete weights.elite;
-  // Отдых и лавка не стоят два раза подряд на одном пути
+  // Отдых и Тайник не стоят два раза подряд на одном пути
   if (floor + 1 === restFloor) delete weights.rest;
   for (const parent of parentNodes) {
     if (parent.type === "rest") delete weights.rest;
-    if (parent.type === "shop") delete weights.shop;
+    if (parent.type === "cache") delete weights.cache;
   }
   return pickWeighted(rng, weights);
 }

@@ -19,7 +19,7 @@ export const NODE_ICONS = {
   battle: "⚔️",
   elite: "👹",
   event: "❓",
-  shop: "🛒",
+  cache: "🗝️",
   rest: "🔥",
   chest: "🎁",
   save: "🌀",
@@ -59,7 +59,22 @@ function createMapContent(run, onTravel) {
   const known = [startRoom(run), ...run.visitedNodeIds.map((id) => run.map.nodes[id])];
   content.append(createLines(run, known));
   for (const node of known) content.append(createNode(run, node, onTravel));
+  for (const node of hiddenSaveRooms(run)) content.append(createSaveHint(run, node));
   return content;
+}
+
+// С картой подземелья видно, где комнаты сохранения, даже если герой там не был. В Кромешной тьме — нет
+function hiddenSaveRooms(run) {
+  if (!run.hasMap || getAct(run).mechanic.noMap) return [];
+  return Object.values(run.map.nodes).filter((node) => node.type === "save" && !run.visitedNodeIds.includes(node.id));
+}
+
+function createSaveHint(run, node) {
+  const marker = el("div", "map-node map-node--hint", NODE_ICONS.save);
+  marker.style.left = `${getNodeX(node)}%`;
+  marker.style.top = `${getNodeY(run, node)}px`;
+  marker.setAttribute("aria-label", TEXTS.dungeon.nodes.save);
+  return marker;
 }
 
 // Колонку переводим в доли ширины: так карта тянется по экрану

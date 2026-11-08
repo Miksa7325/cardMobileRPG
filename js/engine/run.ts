@@ -10,7 +10,8 @@ import { canUpgradeFirstStep, upgradeCard } from "./deck.ts";
 import { generateMap } from "./map.ts";
 import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.ts";
 import type {
-  CardData, CardRarity, Combat, Effect, EffectOf, EffectType, Equipment, Gain, HeroId, MapNode, RelicData, RelicRarity, Reward, Rng, Run,
+  CacheOffer, CardData, CardRarity, Combat, Effect, EffectOf, EffectType, Equipment, Gain, HeroId, MapNode, RelicData, RelicRarity, Reward, Rng,
+  Run,
   SeenLists, Trigger,
 } from "../types.ts";
 
@@ -71,8 +72,8 @@ export function createRun({
     currentNodeId: null,
     visitedNodeIds: [], // пройденные комнаты акта: в них ничего не случается заново
     trail: [], // путь героя по акту от начальной комнаты: по нему он возвращается назад
-    shopRemovals: [], // лавки, в которых герой уже избавился от карты: в каждой только раз
     pendingReward: null,
+    pendingCache: null, // Тайник, из которого ещё ничего не взяли
     activeEvent: null, // событие на текущем узле, его создаёт engine/events.js
     seenEventIds: [], // какие события уже были в этом забеге
   };
@@ -584,6 +585,38 @@ export function openChest(run: Run): void {
   const rng = nodeRng(run, "chest");
   const shards = rollShards(run, rng, CONFIG.rewards.shards.chest, CONFIG.rewards.shards.chestChance);
   run.pendingReward = { essences: 0, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
+}
+
+// Тайник на текущем узле: на выбор зелье, Осколки мастерства или золото. Осколки и золото растут с актом.
+// Зелья нет, если сумка полна или зелий не осталось
+export function openCache(run: Run): CacheOffer {
+  const rng = nodeRng(run, "cache");
+  const scale = getAct(run).rewards.essences;
+  const pool = getPotionPool(run);
+  const offer: CacheOffer = {
+    potionId: canCarryPotion(run) && pool.length > 0 ? pickRandom(rng, pool) : null,
+    shards: Math.max(1, Math.round(CONFIG.rewards.cache.shards * scale)),
+    gold: Math.round(CONFIG.rewards.cache.gold * scale),
+  };
+  if (offer.potionId) markSeen(run, "potions", offer.potionId);
+  run.pendingCache = offer;
+  return offer;
+}
+
+// Берёт из Тайника одно. Возвращает false, если Тайника нет или выбранного в нём нет
+export function takeFromCache(run: Run, choice: "potion" | "shards" | "gold"): boolean {
+  const offer = run.pendingCache;
+  if (!offer) return false;
+  if (choice === "potion") {
+    if (!offer.potionId || !canCarryPotion(run)) return false;
+    run.potions.push(offer.potionId);
+  } else if (choice === "shards") {
+    run.shards += offer.shards;
+  } else {
+    run.gold += offer.gold;
+  }
+  run.pendingCache = null;
+  return true;
 }
 
 // Карты, которые можно получить в награду и купить: только карты своего героя и только открытые.

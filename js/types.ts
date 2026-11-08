@@ -465,7 +465,8 @@ export type ActionResult = { ok: true } | { ok: false; reason: string };
 
 // ---------- Забег ----------
 
-export type NodeType = "battle" | "elite" | "boss" | "event" | "rest" | "shop" | "chest" | "save" | "deadEnd";
+// cache — Тайник: без боя, награда на выбор (зелье, Осколки или золото)
+export type NodeType = "battle" | "elite" | "boss" | "event" | "rest" | "cache" | "chest" | "save" | "deadEnd";
 
 export interface MapNode {
   id: string;
@@ -485,6 +486,13 @@ export interface Gain {
   kind: string;
   id?: string;
   amount?: number;
+}
+
+// Что лежит в Тайнике: взять можно одно. potionId — null, если зелий нет или сумка полна
+export interface CacheOffer {
+  potionId: string | null;
+  shards: number;
+  gold: number;
 }
 
 export interface Reward {
@@ -558,8 +566,8 @@ export interface Run {
   currentNodeId: string | null;
   visitedNodeIds: string[];
   trail: string[];
-  shopRemovals: string[];
   pendingReward: Reward | null;
+  pendingCache?: CacheOffer | null; // Тайник, из которого герой ещё ничего не взял
   activeEvent: ActiveEvent | null;
   seenEventIds: string[];
   seenTravelEventIds?: string[];

@@ -137,7 +137,7 @@ function isValidRun(run: Untrusted): run is Run {
   if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics) || !Array.isArray(run.seen?.potions)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
   if (!Array.isArray(run.trail) || !run.trail.every((id: string) => run.map.nodes[id])) return false;
-  if (!Number.isFinite(run.essences) || !Number.isFinite(run.shards) || !Array.isArray(run.revealedNodeIds) || !Array.isArray(run.shopRemovals)) return false;
+  if (!Number.isFinite(run.essences) || !Number.isFinite(run.shards) || !Array.isArray(run.revealedNodeIds)) return false;
   if (run.savedCombat && !isValidCombat(run.savedCombat)) return false;
 
   return run.deck.every((card: RunCard) => CARDS[card.cardId])

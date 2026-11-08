@@ -614,6 +614,12 @@
   filter: none;
 }
 
+/* Комната сохранения, где герой ещё не был: видна с картой подземелья */
+.map-node--hint {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
 /* Куда ведут туннели: узел пульсирует */
 .map-node--available {
   border-color: var(--color-highlight);

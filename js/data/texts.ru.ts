@@ -432,7 +432,7 @@ export const TEXTS = {
     row: (floor: number, enemies: string, turns: number, hpBefore: number, hpAfter: number) => `Этаж ${floor}: ${enemies} — ходов ${turns}, HP ${hpBefore} → ${hpAfter}`,
     back: "Назад",
   },
-  mapLegend: "⚔️ бой · 👹 элита · ❓ событие · 🔥 отдых · 🛒 лавка · 🎁 сундук · 🌀 комната сохранения · 🧱 тупик · 💀 босс · 🚪 начальная комната. Видно только то, где ты был",
+  mapLegend: "⚔️ бой · 👹 элита · ❓ событие · 🔥 отдых · 🗝️ тайник · 🎁 сундук · 🌀 комната сохранения · 🧱 тупик · 💀 босс · 🚪 начальная комната. Видно только то, где ты был",
   itemDescription: (name: string, description: string) => `${name}: ${description}`,
   reward: {
     title: "Награда",
@@ -464,7 +464,7 @@ export const TEXTS = {
       battle: "Бой",
       elite: "Элита",
       event: "Неизвестность",
-      shop: "Лавка",
+      cache: "Тайник",
       rest: "Отдых",
       chest: "Сундук",
       save: "Комната сохранения",
@@ -481,7 +481,6 @@ export const TEXTS = {
     travelTo: (name: string) => `Перейти: ${name}`,
     traveled: "Герой быстро перешёл по знакомым коридорам",
     ambushed: "В пути что-то случилось…",
-    shopButton: "🛒 Лавка",
     fireflies: {
       button: "Светлячки",
       aim: "Нажми на проход: светлячки покажут, что за ним",
@@ -491,15 +490,13 @@ export const TEXTS = {
     },
     deadEndHint: "Дальше хода нет. Возвращайся проходом со стрелкой ↩ и выбери другой туннель",
   },
-  shop: {
-    title: "Лавка",
-    text: "Торговец из тьмы берёт только золото, которое ты несёшь. Сюда можно вернуться.",
-    map: (price: number) => `🗺️ Карта подземелья на этот акт — 💰 ${price}`,
-    mapOwned: "🗺️ Карта этого акта уже есть",
-    remove: (price: number) => `Избавиться от карты из колоды — 💰 ${price}`,
-    removeUsed: "От карты здесь уже избавлялись",
-    removeTitle: "Выбери карту, от которой избавиться",
-    leave: "Уйти",
+  cache: {
+    title: "Тайник",
+    text: "Под камнем в стене спрятан чей-то запас. Унести можно только одно.",
+    potion: (icon: string, name: string) => `${icon} ${name}`,
+    noPotion: "🧪 Зелье — сумка полна",
+    shards: (amount: number) => `💠 Осколки мастерства: ${amount}`,
+    gold: (amount: number) => `💰 Золото: ${amount}`,
   },
   saveRoom: {
     title: "Комната сохранения",

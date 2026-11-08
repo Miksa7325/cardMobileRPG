@@ -9,7 +9,7 @@ import {
 } from "../../engine/meta.ts";
 import {
   canReturnToCity, createRun, enterNode, getAct, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId, getStepCost,
-  isNodeCleared, isNodeRevealed, openChest, rechargeFireflies, releaseFireflies, travelTo,
+  isNodeCleared, isNodeRevealed, openCache, openChest, rechargeFireflies, releaseFireflies, travelTo,
 } from "../../engine/run.ts";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
@@ -82,6 +82,7 @@ export function continueRun(run) {
   if (run.pendingReward) showScreen("reward");
   else if (run.savedCombat) resumeCombat();
   else if (run.activeEvent) showScreen("event");
+  else if (run.pendingCache) showScreen("cache");
   else showScreen("dungeon");
 }
 
@@ -219,10 +220,12 @@ function createCorridor(run, { tunnels, descents, tunnelPlaces, hatchPlaces, pre
 }
 
 // Знак над проходом. Над новым его нет: что там, не видно. Над пройденным — что там было, с галочкой.
-// Над тем, откуда герой пришёл, — стрелка назад. Над освещённым светлячками — что там ждёт
+// Над тем, откуда герой пришёл, — стрелка назад. Над освещённым светлячками — что там ждёт.
+// С картой подземелья видно и комнату сохранения (кроме Кромешной тьмы)
 function createSign(run, node, previous, className) {
   if (node.id === previous) return el("span", `${className} ${className}--back`, `↩ ${NODE_ICONS[node.type]}`);
-  if (isNodeRevealed(run, node.id) && !isNodeCleared(run, node.id)) {
+  const mappedSave = node.type === "save" && run.hasMap && !getAct(run).mechanic.noMap;
+  if ((isNodeRevealed(run, node.id) || mappedSave) && !isNodeCleared(run, node.id)) {
     return el("span", `${className} ${className}--revealed`, `✨ ${NODE_ICONS[node.type]}`);
   }
   return isNodeCleared(run, node.id) ? el("span", className, NODE_ICONS[node.type]) : null;
@@ -297,7 +300,8 @@ function walkDown(corridor, index, spot, onArrive) {
 function describeTunnel(run, node, side, previous, sideNames) {
   if (node.id === previous) return TEXTS.dungeon.cameFrom(TEXTS.dungeon.nodes[node.type]);
   if (isNodeCleared(run, node.id)) return TEXTS.dungeon.cleared(`${NODE_ICONS[node.type]} ${TEXTS.dungeon.nodes[node.type]}`);
-  if (isNodeRevealed(run, node.id)) return `${sideNames[side]}: ${TEXTS.dungeon.nodes[node.type]}`;
+  const mappedSave = node.type === "save" && run.hasMap && !getAct(run).mechanic.noMap;
+  if (isNodeRevealed(run, node.id) || mappedSave) return `${sideNames[side]}: ${TEXTS.dungeon.nodes[node.type]}`;
   return sideNames[side];
 }
 
@@ -309,20 +313,11 @@ function createCorridorActions(run, meta, toggleAiming) {
   const dark = getAct(run).mechanic.noMap;
   if (run.fireflies && !dark) tools.append(createFirefliesButton(run, toggleAiming));
   if (run.hasMap && !dark) tools.append(createMapButton(run));
-  // Слева — выход в город, а в начальной комнате акта ещё и лавка
+  // Слева — выход в город
   const exits = el("div", "corridor__tools");
   if (canReturnToCity(run)) exits.append(createCityButton(meta));
-  if (!run.currentNodeId) exits.append(createShopButton());
   actions.append(exits, tools);
   return actions;
-}
-
-// Лавка в начальной комнате акта: карта подземелья и избавление от карты
-function createShopButton() {
-  const button = el("button", "corridor__city", TEXTS.dungeon.shopButton);
-  button.type = "button";
-  button.addEventListener("click", () => showScreen("shop"));
-  return button;
 }
 
 // Банка светлячков: полная светится, пустая тёмная до следующего отдыха или комнаты сохранения
@@ -375,8 +370,7 @@ function createCityButton(meta) {
   return button;
 }
 
-// Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там.
-// Только лавка открывается и в пройденной комнате: в неё возвращаются за картой подземелья
+// Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там
 function enterTunnel(run, nodeId) {
   const cleared = isNodeCleared(run, nodeId);
   const chill = getStepCost(run, nodeId);
@@ -389,10 +383,6 @@ function enterTunnel(run, nodeId) {
 
 // Показывает, что в комнате: бой, событие, отдых и так далее. В пройденной ничего не случается заново
 function showRoom(run, cleared) {
-  if (getCurrentNode(run)?.type === "shop") {
-    showScreen("shop");
-    return;
-  }
   // В начальной комнате узла нет, но она всегда пройдена: тип не нужен
   const type = cleared ? null : getCurrentNode(run).type;
   // На отдыхе и в комнате сохранения светлячки снова собираются в банку
@@ -403,6 +393,10 @@ function showRoom(run, cleared) {
     showScreen("rest");
   } else if (type === "save") {
     showScreen("saveRoom");
+  } else if (type === "cache") {
+    openCache(run);
+    saveRun(run);
+    showScreen("cache");
   } else if (type === "chest") {
     playSound("chest");
     openChest(run);
