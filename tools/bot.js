@@ -52,6 +52,17 @@ function laneEnd(combat) {
   return end;
 }
 
+// Первая клетка не раньше from, с которой карта такого веса ляжет мимо замёрзших клеток (Иней, Трясина, ледяная печать).
+// Если такой нет, возвращаем from: постановка не пройдёт, и бот это действие отбросит
+function freeStart(combat, from, weight) {
+  for (let start = from; start + weight - 1 <= CONFIG.timeline.cells; start++) {
+    let free = true;
+    for (let cell = start; cell < start + weight; cell++) if (combat.frozenCells.includes(cell)) free = false;
+    if (free) return start;
+  }
+  return from;
+}
+
 // Все действия, которые можно сделать прямо сейчас. Одинаковые карты (два Удара) — одно действие
 function listActions(combat) {
   // Алхимик сначала выбирает, какое из двух сваренных зелий взять
@@ -68,7 +79,7 @@ function listActions(combat) {
     const weight = cardWeight(instance, combat);
     if (weight === null) continue;
     const card = getCardData(instance);
-    const start = weight === 0 ? end : end + 1;
+    const start = weight === 0 ? end : freeStart(combat, end + 1, weight);
     for (const targetId of targetsFor(card.target)) {
       const key = `card:${instance.cardId}:${instance.level}:${targetId}`;
       if (seen.has(key)) continue;
@@ -86,7 +97,7 @@ function listActions(combat) {
       const key = `potion:${potionId}:${targetId}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      actions.push({ kind: "potion", index, start: weight === 0 ? end : end + 1, targetId });
+      actions.push({ kind: "potion", index, start: weight === 0 ? end : freeStart(combat, end + 1, weight), targetId });
     }
   });
   return actions;

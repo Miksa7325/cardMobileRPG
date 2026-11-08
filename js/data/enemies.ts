@@ -501,4 +501,100 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["command", "sword", "shadow", "bastion"],
     phases: [{ below: 0.5, pattern: ["darkSword", "whirl", "command", "bastion"] }],
   },
+
+  // Акт 6 «Безлунные пещеры»: обычные
+  cave_bat: {
+    id: "cave_bat",
+    name: "Пещерная мышь",
+    hp: [22, 26],
+    // Быстрая и скрытная
+    moves: { swoop: attack(3, 2, { w: 1, hidden: true }), screech: debuff({ weak: 1 }, 0, { w: 1 }) },
+    pattern: ["swoop", "swoop", "screech"],
+  },
+  blind_stalker: {
+    id: "blind_stalker",
+    name: "Слепой охотник",
+    hp: [44, 50],
+    // Скрытный: метит и бьёт из темноты
+    moves: {
+      track: debuff({ vulnerable: 2 }, 0, { w: 1 }),
+      ambush: attack(15, 1, { w: 3, hidden: true, sunder: 1 }),
+      lurk: guard(10, { w: 2 }),
+    },
+    pattern: ["track", "ambush", "lurk"],
+  },
+  frost_spirit: {
+    id: "frost_spirit",
+    name: "Ледяной дух",
+    hp: [38, 42],
+    // Замедляющий
+    moves: { chill: debuff({ slow: 2 }, 0, { w: 2 }), touch: attack(8, 1, { w: 2 }), rime: guard(12, { w: 2, repair: 1 }) },
+    pattern: ["chill", "touch", "rime"],
+  },
+  cave_troll: {
+    id: "cave_troll",
+    name: "Пещерный тролль",
+    hp: [70, 78],
+    // Медленный: один тяжёлый удар
+    moves: { club: attack(26, 1, { w: 5, sunder: 2 }), regrow: guard(14, { w: 2, repair: 2 }) },
+    pattern: ["regrow", "club"],
+  },
+  deep_worm: {
+    id: "deep_worm",
+    name: "Глубинный червь",
+    hp: [50, 56],
+    // Скрытный и бронированный
+    moves: {
+      burrow: guard(16, { w: 2 }),
+      erupt: attack(11, 2, { w: 3, hidden: true }),
+      acid: debuff({ vulnerable: 2 }, 0, { w: 2 }),
+    },
+    pattern: ["burrow", "erupt", "acid"],
+  },
+
+  // Акт 6: элита
+  frost_giant: {
+    id: "frost_giant",
+    name: "Ледяной великан",
+    hp: [150, 160],
+    // Ледяная печать: в начале каждого хода замораживает клетку героя
+    freezeCell: true,
+    moves: {
+      cold: debuff({ slow: 2, weak: 1 }, 0, { w: 2 }),
+      avalanche: attack(28, 1, { w: 5, sunder: 2 }),
+      ice: guard(20, { w: 2, repair: 2 }),
+    },
+    pattern: ["cold", "avalanche", "ice"],
+  },
+  broodmother: {
+    id: "broodmother",
+    name: "Матка теней",
+    hp: [120, 130],
+    // Призыватель и скрытная
+    moves: {
+      spawn: summon("cave_bat", { w: 2 }, 2),
+      bite: attack(9, 2, { w: 3, hidden: true }),
+      gloom: debuff({ weak: 2 }, 0, { w: 2 }),
+    },
+    pattern: ["spawn", "bite", "gloom"],
+  },
+
+  // Акт 6: босс
+  light_devourer: {
+    id: "light_devourer",
+    name: "Пожиратель света",
+    hp: [360, 360],
+    // Во тьме все удары скрытые; на половине HP «Голод»: зовёт мышей и лечится ударами
+    moves: {
+      dark: debuff({ weak: 2, vulnerable: 2 }, 0, { w: 2 }),
+      grasp: attack(20, 1, { w: 3, hidden: true, sunder: 2 }),
+      tendrils: attack(6, 4, { w: 3, hidden: true }),
+      condense: guard(24, { w: 2, repair: 3 }),
+      call: summon("cave_bat", { w: 2 }, 2),
+      hungryGrasp: attack(20, 1, { w: 3, hidden: true, sunder: 2, lifesteal: 0.5 }),
+      hungryTendrils: attack(6, 4, { w: 3, hidden: true, lifesteal: 0.5 }),
+    },
+    pattern: ["dark", "grasp", "tendrils", "condense"],
+    phases: [{ below: 0.5, pattern: ["call", "hungryGrasp", "hungryTendrils", "condense"] }],
+  },
 };

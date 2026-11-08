@@ -26,6 +26,14 @@ const STAND_IN_SPRITES = {
   black_knight: "death_knight",
   dark_cardinal: "blood_priest",
   citadel_lord: "fallen_knight",
+  cave_bat: "rat_swarm",
+  blind_stalker: "assassin",
+  frost_spirit: "wraith",
+  cave_troll: "golem",
+  deep_worm: "spider",
+  frost_giant: "bone_colossus",
+  broodmother: "spider",
+  light_devourer: "lich_king",
 };
 
 export function enemySprite(enemyId) {
@@ -78,6 +86,11 @@ export const ATTACK_STYLES = {
   shadow_hound: { kind: "claw" },
   dark_mage: { kind: "magic", color: "#b07dff" },
   dark_cardinal: { kind: "magic", color: "#ff7d7d" },
+  cave_bat: { kind: "claw" },
+  deep_worm: { kind: "claw" },
+  broodmother: { kind: "claw" },
+  frost_spirit: { kind: "magic", color: "#bfeaff" },
+  light_devourer: { kind: "magic", color: "#5a3d8a" },
 };
 
 // Как двигается модель в покое. Кого нет в таблице, тот просто дышит
@@ -97,6 +110,11 @@ export const IDLE_STYLES = {
   hydra: "heavy",
   shadow_hound: "pant",
   black_knight: "heavy",
+  cave_bat: "float",
+  frost_spirit: "float",
+  cave_troll: "heavy",
+  frost_giant: "heavy",
+  deep_worm: "scuttle",
 };
 
 export const LOGO_ART = `<svg viewBox="0 0 512 512" aria-hidden="true"><g transform="rotate(-10 256 256)"><rect x="146" y="106" width="220" height="300" rx="22" fill="#5e2626" stroke="#e0b84c" stroke-width="12"/><g transform="rotate(45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g><g transform="rotate(-45 256 256)" fill="#efe6d5"><path d="M244 136 L256 112 L268 136 L268 300 L244 300 Z"/><rect x="216" y="300" width="80" height="16" rx="6" fill="#e0b84c"/><rect x="246" y="316" width="20" height="48" rx="6" fill="#a89f91"/></g></g></svg>`;
