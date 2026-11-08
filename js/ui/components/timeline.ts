@@ -6,7 +6,6 @@ import { HEROES } from "../../data/heroes.ts";
 import { POTIONS } from "../../data/potions.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { type ActionPreview, getEnemyLane, heroSchedule } from "../../engine/combat.ts";
-import { absoluteTime } from "../../engine/effects.ts";
 import { getCardData } from "../../engine/deck.ts";
 import type { Combat, EnemyUnit } from "../../types.ts";
 import { el } from "../dom.js";
@@ -133,18 +132,21 @@ function createHeroTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
   return track;
 }
 
-// Подготовка Мага: заклинание стоит там, где сработает. Если позже этого хода — у правого края со стрелкой
+// Подготовка Мага: заклинание занимает клетки, пока готовится, и срабатывает в последней. Если не успеет в этом ходу —
+// тянется до правого края, а стрелка показывает клетку следующего хода, где сработает
 function createPrepTrack(combat: Combat, preview: Map<string, ActionPreview>, handlers: TimelineHandlers): HTMLElement {
   const track = createTrack("prep");
   const slots = heroSchedule(combat).prepared;
   for (const spell of combat.prepared) {
-    const cell = slots.get(spell.id)!.end;
+    const slot = slots.get(spell.id)!;
+    const cell = slot.end;
     const card = getCardData(spell.card);
     const chip: HTMLElement = el("div", `lane-chip lane-chip--hero lane-chip--prep lane-chip--${card.type}`);
     chip.dataset.laneId = String(spell.id);
     const later = cell > CELLS;
-    place(chip, Math.min(cell, CELLS), 1);
-    const value = later ? el("span", "lane-chip__value", TEXTS.timeline.nextTurn(spell.due - absoluteTime(combat, CELLS))) : previewValue(preview.get(`prep:${spell.id}`));
+    const start = Math.min(Math.max(slot.start, 1), CELLS);
+    place(chip, start, Math.min(cell, CELLS) - start + 1);
+    const value = later ? el("span", "lane-chip__value", TEXTS.timeline.nextTurn(cell - CELLS)) : previewValue(preview.get(`prep:${spell.id}`));
     chip.append(el("span", "lane-chip__name", card.name), value);
     chip.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -174,7 +176,7 @@ export function createTimeline(
   const tracks = el("div", "timeline__tracks");
   if (selectedEnemy) tracks.append(createRow(ENEMIES[selectedEnemy.enemyId].name, createEnemyTrack(combat, selectedEnemy, preview), "enemy"));
   tracks.append(createRow(TEXTS.timeline.heroLane, createHeroTrack(combat, preview, handlers), "hero"));
-  if (HEROES[combat.hero.heroId].prepCapacity) {
+  if (HEROES[combat.hero.heroId].prepares) {
     tracks.append(createRow(TEXTS.timeline.prepLane, createPrepTrack(combat, preview, handlers), "prep"));
   }
   // Указатель времени: стоит на границе, до которой дошёл розыгрыш

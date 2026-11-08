@@ -278,7 +278,7 @@ function selectedCard(): CardInstance | null {
 }
 
 function canPrepare(current: Combat): boolean {
-  return Boolean(HEROES[current.hero.heroId].prepCapacity);
+  return Boolean(HEROES[current.hero.heroId].prepares);
 }
 
 // Можно ли поставить карту хоть куда-нибудь

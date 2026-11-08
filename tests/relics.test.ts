@@ -8,7 +8,7 @@ import {
 import { addBlock } from "../js/engine/effects.ts";
 import { createMeta } from "../js/engine/meta.ts";
 import { createRun, getRelicPool } from "../js/engine/run.ts";
-import { prepCapacity } from "../js/engine/rules.ts";
+import { canPrepare, prepEmptyGain } from "../js/engine/rules.ts";
 import { forgeRelic, getGear } from "../js/engine/town.ts";
 import { createRng } from "../js/engine/rng.ts";
 import type { Combat, HeroId } from "../js/types.ts";
@@ -64,10 +64,11 @@ describe("Правила-реликвии", () => {
     expect(brew(["alembic"])).toBe(3);
   });
 
-  it("Астролябия: подготовка Мага на 1 вес больше, другим героям её не даёт", () => {
+  it("Астролябия: пустая клетка ускоряет подготовку на 2 вместо 1; другим героям подготовку не даёт", () => {
     const mage = (relics: string[]) => createCombat({ heroId: "mage", enemyIds: ["skeleton"], seed: 1, relics });
-    expect(prepCapacity(mage(["astrolabe"]))).toBe(prepCapacity(mage([])) + 1);
-    expect(prepCapacity(fight({ relics: ["astrolabe"] }))).toBe(0);
+    expect(prepEmptyGain(mage([]))).toBe(1);
+    expect(prepEmptyGain(mage(["astrolabe"]))).toBe(2);
+    expect(canPrepare(fight({ relics: ["astrolabe"] }))).toBe(false);
   });
 
   it("Сердце бездны: «Финал» срабатывает дважды", () => {

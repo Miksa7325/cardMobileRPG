@@ -268,9 +268,9 @@ export const RELICS: Record<string, RelicData> = {
     icon: "🧭",
     rarity: "uncommon",
     hero: "mage",
-    description: "Подготовка на 1 вес больше.",
+    description: "Пустая клетка шкалы ускоряет подготовку на 2 вместо 1.",
     effects: [],
-    rules: { prepCapacity: 1 },
+    rules: { prepEmptyBonus: 1 },
   },
 
   // Открываются Кузницей

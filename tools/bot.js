@@ -75,7 +75,7 @@ function listActions(combat) {
       seen.add(key);
       actions.push({ kind: "card", uid: instance.uid, start, targetId });
       // Маг может поставить заклинание на подготовку
-      if (HEROES[combat.hero.heroId].prepCapacity) actions.push({ kind: "card", uid: instance.uid, start: 0, targetId, prepare: true });
+      if (HEROES[combat.hero.heroId].prepares) actions.push({ kind: "card", uid: instance.uid, start: 0, targetId, prepare: true });
     }
   }
 

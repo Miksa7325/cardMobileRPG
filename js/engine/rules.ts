@@ -20,11 +20,13 @@ export const zeroWeightPerTurn = (combat: Combat): number => T.maxZeroWeight + r
 export const brewOptionCount = (combat: Combat): number => 2 + relicBonus(combat, "brewOptions");
 export const capacityBonus = (combat: Combat): number => relicBonus(combat, "capacity");
 
-// Вес подготовки Мага: 0 — у героя подготовки нет вовсе (реликвия её не даёт)
-export function prepCapacity(combat: Combat): number {
-  const base = HEROES[combat.hero.heroId].prepCapacity ?? 0;
-  return base > 0 ? base + relicBonus(combat, "prepCapacity") : 0;
+// Есть ли у героя подготовка (только у Мага; реликвия её не даёт)
+export function canPrepare(combat: Combat): boolean {
+  return Boolean(HEROES[combat.hero.heroId].prepares);
 }
+
+// На сколько пустая клетка основной шкалы ускоряет подготовку
+export const prepEmptyGain = (combat: Combat): number => T.prepEmptyCell + relicBonus(combat, "prepEmptyBonus");
 
 export function finalTwice(combat: Combat): boolean {
   return combat.relics.some((relicId) => RELICS[relicId]?.rules?.finalTwice);

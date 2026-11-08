@@ -116,11 +116,11 @@ export const HEROES: Record<HeroId, HeroData> = {
     capacity: CONFIG.capacity.mage,
     drawPerTurn: CONFIG.drawPerTurn.mage,
     potionWeight: CONFIG.potionWeight,
-    prepCapacity: CONFIG.magePrepCapacity,
+    prepares: true,
     mechanic: {
       name: "Прилив",
       resource: "surge",
-      text: "Любое заклинание можно поставить на подготовку: оно сработает само в конце хода и на 50% сильнее. В начале каждого хода +1 Прилив: чародейские карты сильнее за каждый Прилив.",
+      text: "Любое заклинание можно поставить на подготовку: оно готовится 2 × вес клеток и срабатывает само, на 50% сильнее. Заклинания готовятся по очереди, каждая пустая клетка шкалы ускоряет подготовку на 1. В начале каждого хода +1 Прилив: чародейские карты сильнее за каждый Прилив.",
       passives: [
         // Прилив растёт каждый ход: от него сильнее чародейские карты
         { trigger: "onTurnStart", effects: gain("surge") },

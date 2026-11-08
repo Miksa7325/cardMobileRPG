@@ -3,8 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG } from "../js/config.ts";
 import {
-  chooseBrew, createCombat, getEnemyLane, launch, moveLaneItem, placeCard, placePotion, previewLaunch, removeFromLane, rerollCard,
-  setKeep, totalCapacity,
+  addCardToHand, chooseBrew, createCombat, getEnemyLane, heroSchedule, launch, moveLaneItem, placeCard, placePotion, previewLaunch,
+  removeFromLane, rerollCard, setKeep, totalCapacity,
 } from "../js/engine/combat.ts";
 import { deckOf, fight, quiet, setLane } from "./helpers.ts";
 
@@ -268,42 +268,62 @@ describe("такты", () => {
 });
 
 describe("Маг: подготовка", () => {
-  it("подготовленное заклинание срабатывает само в конце хода и на 50% сильнее", () => {
-    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") }); // 5 урона, вес 1
+  // Маг против Скелета без ходов; в руку — нужные карты. Возвращает uid по порядку
+  function mage(cardIds: string[], relics: string[] = []) {
+    const combat = fight({ heroId: "mage", deck: deckOf("m_spark"), relics });
     quiet(combat);
-    const enemy = combat.enemies[0];
-    const hp = enemy.hp;
-    placeCard(combat, uidAt(combat), 0, enemy.instanceId, { prepare: true });
-    expect(combat.prepared[0].due).toBe(6);
+    combat.piles.hand = [];
+    for (const id of cardIds) addCardToHand(combat, id);
+    combat.enemies[0].hp = combat.enemies[0].maxHp = 500;
+    return { combat, uids: combat.piles.hand.map((card) => card.uid), target: combat.enemies[0].instanceId };
+  }
+  const prepEnd = (combat: ReturnType<typeof fight>, index = 0) => heroSchedule(combat).prepared.get(combat.prepared[index].id)!.end;
+
+  it("готовится 2 × вес клеток, срабатывает сразу, как готово, и на 50% сильнее", () => {
+    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark"]); // 5 урона, вес 1: готовится 2 клетки
+    placeCard(combat, uids[0], 0, target, { prepare: true });
+    placeCard(combat, uids[1], 1, target);
+    placeCard(combat, uids[2], 2, target); // клетки 1 и 2 заняты — ускорения нет
+    expect(prepEnd(combat)).toBe(2);
     launch(combat);
-    expect(enemy.hp).toBe(hp - 7);
+    const hits = combat.events.filter((event) => event.type === "hit").map((event) => event.hpLost);
+    expect(hits).toEqual([5, 5, 7]); // две карты в клетках 1 и 2, затем заклинание после клетки 2
   });
-  it("подготовленное заклинание срабатывает последним — после хода врага в клетке 6", () => {
-    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
-    const enemy = combat.enemies[0];
-    setLane(enemy, ["hack", "hack"]); // удары весом 3: в клетках 3 и 6
-    placeCard(combat, uidAt(combat), 0, enemy.instanceId, { prepare: true });
+  it("пустая клетка основной шкалы ускоряет подготовку на 1", () => {
+    const { combat, uids, target } = mage(["m_pyroblast"]); // вес 3: готовится 6 клеток
+    placeCard(combat, uids[0], 0, target, { prepare: true });
+    expect(prepEnd(combat)).toBe(3); // шкала пустая: каждая клетка даёт 2
+  });
+  it("Астролябия: пустая клетка ускоряет на 2", () => {
+    const { combat, uids, target } = mage(["m_pyroblast"], ["astrolabe"]);
+    placeCard(combat, uids[0], 0, target, { prepare: true });
+    expect(prepEnd(combat)).toBe(2); // каждая пустая клетка даёт 3
+  });
+  it("заклинания готовятся очередью, лишнее переходит на следующий ход", () => {
+    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark", "m_spark", "m_frostbolt", "m_frostbolt", "m_frostbolt"]);
+    for (let i = 0; i < 4; i++) placeCard(combat, uids[i], i + 1, target); // клетки 1–4 заняты
+    for (let i = 4; i < 7; i++) placeCard(combat, uids[i], 0, target, { prepare: true }); // вес 2: по 4 клетки
+    // клетки 5 и 6 пустые — по 2; третье не успевает: клетки следующего хода считаются без ускорения
+    expect([0, 1, 2].map((index) => prepEnd(combat, index))).toEqual([4, 6, 10]);
     launch(combat);
-    const hits = combat.events.filter((event) => event.type === "hit");
-    const lastOnHero = hits.map((event) => event.targetId).lastIndexOf("hero");
-    const spellHit = hits.findIndex((event) => event.targetId === enemy.instanceId);
-    expect(spellHit).toBeGreaterThan(lastOnHero);
+    expect(combat.prepared).toHaveLength(1);
+    expect(combat.prepared[0].progress).toBe(0);
   });
-  it("на подготовке не больше 3 веса", () => {
-    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
-    for (let i = 0; i < 3; i++) expect(placeCard(combat, uidAt(combat), 0, firstEnemy(combat), { prepare: true }).ok).toBe(true);
-    expect(placeCard(combat, uidAt(combat), 0, firstEnemy(combat), { prepare: true })).toEqual({ ok: false, reason: "noPrepCapacity" });
+  it("предела по весу нет, а вернуть в руку можно, пока не начало готовиться", () => {
+    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark", "m_spark", "m_spark"]);
+    for (const uid of uids) expect(placeCard(combat, uid, 0, target, { prepare: true }).ok).toBe(true);
+    combat.prepared[0].progress = 1;
+    expect(removeFromLane(combat, combat.prepared[0].id)).toEqual({ ok: false, reason: "locked" });
+    expect(removeFromLane(combat, combat.prepared[1].id).ok).toBe(true);
   });
   it("Оглушение Мага срывает ближайшее подготовленное заклинание, оно уходит в сброс", () => {
-    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
-    quiet(combat);
+    const { combat, uids, target } = mage(["m_spark", "m_spark"]);
     const enemy = combat.enemies[0];
-    const hp = enemy.hp;
-    placeCard(combat, uidAt(combat), 0, enemy.instanceId, { prepare: true });
-    placeCard(combat, uidAt(combat), 2, enemy.instanceId);
+    placeCard(combat, uids[0], 0, target, { prepare: true });
+    placeCard(combat, uids[1], 2, target);
     combat.hero.statuses.stun = 1;
     launch(combat);
-    expect(enemy.hp).toBe(hp - 5); // сорвалось подготовленное, карта на дорожке сработала
+    expect(enemy.hp).toBe(500 - 5); // сорвалось подготовленное, карта на дорожке сработала
   });
 });
 

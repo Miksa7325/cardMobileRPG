@@ -178,7 +178,7 @@ export interface HeroData {
   capacity: number; // вместимость шкалы: сколько клеток веса карт за ход
   drawPerTurn: number; // сколько карт добирается в начале хода
   potionWeight: number; // вес зелья на шкале: у Алхимика 0
-  prepCapacity?: number; // Маг: вместимость дорожки подготовки
+  prepares?: boolean; // Маг: есть дорожка подготовки
   mechanic: {
     name: string;
     resource: StatusId;
@@ -198,7 +198,7 @@ export interface RelicRules {
   blockCells?: number; // сколько клеток держится блок
   zeroWeight?: number; // карт весом 0 за ход
   brewOptions?: number; // зелий на выбор при варке
-  prepCapacity?: number; // вес подготовки Мага
+  prepEmptyBonus?: number; // пустая клетка ускоряет подготовку Мага ещё на столько
   finalTwice?: boolean; // бонус «Финал» срабатывает дважды
 }
 
@@ -402,7 +402,7 @@ export interface PreparedSpell {
   locked: boolean;
   weight: number;
   targetId: string | null;
-  due: number; // абсолютное время срабатывания без статусов
+  progress: number; // сколько клеток подготовки уже сделано: нужно 2 × вес, заклинания готовятся очередью
 }
 
 // Выбор Алхимика: из двух зелий одно попадёт в сумку

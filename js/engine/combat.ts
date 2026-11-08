@@ -13,7 +13,7 @@ import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { RELICS } from "../data/relics.ts";
 import {
-  brewOptionCount, capacityBonus, finalTwice, openDrawCount, prepCapacity, rerollsPerTurn, zeroWeightPerTurn,
+  brewOptionCount, canPrepare, capacityBonus, finalTwice, openDrawCount, prepEmptyGain, rerollsPerTurn, zeroWeightPerTurn,
 } from "./rules.ts";
 import type {
   ActionResult, CardData, CardInstance, CardTarget, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent,
@@ -174,16 +174,11 @@ function dexterityCut(combat: Combat): number {
 export function heroSchedule(combat: Combat, lane: LaneItem[] = combat.lane, prepared: PreparedSpell[] = combat.prepared) {
   const marks = new Map<string, { slowed: boolean; hasted: boolean }>();
   const laneSlots = () => chainLane(combat, lane, marks);
-  const preparedSlots = () => new Map(prepared.map((spell) => {
-    const mark = marks.get(`p${spell.id}`);
-    const base = spell.due - absoluteTime(combat, 0);
-    const end = Math.max(combat.clock, base + (mark?.slowed ? 1 : 0) - (mark?.hasted ? 1 : 0));
-    return [spell.id, { start: end, end, weight: spell.weight, slowed: mark?.slowed ?? false, hasted: mark?.hasted ?? false }];
-  }));
+  const preparedSlots = (slots: Map<number, HeroSlot>) => prepSlots(combat, lane, slots, prepared, marks);
 
   // Первый проход: без Замедления и Ускорения
   const roughLane = laneSlots();
-  const roughPrepared = preparedSlots();
+  const roughPrepared = preparedSlots(roughLane);
   const order = [
     ...lane.filter((item) => !item.resolved && item.weight > 0).map((item) => ({ key: `l${item.id}`, end: roughLane.get(item.id)!.end, side: 0, id: item.id })),
     ...prepared.map((spell) => ({ key: `p${spell.id}`, end: roughPrepared.get(spell.id)!.end, side: 1, id: spell.id })),
@@ -192,7 +187,72 @@ export function heroSchedule(combat: Combat, lane: LaneItem[] = combat.lane, pre
   const haste = combat.hero.statuses.haste ?? 0;
   order.forEach((action, index) => marks.set(action.key, { slowed: index < slow, hasted: index < haste }));
 
-  return { lane: laneSlots(), prepared: preparedSlots() };
+  const finalLane = laneSlots();
+  return { lane: finalLane, prepared: preparedSlots(finalLane) };
+}
+
+// Сколько клеток подготовки нужно заклинанию: 2 × вес, Замедление +1, Ускорение −1 (не меньше 1)
+function prepWork(spell: PreparedSpell, mark: { slowed: boolean; hasted: boolean } | undefined): number {
+  return Math.max(1, T.prepWorkPerWeight * spell.weight + (mark?.slowed ? 1 : 0) - (mark?.hasted ? 1 : 0));
+}
+
+// Клетки основной шкалы, занятые картами и зельями (карты весом 0 клеток не занимают)
+function busyCells(lane: LaneItem[], slots: Map<number, HeroSlot>): Set<number> {
+  const busy = new Set<number>();
+  for (const item of lane) {
+    const slot = slots.get(item.id);
+    if (item.weight === 0 || !slot) continue;
+    for (let cell = slot.start; cell <= slot.end; cell++) busy.add(cell);
+  }
+  return busy;
+}
+
+// Сколько подготовки даёт клетка: 1, а пустая клетка основной шкалы — ещё prepEmptyGain.
+// Клетки следующего хода считаем без ускорения: какими они будут, ещё неизвестно
+function cellPrepGain(combat: Combat, busy: Set<number>, cell: number): number {
+  return 1 + (cell <= T.cells && !busy.has(cell) ? prepEmptyGain(combat) : 0);
+}
+
+// Когда сработают заклинания на подготовке. Они готовятся очередью с текущей клетки; лишняя подготовка
+// клетки переходит к следующему в очереди. start — первая клетка подготовки, end — клетка, после которой
+// сработает (больше 6 — в следующем ходу)
+function prepSlots(
+  combat: Combat, lane: LaneItem[], laneSlots: Map<number, HeroSlot>, prepared: PreparedSpell[],
+  marks: Map<string, { slowed: boolean; hasted: boolean }>,
+): Map<number, HeroSlot> {
+  const busy = busyCells(lane, laneSlots);
+  const slots = new Map<number, HeroSlot>();
+  let cell = combat.clock;
+  let spare = 0;
+  for (const spell of prepared) {
+    const mark = marks.get(`p${spell.id}`);
+    let need = prepWork(spell, mark) - spell.progress - spare;
+    const start = spare > 0 ? Math.max(cell, 1) : cell + 1;
+    spare = 0;
+    while (need > 0) {
+      cell += 1;
+      need -= cellPrepGain(combat, busy, cell);
+    }
+    spare = -need;
+    slots.set(spell.id, { start: Math.min(start, cell), end: Math.max(cell, combat.clock), weight: spell.weight, slowed: mark?.slowed ?? false, hasted: mark?.hasted ?? false });
+  }
+  return slots;
+}
+
+// Прошла клетка cell: заклинания на подготовке продвигаются по очереди (лишнее — следующему)
+function advancePreparation(combat: Combat, cell: number): void {
+  if (combat.prepared.length === 0) return;
+  const schedule = heroSchedule(combat);
+  let gain = cellPrepGain(combat, busyCells(combat.lane, schedule.lane), cell);
+  for (const spell of combat.prepared) {
+    if (gain <= 0) break;
+    const slot = schedule.prepared.get(spell.id);
+    const left = prepWork(spell, slot) - spell.progress;
+    if (left <= 0) continue;
+    const step = Math.min(left, gain);
+    spell.progress += step;
+    gain -= step;
+  }
 }
 
 // Карты на дорожке героя по порядку: следующая не может начаться раньше, чем кончилась предыдущая
@@ -417,15 +477,12 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   return OK;
 }
 
-// Маг ставит заклинание на подготовку: оно сработает само в конце этого хода (после клетки 6, последним), на 50% сильнее.
-// Вес только занимает место на подготовке
+// Маг ставит заклинание на подготовку: оно встаёт в очередь, готовится 2 × вес клеток и срабатывает само, на 50% сильнее.
+// Пустые клетки основной шкалы ускоряют подготовку, предела по весу нет
 function prepareSpell(combat: Combat, instance: CardInstance, card: CardData, weight: number, targetId: string | null): ActionResult {
-  const capacity = prepCapacity(combat);
-  if (!capacity) return fail("noPreparation");
-  const waiting = combat.prepared.reduce((sum, spell) => sum + spell.weight, 0);
-  if (waiting + weight > capacity) return fail("noPrepCapacity");
+  if (!canPrepare(combat)) return fail("noPreparation");
   const spell: PreparedSpell = {
-    id: combat.nextLaneId, card: instance, turn: combat.turn, locked: false, weight, targetId, due: absoluteTime(combat, T.cells),
+    id: combat.nextLaneId, card: instance, turn: combat.turn, locked: false, weight, targetId, progress: 0,
   };
   combat.nextLaneId += 1;
   takeFromHand(combat.piles, instance.uid);
@@ -474,7 +531,7 @@ export function removeFromLane(combat: Combat, id: number): ActionResult {
   }
   const spell = combat.prepared.find((entry) => entry.id === id);
   if (!spell) return fail("notOnLane");
-  if (spell.locked || spell.turn !== combat.turn) return fail("locked");
+  if (spell.locked || spell.turn !== combat.turn || spell.progress > 0) return fail("locked");
   combat.prepared = combat.prepared.filter((entry) => entry !== spell);
   combat.piles.hand.push(spell.card);
   return OK;
@@ -651,6 +708,7 @@ export function launch(combat: Combat): ActionResult {
 
 // Всё, что происходит на одном стыке: действия, кончившиеся в этой клетке, карты весом 0 на стыке, такты
 function resolveBoundary(combat: Combat, boundary: number): void {
+  advancePreparation(combat, boundary);
   combat.clock = boundary;
   for (const unit of [combat.hero, ...combat.enemies]) expireBlocks(combat, unit);
 
@@ -671,7 +729,7 @@ function resolveBoundary(combat: Combat, boundary: number): void {
 
 // Следующее действие, которое срабатывает на текущем стыке, или null. Первым ходит герой,
 // если только у врага нет Ускорения, а у героя нет. Между врагами — по порядку.
-// Подготовленные заклинания Мага срабатывают последними на своём стыке — после ходов врагов
+// Подготовленное заклинание Мага срабатывает сразу, как готово: после карт героя этой клетки
 function pickNextAction(combat: Combat): (() => void) | null {
   const now = combat.clock;
   const schedule = heroSchedule(combat);
@@ -681,13 +739,11 @@ function pickNextAction(combat: Combat): (() => void) | null {
     const slot = schedule.lane.get(item.id)!;
     if (slot.end <= now) hero.push({ end: slot.end, id: item.id, run: () => resolveLaneItem(combat, item, slot) });
   }
-  hero.sort((a, b) => a.end - b.end || a.id - b.id);
-  const spells: { end: number; id: number; run: () => void }[] = [];
   for (const spell of combat.prepared) {
     const slot = schedule.prepared.get(spell.id)!;
-    if (slot.end <= now) spells.push({ end: slot.end, id: spell.id, run: () => resolvePrepared(combat, spell, slot) });
+    if (slot.end <= now) hero.push({ end: slot.end + 0.5, id: spell.id, run: () => resolvePrepared(combat, spell, slot) });
   }
-  spells.sort((a, b) => a.end - b.end || a.id - b.id);
+  hero.sort((a, b) => a.end - b.end || a.id - b.id);
 
   const enemies: { hasty: boolean; run: () => void }[] = [];
   for (const enemy of combat.enemies) {
@@ -699,7 +755,7 @@ function pickNextAction(combat: Combat): (() => void) | null {
   const heroHasty = (combat.hero.statuses.haste ?? 0) > 0;
   const hastyEnemy = !heroHasty ? enemies.find((entry) => entry.hasty) : undefined;
   if (hastyEnemy) return hastyEnemy.run;
-  return hero[0]?.run ?? enemies[0]?.run ?? spells[0]?.run ?? null;
+  return hero[0]?.run ?? enemies[0]?.run ?? null;
 }
 
 // Действие героя или врага сработало: стаки Замедления и Ускорения, ушедшие на него, тратятся
