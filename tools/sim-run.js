@@ -3,7 +3,8 @@
 //
 // Бот видит всю карту акта (как с картой подземелья) и на каждом шаге выбирает путь к боссу по ценности комнат:
 // бои и элита — награды, отдых — когда мало HP, события — по выгоде вариантов. Бои играет тот же бот, что и в tools/sim.js.
-// Город, лавки и комнаты сохранения он не посещает: забег идёт одним спуском.
+// Город он не посещает: забег идёт одним спуском. С --to бот идёт дальше через акты и в комнатах сохранения
+// и после босса поднимается в город только отдохнуть (полное HP), без улучшений.
 //
 // Запуск:   node tools/sim-run.js
 // Параметры (все необязательные):
@@ -11,6 +12,8 @@
 //   --first=0            с какого номера забега начать: так один большой прогон делится на части, которые идут параллельно
 //   --beam=32            ширина поиска бота в бою
 //   --act=1              какой акт проходить (герой начинает с него)
+//   --to=10              идти дальше через акты до этого, пока герой жив: итог — сколько дошли до каждого акта
+//                        и какая доля дошедших его прошла
 //   --heroes=warrior,mage   только эти герои
 //   --strength-scale=2   умножить все числа Силы — для подбора чисел
 //   --patch=вариант.js   поменять данные только в памяти перед прогоном: export default (data) => { data.ENEMIES… }
@@ -29,7 +32,7 @@ import { POTIONS } from "../js/data/potions.ts";
 import { chooseEventOption, finishEvent, getEventData, startEvent } from "../js/engine/events.ts";
 import {
   completeReward, createNodeCombat, createRun, enterNode, finishCombat, getAvailableNodeIds, getCurrentNode, getUpgradableCards,
-  openCache, openChest, restHeal, takeFromCache,
+  healInCity, openCache, openChest, restHeal, takeFromCache,
 } from "../js/engine/run.ts";
 import { upgradeCard } from "../js/engine/deck.ts";
 import { applyStrengthScale, playCombat, setBeam } from "./bot.js";
@@ -41,6 +44,8 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
 const RUNS = Number(args.runs ?? 30);
 const FIRST = Number(args.first ?? 0);
 const ACT = Number(args.act ?? 1);
+const TO = Number(args.to ?? ACT);
+const MULTI = TO > ACT;
 const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 setBeam(Number(args.beam ?? 32));
 if (args.patch) (await import(pathToFileURL(resolve(args.patch)).href)).default({ ENEMIES, CARDS, ACTS, CONFIG, HEROES, RELICS, POTIONS });
@@ -57,7 +62,9 @@ function roomValue(type, hpShare) {
     case "event": return 2;
     case "chest": return 5;
     case "cache": return 3;
-    default: return 0; // комната сохранения
+    // Через несколько актов бот отдыхает в городе из комнаты сохранения
+    case "save": return MULTI && hpShare < 0.7 ? 8 : 0;
+    default: return 0;
   }
 }
 
@@ -143,8 +150,8 @@ function playEvent(run) {
 
 function playRun(heroId, seed) {
   const run = createRun({ heroId, seed, startAct: ACT });
-  const log = { won: false, floor: 0, fights: 0, hpBeforeBoss: null, deckSize: 0, diedTo: null };
-  while (run.status === "active" && run.act === ACT) {
+  const log = { won: false, floor: 0, fights: 0, hpBeforeBoss: null, deckSize: 0, diedTo: null, cleared: 0, diedInAct: null };
+  while (run.status === "active" && run.act <= TO) {
     const nextId = chooseNextNode(run);
     if (nextId === null) break; // к боссу не дойти — так быть не должно
     enterNode(run, nextId);
@@ -158,10 +165,19 @@ function playRun(heroId, seed) {
       log.fights += 1;
       if (run.status === "lost") {
         log.diedTo = node.type;
+        log.diedInAct = run.act;
         break;
       }
+      const act = run.act;
       completeReward(run, chooseRewardCard(run, run.pendingReward?.cardIds ?? []));
-      if (node.type === "boss") log.won = true;
+      if (node.type === "boss") {
+        log.won = true;
+        log.cleared = act - ACT + 1;
+        // После босса — выход в город: отдохнуть перед следующим актом
+        if (MULTI) healInCity(run);
+      }
+    } else if (node.type === "save") {
+      if (MULTI) healInCity(run);
     } else if (node.type === "rest") {
       rest(run);
     } else if (node.type === "event") {
@@ -181,10 +197,25 @@ function playRun(heroId, seed) {
 // ---------- Запуск ----------
 const started = Date.now();
 const results = [];
-console.log(`Акт ${ACT} «${ACTS[ACT - 1].name}», забегов на героя: ${RUNS}\n`);
+console.log(MULTI
+  ? `Акты ${ACT}–${TO} подряд, забегов на героя: ${RUNS}. «акт: доля дошедших, кто его прошёл (сколько дошли)»\n`
+  : `Акт ${ACT} «${ACTS[ACT - 1].name}», забегов на героя: ${RUNS}\n`);
 for (const heroId of HERO_IDS) {
   const logs = [];
   for (let i = 0; i < RUNS; i++) logs.push(playRun(heroId, 5000 + FIRST + i));
+  if (MULTI) {
+    // По актам: сколько героев дошли до акта и сколько из них его прошли
+    const acts = [];
+    for (let act = ACT; act <= TO; act++) {
+      const reached = logs.filter((log) => log.cleared >= act - ACT).length;
+      const cleared = logs.filter((log) => log.cleared >= act - ACT + 1).length;
+      acts.push({ act, reached, cleared });
+    }
+    results.push({ hero: heroId, heroName: HEROES[heroId].name, acts });
+    const cells = acts.map((a) => `${a.act}: ${a.reached ? Math.round((a.cleared / a.reached) * 100) : "—"}% (${a.reached})`);
+    console.log(`${HEROES[heroId].name.padEnd(13)} ${cells.join("  ")}`);
+    continue;
+  }
   const won = logs.filter((log) => log.won).length;
   const reachedBoss = logs.filter((log) => log.hpBeforeBoss !== null);
   const avg = (items, pick) => (items.length ? Math.round((items.reduce((sum, item) => sum + pick(item), 0) / items.length) * 10) / 10 : null);
@@ -208,7 +239,11 @@ for (const heroId of HERO_IDS) {
 }
 console.log(`\nГотово за ${Math.round((Date.now() - started) / 1000)} с`);
 
-if (args.out) {
+if (args.out && MULTI) {
+  mkdirSync(dirname(args.out), { recursive: true });
+  writeFileSync(`${args.out}.json`, JSON.stringify({ meta: { from: ACT, to: TO, runs: RUNS }, results }, null, 2));
+  console.log(`Сохранено: ${args.out}.json`);
+} else if (args.out) {
   const meta = { date: new Date().toISOString().slice(0, 10), act: ACT, runs: RUNS };
   mkdirSync(dirname(args.out), { recursive: true });
   writeFileSync(`${args.out}.json`, JSON.stringify({ meta, results }, null, 2));
