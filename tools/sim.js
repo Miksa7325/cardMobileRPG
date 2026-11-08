@@ -11,12 +11,19 @@
 //   --heroes=warrior,mage   только эти герои
 //   --strength-scale=2   умножить все числа Силы (карты, враги, реликвии, зелья, акты) — для подбора чисел
 //   --out=tools/baseline/current   сохранить итог в .json и .md с этим именем
+//   --only=boss          только бои этого вида: battle, elite или boss (через запятую)
+//   --patch=вариант.js   поменять данные только в памяти перед прогоном (как в tools/sim-run.js)
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { CONFIG } from "../js/config.ts";
 import { ACTS } from "../js/data/acts.ts";
 import { ENEMIES } from "../js/data/enemies.ts";
 import { HEROES } from "../js/data/heroes.ts";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { CARDS } from "../js/data/cards.ts";
+import { POTIONS } from "../js/data/potions.ts";
+import { RELICS } from "../js/data/relics.ts";
 import { applyStrengthScale, runFight, setBeam } from "./bot.js";
 
 // ---------- Параметры командной строки ----------
@@ -32,7 +39,9 @@ const ACT_INDEX = Number(args.act ?? 1) - 1;
 const FLOOR = Number(args.floor ?? 0);
 const STRENGTH_SCALE = Number(args["strength-scale"] ?? 1);
 
+if (args.patch) (await import(pathToFileURL(resolve(args.patch)).href)).default({ ENEMIES, CARDS, ACTS, CONFIG, HEROES, RELICS, POTIONS });
 applyStrengthScale(STRENGTH_SCALE);
+const ONLY = args.only ? args.only.split(",") : null;
 setBeam(BEAM);
 const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 
@@ -42,7 +51,7 @@ const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 function actSetup(act, type) {
   const depth = type === "boss" ? 0 : FLOOR;
   const depthHp = 1 + CONFIG.depth.hpPerFloor * depth;
-  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength) * STRENGTH_SCALE;
+  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength) * CONFIG.depth.strengthPerStep;
   const actMultiplier = type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier;
   return {
     enemyHpMultiplier: CONFIG.enemyHpMultiplier * depthHp * actMultiplier,
@@ -67,7 +76,7 @@ const round = (value, digits = 1) => Math.round(value * 10 ** digits) / 10 ** di
 
 // ---------- Запуск ----------
 const act = ACTS[ACT_INDEX];
-const encounters = listEncounters(act);
+const encounters = listEncounters(act).filter((encounter) => !ONLY || ONLY.includes(encounter.type));
 const results = [];
 const started = Date.now();
 
