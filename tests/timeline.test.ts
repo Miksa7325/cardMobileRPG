@@ -268,15 +268,26 @@ describe("такты", () => {
 });
 
 describe("Маг: подготовка", () => {
-  it("подготовленное заклинание срабатывает само через 2 × вес − Прилив клеток и на 50% сильнее", () => {
-    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") }); // 5 урона, вес 1; Прилив 1
+  it("подготовленное заклинание срабатывает само в конце хода и на 50% сильнее", () => {
+    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") }); // 5 урона, вес 1
     quiet(combat);
     const enemy = combat.enemies[0];
     const hp = enemy.hp;
     placeCard(combat, uidAt(combat), 0, enemy.instanceId, { prepare: true });
-    expect(combat.prepared[0].due).toBe(1);
+    expect(combat.prepared[0].due).toBe(6);
     launch(combat);
     expect(enemy.hp).toBe(hp - 7);
+  });
+  it("подготовленное заклинание срабатывает последним — после хода врага в клетке 6", () => {
+    const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
+    const enemy = combat.enemies[0];
+    setLane(enemy, ["hack", "hack"]); // удары весом 3: в клетках 3 и 6
+    placeCard(combat, uidAt(combat), 0, enemy.instanceId, { prepare: true });
+    launch(combat);
+    const hits = combat.events.filter((event) => event.type === "hit");
+    const lastOnHero = hits.map((event) => event.targetId).lastIndexOf("hero");
+    const spellHit = hits.findIndex((event) => event.targetId === enemy.instanceId);
+    expect(spellHit).toBeGreaterThan(lastOnHero);
   });
   it("на подготовке не больше 3 веса", () => {
     const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });

@@ -417,15 +417,15 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   return OK;
 }
 
-// Маг ставит заклинание на подготовку: оно сработает само через 2 × вес клеток (Прилив сокращает), на 50% сильнее
+// Маг ставит заклинание на подготовку: оно сработает само в конце этого хода (после клетки 6, последним), на 50% сильнее.
+// Вес только занимает место на подготовке
 function prepareSpell(combat: Combat, instance: CardInstance, card: CardData, weight: number, targetId: string | null): ActionResult {
   const capacity = prepCapacity(combat);
   if (!capacity) return fail("noPreparation");
   const waiting = combat.prepared.reduce((sum, spell) => sum + spell.weight, 0);
   if (waiting + weight > capacity) return fail("noPrepCapacity");
-  const delay = Math.max(1, T.prepDelayPerWeight * weight - (combat.hero.statuses.surge ?? 0));
   const spell: PreparedSpell = {
-    id: combat.nextLaneId, card: instance, turn: combat.turn, locked: false, weight, targetId, due: absoluteTime(combat) + delay,
+    id: combat.nextLaneId, card: instance, turn: combat.turn, locked: false, weight, targetId, due: absoluteTime(combat, T.cells),
   };
   combat.nextLaneId += 1;
   takeFromHand(combat.piles, instance.uid);
@@ -670,7 +670,8 @@ function resolveBoundary(combat: Combat, boundary: number): void {
 }
 
 // Следующее действие, которое срабатывает на текущем стыке, или null. Первым ходит герой,
-// если только у врага нет Ускорения, а у героя нет. Между врагами — по порядку
+// если только у врага нет Ускорения, а у героя нет. Между врагами — по порядку.
+// Подготовленные заклинания Мага срабатывают последними на своём стыке — после ходов врагов
 function pickNextAction(combat: Combat): (() => void) | null {
   const now = combat.clock;
   const schedule = heroSchedule(combat);
@@ -680,11 +681,13 @@ function pickNextAction(combat: Combat): (() => void) | null {
     const slot = schedule.lane.get(item.id)!;
     if (slot.end <= now) hero.push({ end: slot.end, id: item.id, run: () => resolveLaneItem(combat, item, slot) });
   }
+  hero.sort((a, b) => a.end - b.end || a.id - b.id);
+  const spells: { end: number; id: number; run: () => void }[] = [];
   for (const spell of combat.prepared) {
     const slot = schedule.prepared.get(spell.id)!;
-    if (slot.end <= now) hero.push({ end: slot.end + 0.5, id: spell.id, run: () => resolvePrepared(combat, spell, slot) });
+    if (slot.end <= now) spells.push({ end: slot.end, id: spell.id, run: () => resolvePrepared(combat, spell, slot) });
   }
-  hero.sort((a, b) => a.end - b.end || a.id - b.id);
+  spells.sort((a, b) => a.end - b.end || a.id - b.id);
 
   const enemies: { hasty: boolean; run: () => void }[] = [];
   for (const enemy of combat.enemies) {
@@ -696,7 +699,7 @@ function pickNextAction(combat: Combat): (() => void) | null {
   const heroHasty = (combat.hero.statuses.haste ?? 0) > 0;
   const hastyEnemy = !heroHasty ? enemies.find((entry) => entry.hasty) : undefined;
   if (hastyEnemy) return hastyEnemy.run;
-  return hero[0]?.run ?? enemies[0]?.run ?? null;
+  return hero[0]?.run ?? enemies[0]?.run ?? spells[0]?.run ?? null;
 }
 
 // Действие героя или врага сработало: стаки Замедления и Ускорения, ушедшие на него, тратятся

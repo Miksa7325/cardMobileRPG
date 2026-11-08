@@ -29,8 +29,9 @@ export const ACTS: ActData[] = [
     ],
     elites: [["fallen_knight"], ["grave_hound"]],
     boss: ["crypt_warden"],
-    enemyHpMultiplier: 1,
-    bossHpMultiplier: 1.15,
+    // В 1 акте общий множитель CONFIG.enemyHpMultiplier (×1,25) снят: враги и босс на 20% слабее (ручная проверка этапа 5)
+    enemyHpMultiplier: 0.8,
+    bossHpMultiplier: 0.92,
     enemyStrength: 0,
     rewards: { essences: 1, rarityWeights: { common: 60, uncommon: 30, rare: 10 }, relics: ["common", "uncommon"], potionChance: 0.4 },
     startPrice: 0,
