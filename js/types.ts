@@ -95,9 +95,10 @@ export type Effect =
   | { type: "gainMaxHp"; amount: number }
   | { type: "loseMaxHp"; amount: number }
   | { type: "removeRandomCard"; rarity: CardRarity }
-  | { type: "upgradeRandomCards"; count: number }
-  | { type: "gainRelic" }
-  | { type: "gainPotion" };
+  | { type: "upgradeRandomCards"; count: number; cardType?: CardType } // cardType — только карты этого типа
+  | { type: "gainRelic"; relicId?: string } // relicId — эта реликвия; если она уже есть, то случайная
+  | { type: "gainPotion"; potionId?: string } // potionId — это зелье, без него — случайное
+  | { type: "gainShards"; amount: number }; // Осколки мастерства: × множитель наград акта
 
 export type EffectType = Effect["type"];
 // Эффект нужного вида: EffectOf<"damage"> — только урон

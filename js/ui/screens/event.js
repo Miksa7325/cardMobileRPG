@@ -4,6 +4,7 @@ import { POTIONS } from "../../data/potions.ts";
 import { RELICS } from "../../data/relics.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { chooseEventOption, finishEvent, getEventData } from "../../engine/events.ts";
+import { scaledShards } from "../../engine/run.ts";
 import { saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
 import { createRunBar } from "../components/runBar.js";
@@ -33,7 +34,7 @@ export function renderEventScreen(root) {
 
 // Кнопка варианта: действие и в скобках — чем оно обернётся, по эффектам события
 function createChoiceButton(run, choice, index) {
-  const outcome = describeEffects(choice.effects);
+  const outcome = describeEffects(choice.effects, run);
   const button = el("button", "button event__choice", outcome ? `${choice.text} (${outcome})` : choice.text);
   button.type = "button";
   button.addEventListener("click", () => {
@@ -45,7 +46,7 @@ function createChoiceButton(run, choice, index) {
   return button;
 }
 
-export function describeEffects(effects) {
+export function describeEffects(effects, run) {
   const texts = TEXTS.event.effects;
   return effects.map((effect) => {
     switch (effect.type) {
@@ -58,7 +59,13 @@ export function describeEffects(effects) {
       case "losePotion":
         return texts.losePotion(effect.fallbackHp);
       case "upgradeRandomCards":
-        return texts.upgrade(effect.count);
+        return effect.cardType ? texts.upgradeType[effect.cardType] : texts.upgrade(effect.count);
+      case "gainRelic":
+        return effect.relicId ? texts.relicNamed(RELICS[effect.relicId].icon, RELICS[effect.relicId].name) : texts.gainRelic;
+      case "gainPotion":
+        return effect.potionId ? texts.potionNamed(POTIONS[effect.potionId].icon, POTIONS[effect.potionId].name) : texts.gainPotion;
+      case "gainShards":
+        return texts.gainShards(scaledShards(run, effect.amount));
       default:
         return texts[effect.type];
     }
@@ -91,6 +98,8 @@ function formatGain(gain) {
       return TEXTS.event.gainPotion(POTIONS[gain.id].name, POTIONS[gain.id].icon);
     case "gold":
       return TEXTS.event.gainGold(gain.amount);
+    case "shards":
+      return TEXTS.event.gainShards(gain.amount);
     case "goldLost":
       return TEXTS.event.goldLost(gain.amount);
     case "potionLost":

@@ -235,7 +235,7 @@ export const EVENTS: Record<string, EventData> = {
         result: "В зеркале теперь кто-то другой.",
         effects: [{ type: "removeRandomCard", rarity: "starter" }, { type: "loseHp", amount: 6 }],
       },
-      { text: "Разбить зеркало", result: "Осколки серебра звенят под ногами.", effects: [{ type: "gainGold", amount: 4 }] },
+      { text: "Разбить зеркало", result: "Среди осколков серебра что-то светится: этим можно закалить оружие.", effects: [{ type: "gainShards", amount: 1 }] },
     ],
   },
   old_map: {
@@ -246,9 +246,79 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Найти тайник",
         result: "Ловушка сработала, но тайник того стоил.",
-        effects: [{ type: "loseHp", amount: 7 }, { type: "addCard", rarity: "uncommon" }, { type: "gainGold", amount: 8 }],
+        effects: [{ type: "loseHp", amount: 7 }, { type: "addCard", rarity: "uncommon" }, { type: "gainShards", amount: 1 }],
       },
       { text: "Сжечь карту", result: "Ты греешься у огня и отдыхаешь.", effects: [{ type: "heal", amount: 5 }] },
+    ],
+  },
+
+  // Про броню и шкалу (этап 6): доступны сразу
+  dungeon_smith: {
+    id: "dungeon_smith",
+    title: "Кузнец в подземелье",
+    text: "У горна в нише работает живой кузнец. Денег он не берёт — ему нужны руки помощника.",
+    choices: [
+      {
+        text: "Помочь у горна",
+        result: "Жар обжигает руки, зато кузнец отдаёт тебе свои рукавицы.",
+        effects: [{ type: "loseHp", amount: 8 }, { type: "gainRelic", relicId: "smith_gauntlets" }],
+      },
+      {
+        text: "Подлатать снаряжение",
+        result: "Пара ударов молотом — и снаряжение как новое.",
+        effects: [{ type: "upgradeRandomCards", count: 1, cardType: "skill" }],
+      },
+    ],
+  },
+  strange_clock: {
+    id: "strange_clock",
+    title: "Странные часы",
+    text: "На стене тикают часы, стрелки идут в обе стороны.",
+    choices: [
+      {
+        text: "Завести их",
+        result: "Пружина тянет из тебя силы, но часы теперь идут в твоём кармане.",
+        effects: [{ type: "loseMaxHp", amount: 4 }, { type: "gainRelic", relicId: "pocket_watch" }],
+      },
+      {
+        text: "Вынуть механизм",
+        result: "Внутри вместо шестерёнок — склянка с мерцающей жидкостью.",
+        effects: [{ type: "gainPotion", potionId: "haste_potion" }],
+      },
+    ],
+  },
+  fallen_armor: {
+    id: "fallen_armor",
+    title: "Доспехи павшего",
+    text: "У стены лежит рыцарь в помятых доспехах. Пластины ещё крепки.",
+    choices: [
+      {
+        text: "Надеть шлем",
+        result: "Шлем сидит как влитой, но под ним старая рана снова открылась.",
+        effects: [{ type: "gainMaxHp", amount: 6 }, { type: "addCard", cardId: "wound" }],
+      },
+      {
+        text: "Разобрать на детали",
+        result: "Из лучших пластин выйдет отличная закалка.",
+        effects: [{ type: "gainShards", amount: 2 }],
+      },
+    ],
+  },
+  workshop: {
+    id: "workshop",
+    title: "Мастерская",
+    text: "Брошенная мастерская оружейника. На верстаке — незаконченная работа.",
+    choices: [
+      {
+        text: "Закончить работу",
+        result: "Ты сбиваешь пальцы в кровь, но клинок выходит на славу.",
+        effects: [{ type: "loseHp", amount: 6 }, { type: "upgradeRandomCards", count: 1, cardType: "attack" }],
+      },
+      {
+        text: "Собрать заготовки",
+        result: "Заготовки пригодятся мастеру в городе.",
+        effects: [{ type: "gainShards", amount: 1 }],
+      },
     ],
   },
 };
@@ -268,10 +338,10 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
   pickpocket: {
     id: "pickpocket",
     title: "Карманник",
-    text: "В тесном переходе кто-то задевает тебя плечом. Кошель становится легче.",
+    text: "В тесном переходе кто-то задевает тебя плечом. Сумка становится легче.",
     choices: [
-      { text: "Догнать вора", result: "Ты отбираешь монеты, но вор успевает полоснуть ножом.", effects: [{ type: "loseHp", amount: 5 }] },
-      { text: "Отпустить", result: "Шаги вора стихают в темноте вместе с твоим золотом.", effects: [{ type: "loseGold", amount: 20 }] },
+      { text: "Догнать вора", result: "Ты отбираешь своё, но вор успевает полоснуть ножом.", effects: [{ type: "loseHp", amount: 5 }] },
+      { text: "Отпустить", result: "Шаги вора стихают в темноте вместе с твоей поклажей.", effects: [{ type: "losePotion", fallbackHp: 5 }] },
     ],
   },
   cave_in: {

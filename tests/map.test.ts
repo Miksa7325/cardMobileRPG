@@ -88,3 +88,43 @@ describe("Вход в подземелье и открытые акты", () => 
     expect(canStartAct(meta, "mage", 2)).toBe(false);
   });
 });
+
+describe("События этапа 6", () => {
+  async function play(eventId: string, choice: number, setup: (run: ReturnType<typeof createRun>) => void = () => {}) {
+    const { chooseEventOption } = await import("../js/engine/events.ts");
+    const run = createRun({ heroId: "warrior", seed: 3 });
+    enterNode(run, run.map.rows[0][0]);
+    setup(run);
+    run.activeEvent = { eventId, chosenIndex: null, gains: [] };
+    chooseEventOption(run, choice);
+    return run;
+  }
+
+  it("Кузнец в подземелье даёт Рукавицы кузнеца, а если они есть — случайную реликвию", async () => {
+    expect((await play("dungeon_smith", 0)).relics).toContain("smith_gauntlets");
+    const again = await play("dungeon_smith", 0, (run) => run.relics.push("smith_gauntlets"));
+    expect(again.relics.length).toBe(3); // стартовая, рукавицы и ещё одна случайная
+  });
+
+  it("Мастерская улучшает именно атаку, а Осколки растут с актом", async () => {
+    const { CARDS } = await import("../js/data/cards.ts");
+    const run = await play("workshop", 0);
+    const upgraded = run.deck.filter((card) => card.level > 0);
+    expect(upgraded).toHaveLength(1);
+    expect(CARDS[upgraded[0].cardId].type).toBe("attack");
+    expect((await play("fallen_armor", 1)).shards).toBe(2);
+    expect((await play("fallen_armor", 1, (run) => { run.act = 4; })).shards).toBeGreaterThan(2);
+  });
+
+  it("Карманник крадёт зелье, а не золото", async () => {
+    const { chooseEventOption } = await import("../js/engine/events.ts");
+    const run = createRun({ heroId: "warrior", seed: 3 });
+    enterNode(run, run.map.rows[0][0]);
+    run.gold = 50;
+    run.potions = ["fire_potion"];
+    run.activeEvent = { eventId: "pickpocket", travel: true, chosenIndex: null, gains: [] };
+    chooseEventOption(run, 1);
+    expect(run.gold).toBe(50);
+    expect(run.potions).toHaveLength(0);
+  });
+});

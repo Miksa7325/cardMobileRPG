@@ -385,7 +385,7 @@ export function applyRunEffects(run: Run, effects: Effect[], rng: Rng): Gain[] {
 // Обработчик эффекта вне боя. Возвращает, что игрок получил, или ничего
 type RunHandler<T extends EffectType> = (run: Run, effect: EffectOf<T>, rng: Rng) => Gain[] | void;
 type RunEffectType = "heal" | "loseHp" | "gainGold" | "loseGold" | "losePotion" | "gainMaxHp" | "loseMaxHp" | "addCard"
-  | "removeRandomCard" | "upgradeRandomCards" | "gainRelic" | "gainPotion";
+  | "removeRandomCard" | "upgradeRandomCards" | "gainRelic" | "gainPotion" | "gainShards";
 
 const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
   heal(run, effect) {
@@ -437,7 +437,7 @@ const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
     return [{ kind: "cardRemoved", id: card.cardId }];
   },
   upgradeRandomCards(run, effect, rng) {
-    const candidates = getUpgradableCards(run);
+    const candidates = getUpgradableCards(run).filter((card) => !effect.cardType || CARDS[card.cardId].type === effect.cardType);
     shuffle(rng, candidates);
     return candidates.slice(0, effect.count).map((card) => {
       upgradeCard(card);
@@ -445,12 +445,27 @@ const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
     });
   },
   gainRelic(run, effect, rng) {
+    if (effect.relicId && !run.relics.includes(effect.relicId)) {
+      addRelic(run, effect.relicId);
+      return [{ kind: "relic", id: effect.relicId }];
+    }
     const relic = grantRandomRelic(run, rng);
     return [relic.relicId ? { kind: "relic", id: relic.relicId } : { kind: "gold", amount: relic.relicFallbackGold }];
   },
   gainPotion(run, effect, rng) {
+    if (effect.potionId) {
+      if (!canCarryPotion(run)) return [{ kind: "potionsFull" }];
+      run.potions.push(effect.potionId);
+      markSeen(run, "potions", effect.potionId);
+      return [{ kind: "potion", id: effect.potionId }];
+    }
     const potionId = grantRandomPotion(run, rng);
     return [potionId ? { kind: "potion", id: potionId } : { kind: "potionsFull" }];
+  },
+  gainShards(run, effect) {
+    const amount = scaledShards(run, effect.amount);
+    run.shards += amount;
+    return [{ kind: "shards", amount }];
   },
 };
 
@@ -580,16 +595,20 @@ export function openChest(run: Run): void {
   run.pendingReward = { essences: 0, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
 }
 
+// Осколки из событий и Тайника: в поздних актах больше — × множитель наград акта, но не меньше 1
+export function scaledShards(run: Run, base: number): number {
+  return Math.max(1, Math.round(base * getAct(run).rewards.essences));
+}
+
 // Тайник на текущем узле: на выбор зелье, Осколки мастерства или золото. Осколки и золото растут с актом.
 // Зелья нет, если сумка полна или зелий не осталось
 export function openCache(run: Run): CacheOffer {
   const rng = nodeRng(run, "cache");
-  const scale = getAct(run).rewards.essences;
   const pool = getPotionPool(run);
   const offer: CacheOffer = {
     potionId: canCarryPotion(run) && pool.length > 0 ? pickRandom(rng, pool) : null,
-    shards: Math.max(1, Math.round(CONFIG.rewards.cache.shards * scale)),
-    gold: Math.round(CONFIG.rewards.cache.gold * scale),
+    shards: scaledShards(run, CONFIG.rewards.cache.shards),
+    gold: Math.round(CONFIG.rewards.cache.gold * getAct(run).rewards.essences),
   };
   if (offer.potionId) markSeen(run, "potions", offer.potionId);
   run.pendingCache = offer;

@@ -117,6 +117,7 @@ function choiceValue(run, effects) {
       case "loseMaxHp": value -= effect.amount * 2; break;
       case "gainRelic": value += 15; break;
       case "gainPotion": value += 5; break;
+      case "gainShards": value += 2 * effect.amount; break;
       case "losePotion": value -= 4; break;
       case "upgradeRandomCards": value += 6 * effect.count; break;
       case "addCard": value += effect.cardId === "wound" ? -8 : 3; break;

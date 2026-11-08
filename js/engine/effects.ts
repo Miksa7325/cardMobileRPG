@@ -308,7 +308,7 @@ function dealDamage(
 type Handler<T extends EffectType> = (combat: Combat, effect: EffectOf<T>, context: EffectContext) => void;
 // Эффекты вне боя (золото, реликвии) здесь не обрабатываются: их исполняет engine/run.ts
 type CombatEffectType = Exclude<EffectType,
-  "gainGold" | "loseGold" | "losePotion" | "gainMaxHp" | "loseMaxHp" | "removeRandomCard" | "upgradeRandomCards" | "gainRelic" | "gainPotion">;
+  "gainGold" | "loseGold" | "losePotion" | "gainMaxHp" | "loseMaxHp" | "removeRandomCard" | "upgradeRandomCards" | "gainRelic" | "gainPotion" | "gainShards">;
 
 const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<EffectType, unknown>> = {
   damage(combat, effect, context) {
