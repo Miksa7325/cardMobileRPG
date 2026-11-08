@@ -788,4 +788,99 @@ export const ENEMIES: Record<string, EnemyData> = {
     pattern: ["gift", "strike", "miasma", "shroud"],
     phases: [{ below: 0.5, pattern: ["gift", "raise", "strike", "miasma"] }],
   },
+
+  // Акт 9 «Легион мёртвых»: обычные
+  legionnaire: {
+    id: "legionnaire",
+    name: "Скелет-легионер",
+    hp: [46, 52],
+    // Обычный темп: строй щитов
+    moves: { gladius: attack(9, 1, { w: 2 }), shieldWall: guard(12, { w: 2, repair: 1 }) },
+    pattern: ["gladius", "shieldWall"],
+  },
+  bone_archer: {
+    id: "bone_archer",
+    name: "Костяной лучник",
+    hp: [30, 34],
+    // Скрытный
+    moves: { aim: debuff({ vulnerable: 1 }, 0, { w: 1 }), volley: attack(5, 2, { w: 2, hidden: true }) },
+    pattern: ["aim", "volley"],
+  },
+  war_hound: {
+    id: "war_hound",
+    name: "Боевая гончая",
+    hp: [28, 32],
+    // Быстрая
+    moves: { bite: attack(4, 2, { w: 1 }), growl: debuff({ weak: 1 }, 0, { w: 1 }) },
+    pattern: ["bite", "growl", "bite"],
+  },
+  banner_bearer: {
+    id: "banner_bearer",
+    name: "Мёртвый знаменосец",
+    hp: [42, 48],
+    // Призыватель
+    moves: {
+      horn: summon("legionnaire", { w: 2 }),
+      pole: attack(8, 1, { w: 2 }),
+      stand: guard(14, { w: 2, repair: 1 }),
+    },
+    pattern: ["horn", "pole", "stand"],
+  },
+  bone_ram: {
+    id: "bone_ram",
+    name: "Костяной таран",
+    hp: [64, 72],
+    // Медленный
+    moves: { brace: guard(10, { w: 1 }), ram: attack(25, 1, { w: 4, sunder: 2 }) },
+    pattern: ["brace", "ram"],
+  },
+
+  // Акт 9: элита
+  dead_general: {
+    id: "dead_general",
+    name: "Мёртвый генерал",
+    hp: [150, 160],
+    // Призыватель
+    moves: {
+      order: summon("legionnaire", { w: 2 }, 2),
+      blade: attack(9, 2, { w: 3 }),
+      cleave: attack(22, 1, { w: 4, sunder: 2 }),
+    },
+    pattern: ["order", "blade", "cleave"],
+  },
+  death_rider: {
+    id: "death_rider",
+    name: "Всадник смерти",
+    hp: [130, 140],
+    // Сам себя ускоряет, бьёт скрыто
+    moves: {
+      spurs: { intent: "buff", weight: 1, effects: [{ type: "applyStatus", status: "haste", amount: 2, target: "self" }] },
+      lance: attack(18, 1, { w: 3, hidden: true, sunder: 1 }),
+      trample: attack(6, 3, { w: 3 }),
+    },
+    pattern: ["spurs", "lance", "trample"],
+  },
+
+  // Акт 9: босс
+  legion_king: {
+    id: "legion_king",
+    name: "Король легиона",
+    hp: [420, 420],
+    // Приём — перекличка: зовёт двух легионеров за один ход. На половине HP «Последний бой»: все ходы весом 1
+    moves: {
+      rollcall: {
+        intent: "buff",
+        weight: 3,
+        effects: [{ type: "summon", enemyId: "legionnaire", max: 2 }, { type: "summon", enemyId: "legionnaire", max: 2 }],
+      },
+      sword: attack(22, 1, { w: 3, sunder: 2 }),
+      shield: guard(26, { w: 2, repair: 3 }),
+      warcry: debuff({ weak: 2, vulnerable: 2 }, 0, { w: 2 }),
+      quick: attack(7, 1, { w: 1 }),
+      slash: attack(4, 2, { w: 1 }),
+      shout: debuff({ weak: 1 }, 0, { w: 1 }),
+    },
+    pattern: ["rollcall", "sword", "shield", "warcry"],
+    phases: [{ below: 0.5, pattern: ["quick", "quick", "slash", "shout", "quick", "rollcall"] }],
+  },
 };
