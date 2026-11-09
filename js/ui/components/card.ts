@@ -1,6 +1,6 @@
 // Рисует карту. На самой карте — значки с числами, полный текст показывает большая карта (cardPreview.ts).
 import { TEXTS } from "../../data/texts.ru.ts";
-import { getCardData } from "../../engine/deck.ts";
+import { chainBonuses, getCardData } from "../../engine/deck.ts";
 import { calculateBlock, calculateDamage, getBonus } from "../../engine/effects.ts";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
@@ -26,8 +26,8 @@ export function formatDescription(card: CardData, hero: Hero): string {
   for (const effect of flattenEffects(card.effects)) {
     text = fillEffect(text, effect, hero, true);
   }
-  // Бонус цепочки: его числа идут в описании после основных
-  for (const effect of flattenEffects(card.chain?.effects ?? [])) {
+  // Бонусы цепочки: их числа идут в описании после основных, по порядку
+  for (const effect of flattenEffects(chainBonuses(card).flatMap((bonus) => bonus.effects))) {
     text = fillEffect(text, effect, hero, true);
   }
   // Эффекты силы идут не от разыгранной карты, поэтому Ловкость на них не влияет
@@ -177,11 +177,11 @@ function createEffects(card: CardData, hero: Hero): HTMLElement {
     const label = card.power.cardType ? triggers[card.power.cardType] : triggers[card.power.trigger];
     block.append(el("div", "card__trigger", label), ...createEffectLines(card.power.effects, card, hero, false));
   }
-  // Бонус цепочки: подпись и что он даёт
-  if (card.chain) {
+  // Бонусы цепочки (один или два): подпись и что даёт каждый
+  for (const bonus of chainBonuses(card)) {
     const labels = TEXTS.face.chain;
-    const label = card.chain.kind === "chain" ? labels.chain(card.chain.n ?? 3) : labels[card.chain.kind];
-    block.append(el("div", "card__trigger card__trigger--chain", label), ...createEffectLines(card.chain.effects, card, hero, true));
+    const label = bonus.kind === "chain" ? labels.chain(bonus.n ?? 3) : labels[bonus.kind];
+    block.append(el("div", "card__trigger card__trigger--chain", label), ...createEffectLines(bonus.effects, card, hero, true));
   }
   if (card.cost === null) block.append(el("div", "card__trigger", TEXTS.face.unplayable));
   if (card.effects.some((effect) => effect.type === "exhaust")) block.append(el("div", "card__burn", TEXTS.face.burn));

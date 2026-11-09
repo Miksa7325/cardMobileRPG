@@ -214,3 +214,30 @@ describe("эффект бонуса", () => {
     expect(previewLaunch(combat).get(`lane:${combat.lane[0].id}`)?.damage).toBe(15);
   });
 });
+
+describe("два бонуса на карте", () => {
+  beforeAll(() => {
+    probe("t_first_final", { kind: "first", effects: bonusDamage });
+    CARDS.t_first_final.chain2 = { kind: "final", effects: bonusDamage };
+  });
+  it("одиночная карта и начинает, и заканчивает цепочку: срабатывают оба бонуса — 5 + 10 + 10", () => {
+    const { combat, uids, target } = setup(["t_first_final"]);
+    const enemy = combat.enemies[0];
+    const hp = enemy.hp;
+    placeCard(combat, uids[0], 1, target);
+    launch(combat);
+    expect(bonusesFired(combat)).toEqual(["t_first_final", "t_first_final"]);
+    expect(enemy.hp).toBe(hp - 25);
+  });
+  it("в начале цепочки срабатывает только «Первая»", () => {
+    const { combat, uids, target } = setup(["t_first_final", "strike"]);
+    placeCard(combat, uids[0], 1, target);
+    placeCard(combat, uids[1], 2, target);
+    launch(combat);
+    expect(combat.events.filter((event) => event.type === "chainBonus").map((event) => event.kind)).toEqual(["first"]);
+  });
+  it("второй бонус цепочки — только у редких карт", () => {
+    const realCards = Object.values(CARDS).filter((card) => !card.id.startsWith("t_"));
+    for (const card of realCards.filter((entry) => entry.chain2)) expect(card.rarity).toBe("rare");
+  });
+});

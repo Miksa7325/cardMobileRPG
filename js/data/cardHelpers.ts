@@ -39,11 +39,13 @@ export const brew = (amount = 1): EffectOf<"brewPotion"> => ({ type: "brewPotion
 type Upgrade = CardData["upgraded"];
 
 // Бонус цепочки на карте: chained(card(...), "final", [damage(8)], [damage(10)]) — второй список для улучшенной версии.
-// n — для «Цепь N»
+// n — для «Цепь N». Второй вызов на той же карте добавляет второй бонус (chain2) — так можно только редким картам
 export function chained(base: CardData, kind: ChainKind, effects: Effect[], upgradedEffects: Effect[] = effects, n?: number): CardData {
   const chain = { kind, effects, ...(n ? { n } : {}) };
   const upgradedChain = { kind, effects: upgradedEffects, ...(n ? { n } : {}) };
-  return { ...base, chain, upgraded: { ...base.upgraded, chain: upgradedChain } };
+  const field = base.chain ? "chain2" : "chain";
+  if (base.chain2) throw new Error(`У карты «${base.id}» уже два бонуса цепочки: больше нельзя`);
+  return { ...base, [field]: chain, upgraded: { ...base.upgraded, [field]: upgradedChain } };
 }
 
 // Порядок: id, название, тип, редкость, стоимость, цель, описание, эффекты, улучшение, сила

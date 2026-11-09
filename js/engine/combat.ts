@@ -21,10 +21,10 @@ import {
   brewOptionCount, canPrepare, drawOnResolve, finalTwice, openDrawCount, prepEmptyGain, rerollsPerTact, zeroWeightPerTact,
 } from "./rules.ts";
 import type {
-  ActionResult, CardData, CardInstance, CardTarget, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent,
+  ActionResult, CardData, CardInstance, CardTarget, ChainBonus, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent,
   LaneItem, Power, PreparedSpell, Rng, RunCard, Statuses,
 } from "../types.ts";
-import { createCardInstance, createPiles, drawCards, getCardData, takeFromHand } from "./deck.ts";
+import { chainBonuses, createCardInstance, createPiles, drawCards, getCardData, takeFromHand } from "./deck.ts";
 import {
   PLANNING_EFFECTS, addTally, applyBurning, applyLeech, applyPoison, boostEffects, calculateBlock,
   calculateDamage, executeEffects, expireBlocks, fireTrigger, isOver, recordEvent, reduceStatus, setSummonHandler,
@@ -694,11 +694,9 @@ function switchesTarget(combat: Combat, links: ChainLink[], index: number): bool
   return false;
 }
 
-// Сработает ли бонус цепочки у этой карты прямо сейчас (добивание для «Финала» проверяется после её эффектов)
-function chainBonusMet(combat: Combat, links: ChainLink[], index: number): boolean {
+// Сработает ли этот бонус цепочки у карты прямо сейчас (добивание для «Финала» проверяется после её эффектов)
+function chainBonusMet(combat: Combat, links: ChainLink[], index: number, bonus: ChainBonus): boolean {
   const link = links[index];
-  const bonus = link.card.chain;
-  if (!bonus) return false;
   const previous = index > 0 ? links[index - 1] : null;
   const touching = previous !== null && linksTouch(combat, previous, link);
   const position = chainPosition(combat, links, index);
@@ -720,18 +718,9 @@ function chainBonusMet(combat: Combat, links: ChainLink[], index: number): boole
 }
 
 // Эффекты бонуса цепочки с учётом Сердца бездны («Финал» срабатывает дважды)
-function bonusEffects(combat: Combat, item: LaneItem, card: CardData): Effect[] {
-  const bonus = card.chain!;
+function bonusEffects(combat: Combat, item: LaneItem, card: CardData, bonus: ChainBonus): Effect[] {
   recordEvent(combat, { type: "chainBonus", laneId: item.id, kind: bonus.kind, cardId: card.id });
   return bonus.kind === "final" && finalTwice(combat) ? [...bonus.effects, ...bonus.effects] : bonus.effects;
-}
-
-// Эффекты бонуса цепочки для карты, которая сейчас срабатывает, или пусто
-function chainBonusEffects(combat: Combat, item: LaneItem): Effect[] {
-  const links = chainLinks(combat);
-  const index = links.findIndex((link) => link.item === item);
-  if (index < 0 || !chainBonusMet(combat, links, index)) return [];
-  return bonusEffects(combat, item, links[index].card);
 }
 
 // ---------- Ход времени ----------
@@ -879,14 +868,15 @@ function drawAfterResolve(combat: Combat): void {
 
 function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   combat.acting = `lane:${item.id}`;
-  // Бонус цепочки проверяем, пока карта ещё на своём месте среди несыгранных
+  // Бонусы цепочки (один или два) проверяем, пока карта ещё на своём месте среди несыгранных. Каждый — сам по себе
   const links = item.card ? chainLinks(combat) : [];
   const index = links.findIndex((link) => link.item === item);
   const card = index >= 0 ? links[index].card : null;
-  const bonusMet = index >= 0 && chainBonusMet(combat, links, index);
-  const bonus = bonusMet ? bonusEffects(combat, item, card!) : [];
+  const bonuses = card ? chainBonuses(card) : [];
+  const met = bonuses.filter((entry) => chainBonusMet(combat, links, index, entry));
+  const bonus = met.flatMap((entry) => bonusEffects(combat, item, card!, entry));
   // «Финал» при добивании: если бонус не сработал по цепочке, а карта убила врага — сработает после её эффектов
-  const finalOnKill = card?.chain?.kind === "final" && !bonusMet;
+  const finalsOnKill = bonuses.filter((entry) => entry.kind === "final" && !met.includes(entry));
   item.resolved = true;
   item.start = slot.start;
   item.end = combat.clock;
@@ -904,8 +894,8 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   if (item.card) {
     const alive = aliveEnemies(combat).length;
     playResolvedCard(combat, item.card, item.targetId, 1, bonus);
-    if (finalOnKill && !isOver(combat) && aliveEnemies(combat).length < alive) {
-      executeEffects(combat, bonusEffects(combat, item, card!), {
+    if (finalsOnKill.length > 0 && !isOver(combat) && aliveEnemies(combat).length < alive) {
+      executeEffects(combat, finalsOnKill.flatMap((entry) => bonusEffects(combat, item, card!, entry)), {
         source: combat.hero, targets: resolveTargets(combat, card!.target, item.targetId), fromCard: true,
       });
     }

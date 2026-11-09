@@ -3,7 +3,7 @@
 import { CONFIG } from "../config.ts";
 import { CARDS } from "../data/cards.ts";
 import { shuffle } from "./rng.ts";
-import type { CardData, CardInstance, Effect, LadderRarity, Piles, Rng } from "../types.ts";
+import type { CardData, CardInstance, ChainBonus, Effect, LadderRarity, Piles, Rng } from "../types.ts";
 
 type Leveled = { cardId: string; level: number };
 
@@ -57,14 +57,20 @@ function scaleEffects(effects: Effect[], percent: number, round: (value: number)
   });
 }
 
-// Все списки эффектов карты сразу: основные, силы и бонуса цепочки
+// Все списки эффектов карты сразу: основные, силы и бонусов цепочки
 function scaleCard(data: CardData, percent: number, round: (value: number) => number): CardData {
   return {
     ...data,
     effects: scaleEffects(data.effects, percent, round),
     ...(data.power ? { power: { ...data.power, effects: scaleEffects(data.power.effects, percent, round) } } : {}),
     ...(data.chain ? { chain: { ...data.chain, effects: scaleEffects(data.chain.effects, percent, round) } } : {}),
+    ...(data.chain2 ? { chain2: { ...data.chain2, effects: scaleEffects(data.chain2.effects, percent, round) } } : {}),
   };
+}
+
+// Бонусы цепочки карты по порядку: ни одного, один или два (второй — только у редких)
+export function chainBonuses(card: CardData): ChainBonus[] {
+  return [card.chain, card.chain2].filter((bonus): bonus is ChainBonus => Boolean(bonus));
 }
 
 // Данные карты с учётом уровня: уровень 1 — поля из upgraded. Уровни 2… до легендарной — из levels, а где их нет —

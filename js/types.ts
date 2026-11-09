@@ -143,7 +143,8 @@ export interface CardData {
   // Уровни 2, 3… до легендарной: что меняется ещё (поверх предыдущих). Пропишем на этапе 5
   levels?: Partial<Omit<CardData, "id" | "upgraded" | "levels">>[];
   power?: Power;
-  chain?: ChainBonus; // на одной карте не больше одного бонуса цепочки
+  chain?: ChainBonus; // бонус цепочки
+  chain2?: ChainBonus; // второй бонус цепочки: только у редких карт, больше двух не бывает (разбор механик)
   joints?: { left?: JointSymbol; right?: JointSymbol };
   hero?: HeroId; // чья это карта; у Раны героя нет
 }
