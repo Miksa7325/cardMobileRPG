@@ -574,6 +574,7 @@ export interface Run {
   seenTravelEventIds?: string[];
   teleports?: number;
   blessings?: number;
+  victoryCounted?: boolean; // победа за босса 10 акта уже засчитана в городе: второй раз её не считаем
 }
 
 // Снаряжение героя между забегами. У забега те же поля, поэтому службы города работают с обоими
@@ -600,7 +601,7 @@ export interface Supplies {
 export interface HeroRecord {
   dead: boolean;
   equipment?: Equipment;
-  bestAct?: number; // самый дальний акт, куда доходил герой: с начала любого из них он может начать забег
+  bestAct?: number; // рекорд глубины: самый дальний акт, куда доходил герой (начать можно с актов 1–11, не глубже)
 }
 
 export interface Meta {

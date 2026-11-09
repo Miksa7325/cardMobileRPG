@@ -106,6 +106,10 @@ export const CONFIG = {
   // Враги глубже в акте: +hpPerFloor к здоровью за этаж и +strengthPerStep Силы за каждые floorsPerStrength этажей
   depth: { hpPerFloor: 0.025, floorsPerStrength: 6, strengthPerStep: 2 },
   teleportEventChance: 0.07, // шанс, что быстрый переход по карте прервёт встреча в пути (data/events.js, TRAVEL_EVENTS)
+  // Бесконечная бездна (акты после 10-го, engine/abyss.ts). За каждый круг от уровня 10 акта: HP врагов и боссов
+  // +hpPerCircle (доля), Сила +strengthPerCircle, множитель эссенций и Осколков +essencesPerCircle.
+  // encounters — сколько групп обычных боёв в акте, mechanics — сколько особенностей. Числа — заготовка до общего баланса
+  abyss: { hpPerCircle: 0.1, strengthPerCircle: 2, essencesPerCircle: 0.6, encounters: 6, mechanics: 2 },
 
   // Все враги крепче на столько: карты и реликвии открыты с самого начала, и герой сильнее, чем раньше
   enemyHpMultiplier: 1.25,

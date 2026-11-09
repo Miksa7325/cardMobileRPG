@@ -32,7 +32,7 @@ import { POTIONS } from "../js/data/potions.ts";
 import { chooseEventOption, finishEvent, getEventData, startEvent } from "../js/engine/events.ts";
 import {
   completeReward, createNodeCombat, createRun, enterNode, finishCombat, getAvailableNodeIds, getCurrentNode, getUpgradableCards,
-  healInCity, openCache, openChest, restHeal, takeFromCache,
+  goToNextAct, healInCity, openCache, openChest, restHeal, takeFromCache,
 } from "../js/engine/run.ts";
 import { upgradeCard } from "../js/engine/deck.ts";
 import { applyStrengthScale, playCombat, setBeam } from "./bot.js";
@@ -173,6 +173,8 @@ function playRun(heroId, seed) {
       if (node.type === "boss") {
         log.won = true;
         log.cleared = act - ACT + 1;
+        // После босса акт сам не кончается: бот сразу спускается в следующий
+        goToNextAct(run);
         // После босса — выход в город: отдохнуть перед следующим актом
         if (MULTI) healInCity(run);
       }

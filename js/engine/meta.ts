@@ -7,8 +7,8 @@ import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { QUESTS } from "../data/quests.ts";
 import { POTION_PRICE, TRADER_GOODS } from "../data/trader.ts";
-import { getEquipment } from "./run.ts";
-import type { ActData, HeroId, Meta, QuestData, Run, SeenLists, Supplies, TraderGood } from "../types.ts";
+import { getEquipment, hasConqueredDungeon } from "./run.ts";
+import type { ActMechanic, HeroId, Meta, QuestData, Run, SeenLists, Supplies, TraderGood } from "../types.ts";
 
 export function createMeta(): Meta {
   return {
@@ -121,9 +121,34 @@ function reachAct(meta: Meta, heroId: HeroId, act: number): void {
   record.bestAct = Math.max(record.bestAct ?? 1, act);
 }
 
-// С каких актов герой может начать забег: с первого и со всех, до которых он уже доходил. Вход бесплатный
-export function getStartableActs(meta: Meta, heroId: HeroId): (ActData & { number: number })[] {
-  return ACTS.slice(0, meta.heroes[heroId]?.bestAct ?? 1).map((act, index) => ({ number: index + 1, ...act }));
+// Акт, с которого можно начать забег: номер, название и особенность для окна входа
+export interface StartableAct {
+  number: number;
+  name: string;
+  mechanic: ActMechanic;
+}
+
+// Вход в бездну в окне выбора акта: сами круги собираются случайно в каждом забеге, поэтому показываем общее описание
+const ABYSS_ENTRY = {
+  name: "Бесконечная бездна",
+  mechanic: {
+    name: "Случайные круги",
+    text: "Каждый акт собран из врагов всех актов и двух случайных особенностей. С каждым кругом враги крепче, а награды богаче.",
+  },
+};
+
+// С каких актов герой может начать забег: с первого и со всех, до которых он уже доходил, но не глубже входа
+// в бездну (акт 11): дальше — только продолжая забег. Вход бесплатный
+export function getStartableActs(meta: Meta, heroId: HeroId): StartableAct[] {
+  const last = Math.min(meta.heroes[heroId]?.bestAct ?? 1, ACTS.length + 1);
+  const acts: StartableAct[] = ACTS.slice(0, last).map((act, index) => ({ number: index + 1, name: act.name, mechanic: act.mechanic }));
+  if (last > ACTS.length) acts.push({ number: ACTS.length + 1, ...ABYSS_ENTRY });
+  return acts;
+}
+
+// Рекорд глубины героя: самый дальний акт, куда он доходил
+export function getBestAct(meta: Meta, heroId: HeroId): number {
+  return meta.heroes[heroId]?.bestAct ?? 1;
 }
 
 export function canStartAct(meta: Meta, heroId: HeroId, actNumber: number): boolean {
@@ -133,6 +158,7 @@ export function canStartAct(meta: Meta, heroId: HeroId, actNumber: number): bool
 // Сдаёт в казну добычу, которую герой несёт из подземелья. Возвращает, сколько сдано
 export function bankLoot(meta: Meta, run: Run): { gold: number; essences: number; shards: number } {
   reachAct(meta, run.heroId, run.act);
+  countVictory(meta, run);
   const loot = { gold: run.gold, essences: run.essences, shards: run.shards };
   meta.gold += run.gold;
   meta.essences += run.essences;
@@ -239,12 +265,26 @@ export function mergeSeen(meta: Meta, run: Run): void {
   }
 }
 
+// Победа — босс 10 акта побеждён. Её засчитываем один раз: когда герой поднимается в город или погибает.
+// Забег после победы не кончается, дальше бездна
+function countVictory(meta: Meta, run: Run): void {
+  if (run.victoryCounted || !hasConqueredDungeon(run)) return;
+  run.victoryCounted = true;
+  meta.wins += 1;
+  meta.totals.wins = (meta.totals.wins ?? 0) + 1;
+  const stats = meta.heroStats[run.heroId] ?? { runs: 0, wins: 0 };
+  stats.wins += 1;
+  meta.heroStats[run.heroId] = stats;
+}
+
 // Записывает итог законченного забега. Победивший герой сдаёт добычу в казну и оставляет снаряжение себе.
 // Погибший пропадает навсегда вместе со снаряжением и всем, что нёс. Возвращает, что игрок получил
 export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
   const died = run.status === "lost";
   reachAct(meta, run.heroId, run.act);
+  // Победа за босса 10 акта остаётся победой, даже если герой потом погиб в бездне
+  countVictory(meta, run);
   // Погибший теряет всё несданное: и золото, и эссенции, и Осколки
   const loot = died ? { gold: 0, essences: 0, shards: 0 } : bankLoot(meta, run);
   if (died) buryHero(meta, run.heroId);
@@ -258,14 +298,11 @@ export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
   add("floors", getTotalFloor(run, currentFloor));
   add("runs", 1);
   add(`runs_${run.heroId}`, 1);
-  if (run.status === "won") add("wins", 1);
   meta.runsPlayed += 1;
-  if (run.status === "won") meta.wins += 1;
   meta.bestFloor = Math.max(meta.bestFloor, getTotalFloor(run, currentFloor));
 
   const stats = meta.heroStats[run.heroId] ?? { runs: 0, wins: 0 };
   stats.runs += 1;
-  if (run.status === "won") stats.wins += 1;
   meta.heroStats[run.heroId] = stats;
 
   mergeSeen(meta, run);

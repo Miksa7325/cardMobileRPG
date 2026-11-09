@@ -10,7 +10,7 @@ import { DECOR_HOUSES, DECOR_PROPS, FOUNTAIN, POINTS_OF_INTEREST, SERVICE_HOUSES
 import { HEROES } from "../../data/heroes.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import {
-  bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getHeroEquipment, getStartableActs, getTraderGoods,
+  bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getBestAct, getHeroEquipment, getStartableActs, getTraderGoods,
   isHeroDead, selectHero, throwWishCoin,
 } from "../../engine/meta.ts";
 import { canReturnToCity, getCurrentFloor, healInCity } from "../../engine/run.ts";
@@ -391,6 +391,9 @@ function openGate() {
   } else {
     const name = HEROES[meta.selectedHero].name;
     dialog.append(el("p", "quests__hint", run ? TEXTS.city.newRunOverRun(name) : TEXTS.city.gateHero(name)));
+    // Рекорд глубины: в бездне он может уйти дальше акта, с которого можно начать
+    const best = getBestAct(meta, meta.selectedHero);
+    if (best > 1) dialog.append(el("p", "building-details__note", TEXTS.city.bestAct(best)));
     const list = el("div", "quest-dialog__list");
     for (const act of getStartableActs(meta, meta.selectedHero)) list.append(createActChoice(meta, act, run !== null));
     dialog.append(list);

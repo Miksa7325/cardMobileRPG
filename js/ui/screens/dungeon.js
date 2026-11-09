@@ -9,7 +9,7 @@ import {
 } from "../../engine/meta.ts";
 import {
   canReturnToCity, createRun, enterNode, getAct, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId, getStepCost,
-  isNodeCleared, isNodeRevealed, openCache, openChest, rechargeFireflies, releaseFireflies, travelTo,
+  goToNextAct, isInDefeatedBossRoom, isNodeCleared, isNodeRevealed, openCache, openChest, rechargeFireflies, releaseFireflies, travelTo,
 } from "../../engine/run.ts";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
@@ -83,6 +83,8 @@ export function continueRun(run) {
   else if (run.savedCombat) resumeCombat();
   else if (run.activeEvent) showScreen("event");
   else if (run.pendingCache) showScreen("cache");
+  // Вернулся из города в логово побеждённого босса — снова выбор, куда дальше
+  else if (isInDefeatedBossRoom(run)) showScreen("bossRoom");
   else showScreen("dungeon");
 }
 
@@ -146,6 +148,7 @@ function describePlace(run) {
   }
   const type = getCurrentNode(run).type;
   if (type === "save") return { title: TEXTS.saveRoom.title, hint: TEXTS.dungeon.hint, room: true };
+  if (type === "boss") return { title: TEXTS.bossRoom.title, hint: TEXTS.dungeon.hint, room: true };
   if (type === "deadEnd") return { title: TEXTS.dungeon.nodes.deadEnd, hint: TEXTS.dungeon.deadEndHint, room: false };
   return { title: TEXTS.dungeon.corridor, hint: TEXTS.dungeon.hint, room: false };
 }
@@ -316,6 +319,8 @@ function createCorridorActions(run, meta, toggleAiming) {
   // Слева — выход в город
   const exits = el("div", "corridor__tools");
   if (canReturnToCity(run)) exits.append(createCityButton(meta));
+  // В логове побеждённого босса — спуск в следующий акт
+  if (isInDefeatedBossRoom(run)) exits.append(createNextActButton(run));
   actions.append(exits, tools);
   return actions;
 }
@@ -370,6 +375,18 @@ function createCityButton(meta) {
   return button;
 }
 
+// Спуск из логова побеждённого босса в следующий акт: герой встаёт у входа в новый акт
+function createNextActButton(run) {
+  const button = el("button", "corridor__city", TEXTS.bossRoom.nextAct(run.act + 1));
+  button.type = "button";
+  button.addEventListener("click", () => {
+    if (!goToNextAct(run)) return;
+    saveRun(run);
+    showScreen("dungeon");
+  });
+  return button;
+}
+
 // Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там
 function enterTunnel(run, nodeId) {
   const cleared = isNodeCleared(run, nodeId);
@@ -387,7 +404,10 @@ function showRoom(run, cleared) {
   const type = cleared ? null : getCurrentNode(run).type;
   // На отдыхе и в комнате сохранения светлячки снова собираются в банку
   if (type === "rest" || type === "save") rechargeFireflies(run);
-  if (cleared || type === "deadEnd") {
+  // В логово побеждённого босса можно вернуться: там снова выбор — остаться, в город или в следующий акт
+  if (cleared && isInDefeatedBossRoom(run)) {
+    showScreen("bossRoom");
+  } else if (cleared || type === "deadEnd") {
     showScreen("dungeon");
   } else if (type === "rest") {
     showScreen("rest");

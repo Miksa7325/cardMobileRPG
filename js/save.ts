@@ -2,7 +2,6 @@
 // игра пишет в выбранную ячейку. Настройки общие для всех ячеек.
 // Смерть стирает только забег. Браузер может запретить хранилище, поэтому всё обёрнуто в try.
 import { CONFIG } from "./config.ts";
-import { ACTS } from "./data/acts.ts";
 import { CARDS } from "./data/cards.ts";
 import { ENEMIES } from "./data/enemies.ts";
 import { POTIONS } from "./data/potions.ts";
@@ -131,7 +130,8 @@ function isValidRun(run: Untrusted): run is Run {
   if (!Number.isFinite(run.hp) || !Number.isFinite(run.maxHp) || !Number.isFinite(run.gold) || run.hp <= 0) return false;
   if (!Array.isArray(run.deck) || !Array.isArray(run.relics) || !Array.isArray(run.potions)) return false;
   if (!run.map?.nodes || !Array.isArray(run.map.rows) || !Array.isArray(run.visitedNodeIds)) return false;
-  if (!Number.isInteger(run.act) || run.act < 1 || run.act > ACTS.length || !Array.isArray(run.stats?.combats)) return false;
+  // Верхней границы у акта нет: после 10 акта идёт бесконечная бездна
+  if (!Number.isInteger(run.act) || run.act < 1 || !Array.isArray(run.stats?.combats)) return false;
   if (!Array.isArray(run.lockedCardIds) || !Array.isArray(run.lockedRelicIds)) return false;
   if (!Array.isArray(run.lockedEventIds) || !Array.isArray(run.lockedPotionIds)) return false;
   if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics) || !Array.isArray(run.seen?.potions)) return false;

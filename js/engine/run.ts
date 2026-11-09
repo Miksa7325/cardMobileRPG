@@ -5,6 +5,7 @@ import { ACTS } from "../data/acts.ts";
 import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { RELICS } from "../data/relics.ts";
+import { getActData } from "./abyss.ts";
 import { createCombat } from "./combat.ts";
 import { canUpgradeFirstStep, upgradeCard } from "./deck.ts";
 import { generateMap } from "./map.ts";
@@ -124,9 +125,9 @@ function takeEquipment(run: Run, equipment: Equipment): void {
   for (const potionId of run.potions) markSeen(run, "potions", potionId);
 }
 
-// Акт, в котором сейчас герой: его враги, особенность и награды
+// Акт, в котором сейчас герой: его враги, особенность и награды. После 10 акта — круг бездны этого забега
 export function getAct(run: Run) {
-  return ACTS[run.act - 1];
+  return getActData(run.seed, run.act);
 }
 
 function markSeen(run: Run, kind: keyof SeenLists, id: string): void {
@@ -135,7 +136,7 @@ function markSeen(run: Run, kind: keyof SeenLists, id: string): void {
 
 // У каждого акта своя карта, а особенность акта может её менять: больше тупиков, нет отдыха
 function generateActMap(seed: number, act: number) {
-  return generateMap(createRng(deriveSeed(seed, `map:${act}`)), ACTS[act - 1].mechanic);
+  return generateMap(createRng(deriveSeed(seed, `map:${act}`)), getActData(seed, act).mechanic);
 }
 
 // У каждого узла свой генератор: результат зависит только от seed забега, акта и самого узла
@@ -153,11 +154,20 @@ export function getCurrentFloor(run: Run): number {
   return run.currentNodeId ? getCurrentNode(run).floor : 0;
 }
 
-// Подняться в город можно из комнаты сохранения и из начальной комнаты акта: у входа, пока забег не начался,
-// и после победы над боссом прошлого акта — это награда за босса
+// Подняться в город можно из комнаты сохранения, из начальной комнаты акта и из комнаты побеждённого босса
 export function canReturnToCity(run: Run): boolean {
   if (!run.currentNodeId) return true;
-  return getCurrentNode(run).type === "save";
+  return getCurrentNode(run).type === "save" || isInDefeatedBossRoom(run);
+}
+
+// Побеждён ли босс текущего акта
+export function isBossDefeated(run: Run): boolean {
+  return run.stats.combats.some((combat) => combat.act === run.act && combat.type === "boss" && combat.won);
+}
+
+// Стоит ли герой в комнате побеждённого босса: оттуда можно уйти в город или в следующий акт
+export function isInDefeatedBossRoom(run: Run): boolean {
+  return run.currentNodeId !== null && getCurrentNode(run).type === "boss" && isBossDefeated(run);
 }
 
 // На какие узлы можно перейти: в начале это весь нижний ряд
@@ -659,19 +669,17 @@ export function rollCardChoices(run: Run, rng: Rng, onlyRarity: CardRarity | nul
   return choices;
 }
 
-// Завершает награду: cardId — выбранная карта или null, если игрок пропустил
+// Завершает награду: cardId — выбранная карта или null, если игрок пропустил.
+// После босса акт не кончается: герой стоит в его комнате и сам выбирает, остаться, уйти в город или идти дальше
 export function completeReward(run: Run, cardId: string | null): void {
   if (cardId) addCardToDeck(run, cardId);
   run.pendingReward = null;
-  if (getCurrentNode(run).type === "boss") finishAct(run);
 }
 
-// После босса начинается следующий акт с новой картой, а после последнего босса — победа
-function finishAct(run: Run): void {
-  if (run.act >= ACTS.length) {
-    run.status = "won";
-    return;
-  }
+// Переход в следующий акт из комнаты побеждённого босса: новая карта, герой у входа. После 10 акта — бездна, конца нет.
+// Возвращает false, если босс этого акта ещё не побеждён или герой не в его комнате
+export function goToNextAct(run: Run): boolean {
+  if (!isInDefeatedBossRoom(run)) return false;
   run.act += 1;
   run.map = generateActMap(run.seed, run.act);
   run.currentNodeId = null;
@@ -680,6 +688,12 @@ function finishAct(run: Run): void {
   run.revealedNodeIds = [];
   // Карта подземелья — на один акт: комнаты нового акта на ней не нарисованы
   run.hasMap = false;
+  return true;
+}
+
+// Побеждён ли босс 10 акта в этом забеге: это победа, даже если герой пошёл дальше в бездну
+export function hasConqueredDungeon(run: Run): boolean {
+  return run.status === "won" || run.stats.combats.some((combat) => combat.act === ACTS.length && combat.type === "boss" && combat.won);
 }
 
 // Сколько HP вылечит отдых прямо сейчас
