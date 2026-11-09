@@ -1,5 +1,6 @@
-/* Шкала хода на экране боя: дорожки, плашки карт и ходов врагов, указатель времени.
-   Ширина подписи слева — --lane-label, остальное делится на 6 клеток */
+/* Шкала хода на экране боя: дорожки, плашки карт и ходов врагов, полоса времени.
+   Ширина подписи слева — --lane-label, остальное — окно из --visible клеток (7). Дорожка внутри окна длиннее
+   на клетку (--strip, 8) и едет влево на долю клетки --shift, пока идёт время. Числа ставит timeline.ts */
 .timeline {
   --lane-label: 62px;
   --lane-gap: 6px;
@@ -26,9 +27,24 @@
   white-space: nowrap;
 }
 
+/* Окно: обрезает то, что уехало за края */
+.timeline__clip {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+/* То, что едет вместе со временем: номера клеток и дорожки. На клетку длиннее окна */
+.timeline__strip {
+  width: calc(100% * var(--strip, 8) / var(--visible, 7));
+  transform: translateX(calc(var(--shift, 0) * -100% / var(--strip, 8)));
+  transition: transform calc(100ms * var(--anim-speed, 1)) linear;
+}
+
 .timeline__numbers {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(var(--strip, 8), 1fr);
   color: #a99f8b;
   font-size: 11px;
   text-align: center;
@@ -36,6 +52,7 @@
 
 .timeline__number--past {
   color: var(--color-highlight, #ffd36a);
+  opacity: 0.6;
 }
 
 .timeline__tracks {
@@ -44,16 +61,25 @@
   gap: 4px;
 }
 
-/* Дорожка: 6 клеток и черты между тактами. Окно сдвигается вместе со временем, поэтому место черт задаёт
-   --tact (доля ширины до первой черты, её ставит timeline.ts); вторая черта — на 3 клетки (50%) дальше */
+/* Дорожка: клетки и черты между тактами (.timeline__tact, их ставит timeline.ts) */
 .timeline__track {
   position: relative;
   height: 34px;
-  border-radius: 6px;
-  background:
-    linear-gradient(90deg, transparent calc(var(--tact, 50%) - 1px), rgba(255, 200, 90, 0.55) calc(var(--tact, 50%) - 1px), rgba(255, 200, 90, 0.55) calc(var(--tact, 50%) + 1px), transparent calc(var(--tact, 50%) + 1px)),
-    linear-gradient(90deg, transparent calc(var(--tact, 50%) + 50% - 1px), rgba(255, 200, 90, 0.55) calc(var(--tact, 50%) + 50% - 1px), rgba(255, 200, 90, 0.55) calc(var(--tact, 50%) + 50% + 1px), transparent calc(var(--tact, 50%) + 50% + 1px)),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 calc(100% / 6 - 1px), rgba(255, 255, 255, 0.18) calc(100% / 6 - 1px) calc(100% / 6));
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0 calc(100% / var(--strip, 8) - 1px),
+    rgba(255, 255, 255, 0.18) calc(100% / var(--strip, 8) - 1px) calc(100% / var(--strip, 8))
+  );
+}
+
+.timeline__tact {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 200, 90, 0.55);
+  pointer-events: none;
 }
 
 .timeline__track[data-lane="hero"] {
@@ -67,12 +93,13 @@
   box-shadow: 0 0 0 1px var(--color-highlight, #ffd36a) inset;
 }
 
-/* Указатель времени: стоит на границе, до которой дошёл розыгрыш */
+/* Полоса времени: стоит на стыке, до которого дошло время, --pos клеток от левого края окна.
+   В начале боя она за первую клетку доходит от края до своего места, потом стоит, а едет шкала */
 .timeline__pointer {
   position: absolute;
   top: -4px;
   bottom: -2px;
-  left: calc(var(--lane-label) + var(--lane-gap) + (100% - var(--lane-label) - var(--lane-gap)) * var(--clock) / 6);
+  left: calc(var(--lane-label) + var(--lane-gap) + (100% - var(--lane-label) - var(--lane-gap)) * var(--pos, 0) / var(--visible, 7));
   z-index: 3;
   width: 3px;
   margin-left: -1px;
@@ -80,7 +107,12 @@
   background: var(--color-highlight, #ffd36a);
   box-shadow: 0 0 8px var(--color-highlight, #ffd36a);
   pointer-events: none;
-  transition: left calc(220ms * var(--anim-speed, 1)) linear;
+  transition: left calc(100ms * var(--anim-speed, 1)) linear;
+}
+
+/* До «Начать» полосы нет: время ещё не пошло */
+.timeline--planning .timeline__pointer {
+  display: none;
 }
 
 /* Плашка карты, зелья или хода врага */
@@ -250,6 +282,7 @@
 
 .combat__launch {
   min-width: 96px;
+  white-space: nowrap;
 }
 
 /* Карта, которая останется в руке на следующий ход */

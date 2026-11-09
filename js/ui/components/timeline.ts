@@ -1,6 +1,8 @@
 // Шкала боя на экране: дорожка выбранного врага, дорожка героя и (у Мага) дорожка подготовки.
-// Шкала бесконечная, экран показывает окно из 6 клеток вперёд от указателя времени: номера клеток считаются
-// с начала боя, черта отделяет такты. Сами правила — в engine/combat.ts
+// Шкала бесконечная, экран показывает окно из 7 клеток: прошедшую клетку слева от полосы времени и 6 впереди.
+// В самом начале боя полоса стоит у левого края и за первую клетку доходит до своего места — 1 клетка от края;
+// дальше полоса стоит, а плавно едет сама шкала. Номера клеток считаются с начала боя, черты отделяют такты.
+// Сами правила — в engine/combat.ts
 import { CONFIG } from "../../config.ts";
 import { ENEMIES } from "../../data/enemies.ts";
 import { HEROES } from "../../data/heroes.ts";
@@ -13,13 +15,17 @@ import { el } from "../dom.js";
 import { createIcon } from "../icons.js";
 import { type DropTarget, enableTimelineDrag } from "../timelineDrag.ts";
 
-const CELLS = CONFIG.timeline.cells;
+const CELLS = CONFIG.timeline.cells; // горизонт: на сколько клеток вперёд можно ставить карты
 const TACT = CONFIG.timeline.tactCells;
+const VISIBLE = CELLS + 1; // на экране 7 клеток: прошедшая слева от полосы и 6 впереди
+const STRIP = VISIBLE + 1; // дорожка на клетку длиннее окна: пока шкала едет, справа не видно пустоты
 
 const INTENT_ICONS: Record<string, string> = { attack: "damage", defend: "block", buff: "buff", debuff: "debuff" };
 
-// Начало окна: последняя пройденная граница на момент, когда шкалу нарисовали. Окно — клетки base+1 … base+6
-let base = 0;
+// На момент, когда шкалу нарисовали: clock — стык, до которого дошло время, origin — стык у левого края окна.
+// Дорожка показывает клетки origin+1 … origin+8, из них в окно влезают 7
+let clock = 0;
+let origin = 0;
 
 export interface TimelineHandlers {
   onHeroLaneTap: (cell: number, boundary: number) => void; // нажали на дорожку героя: клетка и ближайший стык (с начала боя)
@@ -29,42 +35,57 @@ export interface TimelineHandlers {
   onItemHover: (id: number, target: DropTarget) => void; // несут карту по шкале: показать, куда встанет
 }
 
-// Где на дорожке точка экрана: номер клетки и ближайший стык, считая с начала боя
+// Где на дорожке точка экрана: номер клетки и ближайший стык, считая с начала боя.
+// Дорожка может быть сдвинута (шкала едет): её прямоугольник на экране это уже учитывает
 export function pointOnTrack(track: Element, clientX: number): { cell: number; boundary: number } {
   const rect = track.getBoundingClientRect();
   const share = Math.min(0.999, Math.max(0, (clientX - rect.left) / rect.width));
-  return { cell: base + Math.floor(share * CELLS) + 1, boundary: base + Math.round(share * CELLS) };
+  return { cell: origin + Math.floor(share * STRIP) + 1, boundary: origin + Math.round(share * STRIP) };
 }
 
 // Положение и ширина плашки в процентах дорожки. start — клетка с начала боя (у веса 0 — стык).
-// Начало, ушедшее за левый край окна (карта уже срабатывает), обрезается
+// Начало, ушедшее за левый край окна, обрезается
 function place(element: HTMLElement, start: number, weight: number): void {
   if (weight === 0) {
-    element.style.left = `${((start - base) / CELLS) * 100}%`;
+    element.style.left = `${((start - origin) / STRIP) * 100}%`;
     element.classList.add("lane-chip--zero");
     return;
   }
-  const end = Math.min(start + weight - 1, base + CELLS);
-  const first = Math.max(start, base + 1);
-  element.style.left = `${((first - base - 1) / CELLS) * 100}%`;
-  element.style.width = `${(Math.max(0, end - first + 1) / CELLS) * 100}%`;
-  if (start <= base) element.classList.add("lane-chip--running");
+  const end = Math.min(start + weight - 1, origin + STRIP);
+  const first = Math.max(start, origin + 1);
+  element.style.left = `${((first - origin - 1) / STRIP) * 100}%`;
+  element.style.width = `${(Math.max(0, end - first + 1) / STRIP) * 100}%`;
+  if (start <= clock) element.classList.add("lane-chip--running");
 }
 
-// Видна ли плашка в окне: кончается после начала окна и начинается до его конца
+// Видна ли плашка на дорожке: кончается после её начала и начинается до её конца
 function visible(start: number, end: number): boolean {
-  return end > base && start <= base + CELLS;
+  return end > origin && start <= origin + STRIP;
+}
+
+// Черты между тактами: на каждом стыке, кратном длине такта
+function appendTactLines(track: HTMLElement): void {
+  for (let boundary = origin + 1; boundary < origin + STRIP; boundary++) {
+    if (boundary % TACT !== 0) continue;
+    const line: HTMLElement = el("div", "timeline__tact");
+    line.style.left = `${((boundary - origin) / STRIP) * 100}%`;
+    track.append(line);
+  }
 }
 
 function createTrack(lane: string): HTMLElement {
-  const track = el("div", "timeline__track");
+  const track = el("div", "timeline__track timeline__strip");
   track.dataset.lane = lane;
+  appendTactLines(track);
   return track;
 }
 
+// Дорожка в окне: окно обрезает то, что уехало за края
 function createRow(label: string, track: HTMLElement, modifier: string): HTMLElement {
   const row = el("div", `timeline__row timeline__row--${modifier}`);
-  row.append(el("div", "timeline__label", label), track);
+  const clip = el("div", "timeline__clip");
+  clip.append(track);
+  row.append(el("div", "timeline__label", label), clip);
   return row;
 }
 
@@ -83,7 +104,7 @@ function createEnemyTrack(combat: Combat, enemy: EnemyUnit, preview: Map<string,
     if (entry.resolved || !visible(entry.start, entry.end)) continue;
     const chip = el("div", `lane-chip lane-chip--enemy lane-chip--${entry.intent}`);
     place(chip, entry.start, entry.end - entry.start + 1);
-    if (entry.end > base + CELLS) chip.classList.add("lane-chip--overflow");
+    if (entry.end > origin + STRIP) chip.classList.add("lane-chip--overflow");
     // Скрытый ход: «?», пока до него больше 2 клеток
     if (entry.hidden) {
       chip.className = "lane-chip lane-chip--enemy lane-chip--hidden";
@@ -159,9 +180,9 @@ function createPrepTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
     const card = getCardData(spell.card);
     const chip: HTMLElement = el("div", `lane-chip lane-chip--hero lane-chip--prep lane-chip--${card.type}`);
     chip.dataset.laneId = String(spell.id);
-    const later = slot.end > base + CELLS;
-    const start = Math.min(Math.max(slot.start, base + 1), base + CELLS);
-    place(chip, start, Math.min(slot.end, base + CELLS) - start + 1);
+    const later = slot.end > origin + STRIP;
+    const start = Math.min(Math.max(slot.start, origin + 1), origin + STRIP);
+    place(chip, start, Math.min(slot.end, origin + STRIP) - start + 1);
     const value = later ? el("span", "lane-chip__value", TEXTS.timeline.nextTurn(slot.end)) : previewValue(preview.get(`prep:${spell.id}`));
     chip.append(el("span", "lane-chip__name", card.name), value);
     chip.addEventListener("click", (event) => {
@@ -177,20 +198,27 @@ function createPrepTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
 export function createTimeline(
   combat: Combat, selectedEnemy: EnemyUnit | null, preview: Map<string, ActionPreview>, handlers: TimelineHandlers,
 ): HTMLElement {
-  base = combat.clock;
+  clock = combat.clock;
+  // Слева от полосы — одна прошедшая клетка; в самом начале боя прошедших нет и полоса стоит у края
+  origin = Math.max(0, clock - 1);
   const timeline = el("div", "timeline");
-  // Черты между тактами: первая — через столько клеток от левого края окна, вторая — ещё через 3
-  timeline.style.setProperty("--tact", `${(((TACT - (base % TACT)) % TACT) / CELLS) * 100}%`);
+  if (combat.status === "planning") timeline.classList.add("timeline--planning");
+  timeline.style.setProperty("--shift", "0");
+  timeline.style.setProperty("--visible", String(VISIBLE));
+  timeline.style.setProperty("--strip", String(STRIP));
 
-  // Номера клеток с начала боя; первая клетка каждого такта отмечена чертой слева
+  // Номера клеток с начала боя; первая клетка каждого такта отмечена, прошедшие подсвечены
   const header = el("div", "timeline__row timeline__row--numbers");
-  const numbers = el("div", "timeline__numbers");
-  for (let cell = base + 1; cell <= base + CELLS; cell++) {
+  const numbers = el("div", "timeline__numbers timeline__strip");
+  for (let cell = origin + 1; cell <= origin + STRIP; cell++) {
     const number = el("span", "timeline__number", String(cell));
     if ((cell - 1) % TACT === 0) number.classList.add("timeline__number--tact");
+    if (cell <= clock) number.classList.add("timeline__number--past");
     numbers.append(number);
   }
-  header.append(el("div", "timeline__label", ""), numbers);
+  const numbersClip = el("div", "timeline__clip");
+  numbersClip.append(numbers);
+  header.append(el("div", "timeline__label", ""), numbersClip);
   timeline.append(header);
 
   const tracks = el("div", "timeline__tracks");
@@ -199,18 +227,27 @@ export function createTimeline(
   if (HEROES[combat.hero.heroId].prepares) {
     tracks.append(createRow(TEXTS.timeline.prepLane, createPrepTrack(combat, preview, handlers), "prep"));
   }
-  // Указатель времени: стоит на левом краю окна — на границе, до которой дошло время
+  // Полоса времени: на стыке, до которого дошло время (в окне — на 1 клетку от левого края). До «Начать» её нет
   const pointer = el("div", "timeline__pointer");
-  pointer.style.setProperty("--clock", "0");
+  pointer.style.setProperty("--pos", String(clock - origin));
   tracks.append(pointer);
   timeline.append(tracks);
   return timeline;
 }
 
-// Двигает указатель времени внутри окна (cell — клетка с начала боя)
+// Сколько прошло от текущей клетки (0…1): в первой клетке боя едет полоса, дальше — сама шкала под полосой
+export function setTimelineProgress(progress: number): void {
+  const share = Math.max(0, Math.min(1, progress));
+  if (clock === 0) {
+    document.querySelector<HTMLElement>(".timeline__pointer")?.style.setProperty("--pos", String(share));
+  } else {
+    document.querySelector<HTMLElement>(".timeline")?.style.setProperty("--shift", String(share));
+  }
+}
+
+// Время дошло до этого стыка (cell — с начала боя): во время розыгрыша клетки шкала доезжает до него
 export function moveTimelinePointer(cell: number): void {
-  const pointer = document.querySelector<HTMLElement>(".timeline__pointer");
-  pointer?.style.setProperty("--clock", String(Math.max(0, Math.min(CELLS, cell - base))));
+  setTimelineProgress(cell - clock);
 }
 
 // Подсветка места, куда встанет карта: при переносе и после выбора карты (start — клетка с начала боя)

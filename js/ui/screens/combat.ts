@@ -1,8 +1,9 @@
 // Экран боя на бесконечной шкале: враги, шкала, герой, рука. Показывает состояние боя и передаёт действия игрока в логику.
-// Как играть: сначала карты расставляют на первые 6 клеток и жмут «Начать». Дальше время идёт само, клетка за клеткой,
-// а карты можно ставить, убирать и переставлять прямо во время боя (не дальше 6 клеток вперёд). Карту перетаскивают
-// на клетку шкалы (или на врага), либо нажимают карту, потом клетку или врага. Нажатие на карту на шкале возвращает её
-// в руку. Кнопка паузы останавливает время; пока палец тащит карту, время идёт вдвое медленнее.
+// Как играть: сначала карты расставляют на первые 6 клеток и жмут «Начать». Время идёт по такту (3 клетки) и в конце
+// каждого такта встаёт: чтобы прошёл следующий, игрок снова жмёт кнопку. Карты можно ставить, убирать и переставлять
+// и на остановке, и пока идёт такт (не дальше 6 клеток вперёд). Карту перетаскивают на клетку шкалы (или на врага),
+// либо нажимают карту, потом клетку или врага. Нажатие на карту на шкале возвращает её в руку.
+// Пока палец тащит карту, время идёт вдвое медленнее.
 import { CARDS } from "../../data/cards.ts";
 import { ENEMIES } from "../../data/enemies.ts";
 import { HEROES } from "../../data/heroes.ts";
@@ -28,7 +29,7 @@ import { openCardPreview } from "../components/cardPreview.ts";
 import { createHpBar } from "../components/hpBar.js";
 import { createCombatItems, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
-import { createTimeline, showLaneSlot } from "../components/timeline.ts";
+import { createTimeline, setTimelineProgress, showLaneSlot } from "../components/timeline.ts";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { createIcon } from "../icons.js";
@@ -64,20 +65,22 @@ function combat(): Combat {
 function resetView(): void {
   selection = null;
   selectedEnemyId = null;
-  paused = false;
+  waiting = false;
   progress = 0;
 }
 
 // ---------- Время ----------
 //
 // «Сердцебиение» раз в 100 мс копит долю клетки (во время перетаскивания — вдвое медленнее). Набралась клетка —
-// логика делает шаг (tick), экран коротко показывает её события и рисуется заново. Указатель плавно ползёт по клетке.
-// Время стоит: до «Начать», на паузе, пока не выбрано зелье варки, пока открыта панель тестового режима и когда
-// игрок ушёл с экрана боя или свернул игру
+// логика делает шаг (tick), экран коротко показывает её события и рисуется заново. Пока клетка идёт, шкала плавно
+// едет под полосой времени (в первой клетке боя — сама полоса).
+// Время стоит: до «Начать», в конце каждого такта (ждёт кнопку), пока не выбрано зелье варки, пока открыта панель
+// тестового режима и когда игрок ушёл с экрана боя или свернул игру (тогда тоже ждёт кнопку)
 
 const HEARTBEAT_MS = 100;
+const TACT = CONFIG.timeline.tactCells;
 let heartbeat: ReturnType<typeof setInterval> | null = null;
-let paused = false;
+let waiting = false; // время стоит, пока игрок не нажмёт кнопку: конец такта или игру сворачивали
 let progress = 0; // доля текущей клетки, которая уже прошла
 let ticking = false; // идёт шаг и его анимация
 let pendingRender = false; // экран надо перерисовать, как только палец отпустит карту
@@ -87,7 +90,7 @@ function onCombatScreen(): boolean {
 }
 
 function timeStands(current: Combat): boolean {
-  return current.status !== "running" || paused || current.brewChoices.length > 0 || state.test.pickerOpen;
+  return current.status !== "running" || waiting || current.brewChoices.length > 0 || state.test.pickerOpen;
 }
 
 function ensureClock(): void {
@@ -102,9 +105,9 @@ function stopClock(): void {
 function onHeartbeat(): void {
   const current = state.combat as Combat | null;
   if (!current || !onCombatScreen()) {
-    // Ушли с экрана боя: время встаёт, а вернувшись, игрок продолжит с паузы
+    // Ушли с экрана боя: время встаёт, а вернувшись, игрок продолжит кнопкой
     stopClock();
-    paused = true;
+    waiting = true;
     return;
   }
   if (pendingRender && !dragState.active && !ticking) {
@@ -115,7 +118,7 @@ function onHeartbeat(): void {
   if (timeStands(current) || ticking) return;
   progress += HEARTBEAT_MS / (getCellMs() * (dragState.active ? CONFIG.timeline.dragSlowdown : 1));
   if (progress < 1) {
-    document.querySelector<HTMLElement>(".timeline__pointer")?.style.setProperty("--clock", String(progress));
+    setTimelineProgress(progress);
     return;
   }
   progress = 0;
@@ -131,6 +134,8 @@ async function doTick(current: Combat): Promise<void> {
     ticking = false;
     return;
   }
+  // Такт кончился — время встаёт до кнопки
+  if (current.clock % TACT === 0) waiting = true;
   if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
   await ui.playTick(before, current, {
     maxMs: getCellMs() * 0.7,
@@ -150,10 +155,10 @@ async function doTick(current: Combat): Promise<void> {
   finishCombatIfOver();
 }
 
-// Свернули игру — время встаёт и бой сохраняется
+// Свернули игру — время встаёт до кнопки и бой сохраняется
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "hidden" || !state.combat || !onCombatScreen()) return;
-  paused = true;
+  waiting = true;
   savePlanning();
 });
 
@@ -170,13 +175,13 @@ export function startNodeCombat(): void {
   showScreen("combat");
 }
 
-// Продолжает бой из сохранения: со всей расстановкой на шкале. Начатый бой продолжается с паузы
+// Продолжает бой из сохранения: со всей расстановкой на шкале. Начатый бой стоит, пока игрок не нажмёт кнопку
 export function resumeCombat(): void {
   state.combat = (state.run as Run).savedCombat;
   state.test.enabled = false;
   state.arena = null;
   resetView();
-  paused = true;
+  waiting = true;
   showScreen("combat");
 }
 
@@ -249,8 +254,8 @@ export function renderCombatScreen(root: HTMLElement): void {
   if (banner) screen.append(banner);
   applyTutorialHighlights(screen);
   root.append(screen);
-  // Указатель продолжает ползти с того места клетки, где был до перерисовки
-  (screen.querySelector(".timeline__pointer") as HTMLElement | null)?.style.setProperty("--clock", String(progress));
+  // Шкала продолжает ехать с того места клетки, где была до перерисовки
+  setTimelineProgress(progress);
   if (current.status === "running") ensureClock();
 }
 
@@ -364,7 +369,13 @@ function getHint(current: Combat): string {
   if (selection?.kind === "card") return TEXTS.timeline.hintSelected;
   if (selection?.kind === "potion") return TEXTS.timeline.hintPotion;
   if (current.status === "planning") return TEXTS.timeline.hintPlan;
-  return paused ? TEXTS.timeline.hintPausedNow : TEXTS.timeline.hintRunning;
+  if (!waiting) return TEXTS.timeline.hintRunning;
+  return isTactEnd(current) ? TEXTS.timeline.hintTactEnd : TEXTS.timeline.hintStopped;
+}
+
+// Время стоит ровно на конце такта (а не посреди него — после того как игру сворачивали)
+function isTactEnd(current: Combat): boolean {
+  return current.clock % TACT === 0 && progress === 0;
 }
 
 // ---------- Рука и выбранная карта ----------
@@ -492,10 +503,13 @@ function createBottomBar(current: Combat): HTMLElement {
   );
   piles.addEventListener("click", () => openPiles(current));
 
-  // До начала боя — «Начать», потом — пауза и продолжение
-  const label = current.status === "planning" ? TEXTS.timeline.launch : paused ? TEXTS.timeline.resume : TEXTS.timeline.pause;
+  // До начала боя — «Начать», на остановке — следующий такт, пока такт идёт — кнопка ждёт его конца
+  let label = TEXTS.timeline.tactRunning;
+  if (current.status === "planning") label = TEXTS.timeline.launch;
+  else if (waiting) label = isTactEnd(current) ? TEXTS.timeline.nextTact : TEXTS.timeline.resume;
   const launchButton = el("button", "button combat__launch", label) as HTMLButtonElement;
   launchButton.type = "button";
+  launchButton.disabled = current.status === "running" && !waiting;
   launchButton.addEventListener("click", onClockButtonTap);
 
   bar.append(clock, piles, launchButton);
@@ -684,14 +698,15 @@ function buildDamageLog(current: Combat): string[] {
   return lines;
 }
 
-// «Начать» запускает время; потом та же кнопка ставит бой на паузу и снимает с неё
+// «Начать» запускает время; на остановке в конце такта та же кнопка запускает следующий такт.
+// Кнопки паузы нет: время и так встаёт в конце каждого такта
 function onClockButtonTap(): void {
   const current = combat();
-  playSound("click");
   if (current.status === "planning") {
+    playSound("click");
     const result = startCombat(current);
     if (!result.ok) return showError(result);
-    paused = false;
+    waiting = false;
     progress = 0;
     selection = null;
     notifyTutorial("launched");
@@ -699,8 +714,9 @@ function onClockButtonTap(): void {
     finishCombatIfOver();
     return;
   }
-  paused = !paused;
-  if (paused) savePlanning();
+  if (!waiting) return;
+  playSound("click");
+  waiting = false;
   showScreen("combat");
 }
 
