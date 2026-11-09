@@ -1,7 +1,7 @@
 // Автотесты правил боя: формула урона, порядок эффектов, статусы, защита Воина. Запуск: npm test
 // Каждый тест строит маленький бой и проверяет одно правило. Если правка сломала правило — тест упадёт.
 import { describe, expect, it } from "vitest";
-import { createCombat, getEnemyIntent, launch, placeCard } from "../js/engine/combat.ts";
+import { advance, createCombat, getEnemyIntent, launch, placeCard } from "../js/engine/combat.ts";
 import { applyBurning, applyPoison, calculateBlock, calculateDamage, executeEffects, orderEffects } from "../js/engine/effects.ts";
 import type { Effect } from "../js/types.ts";
 import { deckOf, fight, giveBlock, quiet, setLane, unit } from "./helpers.ts";
@@ -190,15 +190,27 @@ describe("статусы", () => {
     executeEffects(combat, [{ type: "applyStatus", status: "weak", amount: 5 }], { source: combat.hero, targets: [enemy], fromCard: true });
     expect(enemy.statuses.weak).toBe(3);
   });
-  it("Комбо Убийцы: +1 за каждую сработавшую карту, сгорает в конце шкалы", () => {
+  it("Комбо Убийцы — длина цепочки: через конец такта не рвётся, пустая клетка обнуляет", () => {
     const combat = fight({ heroId: "assassin", deck: deckOf("a_strike") });
     quiet(combat);
     const target = combat.enemies[0].instanceId;
-    placeCard(combat, combat.piles.hand[0].uid, 1, target);
-    placeCard(combat, combat.piles.hand[0].uid, 2, target);
-    launch(combat);
-    expect(combat.events.filter((e) => e.type === "status" && e.status === "combo")).toHaveLength(2);
+    for (const cell of [1, 2, 3, 4]) placeCard(combat, combat.piles.hand[0].uid, cell, target);
+    advance(combat, 4);
+    expect(combat.hero.statuses.combo).toBe(4); // такт кончился на клетке 3, а цепочка идёт дальше
+    advance(combat, 1); // клетка 5 пустая
     expect(combat.hero.statuses.combo).toBeUndefined();
+  });
+  it("Тьма Чернокнижника — только за плату своим HP, не за удары врага", () => {
+    const combat = fight({ heroId: "warlock", deck: deckOf("w_bolt") });
+    const enemy = combat.enemies[0];
+    setLane(enemy, ["hack"]);
+    launch(combat);
+    expect(combat.hero.hp).toBeLessThan(combat.hero.maxHp);
+    expect(combat.hero.statuses.darkness).toBeUndefined();
+    executeEffects(combat, [{ type: "loseHp", amount: 2 }], { source: combat.hero, targets: [], fromCard: true });
+    expect(combat.hero.statuses.darkness).toBe(1);
+    executeEffects(combat, [{ type: "loseHp", amount: 2, notPaid: true }], { source: combat.hero, targets: [], fromCard: false });
+    expect(combat.hero.statuses.darkness).toBe(1); // Жар — не плата
   });
 });
 

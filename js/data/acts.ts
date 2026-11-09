@@ -154,7 +154,7 @@ export const ACTS: ActData[] = [
     mechanic: {
       name: "Жар",
       text: "В конце каждого второго такта герой теряет 2 HP.",
-      heroPassives: [{ trigger: "onTactEnd", everyTacts: CONFIG.timeline.rareTacts, effects: [{ type: "loseHp", amount: 2 }] }],
+      heroPassives: [{ trigger: "onTactEnd", everyTacts: CONFIG.timeline.rareTacts, effects: [{ type: "loseHp", amount: 2, notPaid: true }] }],
     },
     encounters: [
       ["imp", "imp", "imp"],

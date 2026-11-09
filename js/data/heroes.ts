@@ -42,7 +42,7 @@ export const HEROES: Record<HeroId, HeroData> = {
     mechanic: {
       name: "Комбо",
       resource: "combo",
-      text: "Каждая разыгранная карта даёт 1 Комбо, в конце хода Комбо сгорает. Добивания бьют сильнее за каждое Комбо, а приёмы «Комбо N» тратят его.",
+      text: "Комбо — длина цепочки: каждая сработавшая карта даёт 1 Комбо, а пустая клетка дорожки обнуляет его. Такт цепочку не рвёт. Добивания бьют сильнее за каждое Комбо, а приёмы «Комбо N» тратят его.",
       passives: [{ trigger: "onCardPlayed", effects: gain("combo") }],
     },
     deck: [
@@ -57,17 +57,17 @@ export const HEROES: Record<HeroId, HeroData> = {
   warlock: {
     id: "warlock",
     name: "Чернокнижник",
-    description: "Тьма: растёт от полученного урона и сожжённых карт.",
+    description: "Тьма: растёт от платы своим здоровьем и сожжённых карт.",
     maxHp: CONFIG.warlockMaxHp,
     drawPerTurn: CONFIG.drawPerTurn.warlock,
     potionWeight: CONFIG.potionWeight,
     mechanic: {
       name: "Тьма",
       resource: "darkness",
-      text: "Любая потеря HP (удар, Яд, Горение, Кровотечение, плата здоровьем) и каждая сожжённая карта дают 1 Тьму. Тьма копится весь бой: тёмные карты растут от неё или тратят её.",
+      text: "Каждая плата своим здоровьем и каждая сожжённая карта дают 1 Тьму. Удары врагов, Яд и прочий урон Тьму не дают. Тьма копится весь бой: тёмные карты растут от неё или тратят её.",
       passives: [
-        // +1 Тьма за любую потерю HP и за каждую сожжённую карту
-        { trigger: "onHpLost", effects: gain("darkness") },
+        // +1 Тьма за каждую плату своим HP и за каждую сожжённую карту (разбор механик: не за любой урон)
+        { trigger: "onHpPaid", effects: gain("darkness") },
         { trigger: "onExhaust", effects: gain("darkness") },
       ],
     },

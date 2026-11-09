@@ -78,7 +78,8 @@ export type Effect =
   | { type: "repair"; amount: number }
   | { type: "brewPotion"; amount: number }
   | { type: "heal"; amount: number }
-  | { type: "loseHp"; amount: number }
+  // notPaid — потеря HP от особенности акта (Жар), а не плата своим здоровьем: Тьму и «за плату HP» не даёт
+  | { type: "loseHp"; amount: number; notPaid?: boolean }
   | { type: "draw"; amount: number }
   | { type: "gainEnergy"; amount: number; bonus?: Bonus }
   | { type: "exhaust" }

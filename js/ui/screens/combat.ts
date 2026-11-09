@@ -11,7 +11,7 @@ import { POTIONS } from "../../data/potions.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { CONFIG } from "../../config.ts";
 import {
-  cardWeight, chooseBrew, createCombat, findFreeStart, getEnemyIntent, getUpcomingDraws, moveLaneItem, placeCard, placePotion,
+  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, getEnemyIntent, getUpcomingDraws, moveLaneItem, placeCard, placePotion,
   previewLaunch, removeFromLane, rerollCard, startCombat, tick,
 } from "../../engine/combat.ts";
 import { getCardData } from "../../engine/deck.ts";
@@ -90,7 +90,7 @@ function onCombatScreen(): boolean {
 }
 
 function timeStands(current: Combat): boolean {
-  return current.status !== "running" || waiting || current.brewChoices.length > 0 || state.test.pickerOpen;
+  return current.status !== "running" || waiting || brewBlocksTime(current) || state.test.pickerOpen;
 }
 
 function ensureClock(): void {
@@ -248,7 +248,10 @@ export function renderCombatScreen(root: HTMLElement): void {
     createHand(current),
     createBottomBar(current),
   );
-  if (current.brewChoices.length > 0) screen.append(createBrewChoice(current));
+  // Сваренное зелье выбирают, когда время стоит: до «Начать» и на остановке в конце такта
+  if (current.brewChoices.length > 0 && (current.status === "planning" || waiting || brewBlocksTime(current))) {
+    screen.append(createBrewChoice(current));
+  }
   if (state.test.pickerOpen) screen.append(createCardPicker());
   const banner = state.test.enabled && !isTutorialBattle() ? null : ui.createTutorialBanner("combat", current);
   if (banner) screen.append(banner);
@@ -369,7 +372,7 @@ function getHint(current: Combat): string {
   if (selection?.kind === "card") return TEXTS.timeline.hintSelected;
   if (selection?.kind === "potion") return TEXTS.timeline.hintPotion;
   if (current.status === "planning") return TEXTS.timeline.hintPlan;
-  if (!waiting) return TEXTS.timeline.hintRunning;
+  if (!waiting) return current.brewChoices.length > 0 ? TEXTS.timeline.hintBrewLater : TEXTS.timeline.hintRunning;
   return isTactEnd(current) ? TEXTS.timeline.hintTactEnd : TEXTS.timeline.hintStopped;
 }
 

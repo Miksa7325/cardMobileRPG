@@ -361,6 +361,19 @@ describe("Алхимик и зелья", () => {
     chooseBrew(combat, 0, chosen);
     expect(combat.potions).toEqual([chosen]);
   });
+  it("варка посреди такта время не останавливает: выбор — на остановке в конце такта", () => {
+    const combat = fight({ heroId: "alchemist", deck: deckOf("al_brew", 20) });
+    quiet(combat);
+    advance(combat, 1);
+    placeCard(combat, uidAt(combat), 2);
+    expect(combat.brewChoices).toHaveLength(1);
+    advance(combat, 6);
+    expect(combat.clock).toBe(3); // дошло до конца такта и встало
+    expect(launch(combat)).toEqual({ ok: false, reason: "chooseBrew" });
+    chooseBrew(combat, 0, combat.brewChoices[0].options[0]);
+    advance(combat, 3);
+    expect(combat.clock).toBe(6);
+  });
   it("зелье Алхимика весит 0, у остальных героев — 1", () => {
     const alchemist = fight({ heroId: "alchemist", deck: deckOf("al_toss"), potions: ["block_potion"] });
     placePotion(alchemist, 0, 0);

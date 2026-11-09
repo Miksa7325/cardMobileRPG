@@ -8,7 +8,8 @@
 //    переставлять (moveLaneItem) прямо во время боя, не дальше 6 клеток вперёд от указателя времени.
 // 3. Действие срабатывает в своей последней клетке, карта весом 0 — на своём стыке клеток. При ничьей первым герой,
 //    если только у врага нет Ускорения. Каждая сработавшая карта приводит в руку новую.
-// 4. Ходов нет — есть такты по 3 клетки: в начале такта Яд, Горение, Прилив, переброс; в конце — Комбо сгорает.
+// 4. Ходов нет — есть такты по 3 клетки: в начале такта Яд, Горение, Прилив, переброс (раз в два такта); в конце — силы «в конце такта».
+//    Комбо Убийцы — длина текущей цепочки: пустая клетка дорожки обнуляет его.
 //    Слабость теряет стак после каждой атаки носителя, Ловкость облегчает первую карту каждого такта.
 // launch — для тестов и бота: начать и прогнать 6 клеток подряд.
 import { CONFIG } from "../config.ts";
@@ -21,7 +22,7 @@ import {
 } from "./rules.ts";
 import type {
   ActionResult, CardData, CardInstance, CardTarget, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent,
-  LaneItem, Power, PreparedSpell, Rng, RunCard, StatusId, Statuses,
+  LaneItem, Power, PreparedSpell, Rng, RunCard, Statuses,
 } from "../types.ts";
 import { createCardInstance, createPiles, drawCards, getCardData, takeFromHand } from "./deck.ts";
 import {
@@ -34,10 +35,9 @@ const T = CONFIG.timeline;
 // Горизонт: на сколько клеток вперёд от указателя можно ставить карты и видны ходы врагов
 const HORIZON = T.cells;
 
-// В конце такта сами статусы не убывают: Слабость теряет стак после каждой атаки носителя (spendWeak),
-// Уязвимость снимают Починка и крупный блок, Яд, Горение, Замедление, Ускорение и прочие убывают по своим правилам.
-// Сгорают целиком в конце такта: Комбо Убийцы
-const TACT_STATUSES: StatusId[] = ["combo"];
+// В конце такта статусы не убывают: Слабость теряет стак после каждой атаки носителя (spendWeak),
+// Уязвимость снимают Починка и крупный блок, Комбо Убийцы обнуляет пустая клетка (resolveBoundary),
+// Яд, Горение, Замедление, Ускорение и прочие убывают по своим правилам.
 
 type Fail = { ok: false; reason: string };
 const fail = (reason: string): Fail => ({ ok: false, reason });
@@ -464,7 +464,7 @@ function runPlanningEffects(combat: Combat, effects: Effect[]): boolean {
   const planning = effects.filter((effect) => PLANNING_EFFECTS.has(effect.type));
   for (const effect of planning) {
     if (effect.type === "brewPotion") {
-      // Варка с выбором: из двух случайных зелий игрок выберет одно (chooseBrew); пока не выбрал, время стоит
+      // Варка с выбором: из двух случайных зелий игрок выберет одно (chooseBrew) — на остановке в конце такта
       for (let i = 0; i < effect.amount; i++) offerBrew(combat);
     } else {
       executeEffects(combat, [effect], { source: combat.hero, targets: [], fromCard: true });
@@ -746,10 +746,16 @@ export function startCombat(combat: Combat): ActionResult {
   return OK;
 }
 
-// Одна клетка времени. Пока не выбрано зелье варки, время стоит
+// Сваренное зелье выбирают на остановке в конце такта: пока выбор не сделан, время не пройдёт дальше конца такта.
+// Посреди такта время из-за варки не встаёт
+export function brewBlocksTime(combat: Combat): boolean {
+  return combat.brewChoices.length > 0 && combat.clock % T.tactCells === 0;
+}
+
+// Одна клетка времени. На конце такта, пока не выбрано зелье варки, время стоит
 export function tick(combat: Combat): ActionResult {
   if (combat.status !== "running") return fail("notRunning");
-  if (combat.brewChoices.length > 0) return fail("chooseBrew");
+  if (brewBlocksTime(combat)) return fail("chooseBrew");
   combat.events = [];
   // Карты весом 0, поставленные на текущий стык во время паузы
   resolveZeroWeight(combat, combat.clock);
@@ -762,12 +768,12 @@ export function tick(combat: Combat): ActionResult {
 }
 
 // Для тестов и бота: начать (если ещё не начат) и прогнать cells клеток подряд. События всех клеток копятся.
-// Встаёт, если бой кончился или надо выбрать зелье варки
+// Встаёт, если бой кончился или на конце такта надо выбрать зелье варки
 export function advance(combat: Combat, cells: number = HORIZON): ActionResult {
   if (combat.status === "planning") startCombat(combat);
   if (combat.status !== "running") return fail("notRunning");
   const events = [...combat.events];
-  for (let i = 0; i < cells && combat.status === "running" && combat.brewChoices.length === 0; i++) {
+  for (let i = 0; i < cells && combat.status === "running" && !brewBlocksTime(combat); i++) {
     tick(combat);
     events.push(...combat.events);
   }
@@ -778,12 +784,14 @@ export function advance(combat: Combat, cells: number = HORIZON): ActionResult {
 // Для тестов и бота: прогнать 6 клеток (горизонт)
 export function launch(combat: Combat): ActionResult {
   if (!canAct(combat)) return fail("notPlanning");
-  if (combat.brewChoices.length > 0) return fail("chooseBrew");
+  if (brewBlocksTime(combat)) return fail("chooseBrew");
   return advance(combat, HORIZON);
 }
 
 // Всё, что происходит на одном стыке: действия, кончившиеся в этой клетке, карты весом 0 на стыке, такты
 function resolveBoundary(combat: Combat, boundary: number): void {
+  // Комбо — длина текущей цепочки: прошла пустая клетка дорожки героя — цепочка порвалась, Комбо с нуля
+  if (combat.hero.statuses.combo && !busyCells(combat.lane, heroSchedule(combat).lane).has(boundary)) delete combat.hero.statuses.combo;
   advancePreparation(combat, boundary);
   combat.clock = boundary;
   for (const unit of [combat.hero, ...combat.enemies]) expireBlocks(combat, unit);
@@ -1021,12 +1029,9 @@ function startTact(combat: Combat): void {
   checkPhases(combat);
 }
 
-// Конец такта: силы и реликвии «в конце такта», Комбо сгорает
+// Конец такта: силы и реликвии «в конце такта». Комбо такт не трогает: цепочка может идти через такты
 function finishTact(combat: Combat): void {
   fireTrigger(combat, "onTactEnd");
-  for (const unit of [combat.hero, ...combat.enemies]) {
-    for (const status of TACT_STATUSES) delete unit.statuses[status];
-  }
 }
 
 // Слабость теряет стак после каждой атаки носителя — действия, которое наносит урон (сколько бы ударов в нём ни было)
@@ -1045,10 +1050,10 @@ export interface ActionPreview {
 }
 
 // Предпросмотр на 6 клеток вперёд: розыгрыш на копии боя. Числа уже учитывают всё, что сработает раньше на шкале.
-// Ключ — чьё действие: «lane:3», «prep:5», «enemy:skeleton-0:1». Пока не выбрано зелье варки, предпросмотра нет
+// Ключ — чьё действие: «lane:3», «prep:5», «enemy:skeleton-0:1». Предпросмотр доходит до конца такта, где ждёт выбор варки
 export function previewLaunch(combat: Combat): Map<string, ActionPreview> {
   const result = new Map<string, ActionPreview>();
-  if (!canAct(combat) || combat.brewChoices.length > 0) return result;
+  if (!canAct(combat)) return result;
   const copy = structuredClone(combat);
   advance(copy, HORIZON);
   for (const event of copy.events) {

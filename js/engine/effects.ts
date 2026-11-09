@@ -401,9 +401,9 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     const unit = context.source;
     unit.hp = Math.max(0, unit.hp - effect.amount);
     recordEvent(combat, { type: "hpLoss", targetId: unitId(combat, unit), amount: effect.amount, hp: unit.hp, block: unit.block });
-    // Чернокнижник копит Тьму, когда платит своим здоровьем
+    // Чернокнижник копит Тьму, когда платит своим здоровьем. Жар — не плата: он просто отнимает HP
     if (unit === combat.hero && unit.hp > 0) {
-      fireTrigger(combat, "onHpPaid");
+      if (!effect.notPaid) fireTrigger(combat, "onHpPaid");
       fireTrigger(combat, "onHpLost");
     }
   },
