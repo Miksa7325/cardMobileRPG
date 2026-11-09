@@ -144,7 +144,9 @@ export function getBonus(effect: { bonus?: { status: StatusId; per: number } }, 
 export function fireTrigger(combat: Combat, trigger: Trigger, details: { cardType?: CardType } = {}): void {
   for (const power of [...combat.hero.powers, ...(combat.hero.passives ?? [])]) {
     const typeMatches = !power.cardType || power.cardType === details.cardType;
-    if (power.trigger === trigger && typeMatches) runTriggerEffects(combat, power.effects);
+    // everyTacts — срабатывает не каждый такт, а в такты, кратные этому числу (Жар: в конце 2, 4, 6…)
+    const tactMatches = !power.everyTacts || combat.turn % power.everyTacts === 0;
+    if (power.trigger === trigger && typeMatches && tactMatches) runTriggerEffects(combat, power.effects);
   }
   for (const relicId of combat.relics) {
     const relic = RELICS[relicId];

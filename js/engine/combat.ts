@@ -170,6 +170,11 @@ function tactOfCell(cell: number): number {
   return Math.floor((cell - 1) / T.tactCells) + 1;
 }
 
+// Такт, в котором срабатывают редкие эффекты (переброс, замёрзшие клетки): 1, 3, 5… — раз в CONFIG.timeline.rareTacts
+function isRareTact(tact: number): boolean {
+  return (tact - 1) % T.rareTacts === 0;
+}
+
 // Номер такта, в начале которого срабатывает карта весом 0 на стыке: стык 0 — такт 1, стык 3 — такт 2 …
 function tactOfBoundary(boundary: number): number {
   return Math.floor(boundary / T.tactCells) + 1;
@@ -380,8 +385,10 @@ function checkPhases(combat: Combat): void {
 }
 
 // Замёрзшие клетки такта tact (номер с 1): клетки, закрытые особенностью акта (Трясина, Иней), и по одной
-// случайной от каждого врага с ледяной печатью. Решаются заранее — пока эти клетки ещё за горизонтом расстановки
+// случайной от каждого врага с ледяной печатью. Решаются заранее — пока эти клетки ещё за горизонтом расстановки.
+// Мёрзнут не все такты, а раз в два (1, 3, 5…)
 function freezeTact(combat: Combat, tact: number): void {
+  if (!isRareTact(tact)) return;
   const first = (tact - 1) * T.tactCells + 1;
   const cells = Array.from({ length: T.tactCells }, (_, index) => first + index);
   for (const position of combat.blockedCells ?? []) {
@@ -592,7 +599,7 @@ export function moveLaneItem(combat: Combat, id: number, start: number, targetId
   return OK;
 }
 
-// Раз в такт: карта из руки уходит в сброс, вместо неё берётся новая
+// Раз в два такта: карта из руки уходит в сброс, вместо неё берётся новая
 export function rerollCard(combat: Combat, uid: number): ActionResult {
   if (!canAct(combat)) return fail("notPlanning");
   if (combat.rerollsLeft <= 0) return fail("noRerolls");
@@ -994,11 +1001,12 @@ function resolveZeroWeight(combat: Combat, boundary: number): void {
 
 // ---------- Такты ----------
 
-// Начало такта: переброс, замёрзшие клетки на такт вперёд горизонта, Яд, Горение, Печать крови,
+// Начало такта: переброс (раз в два такта), замёрзшие клетки на такт вперёд горизонта, Яд, Горение, Печать крови,
 // потом силы, особенности и реликвии «в начале такта» (Прилив Мага)
 function startTact(combat: Combat): void {
   combat.turn += 1;
-  combat.rerollsLeft = rerollsPerTact(combat);
+  // Переброс обновляется раз в два такта: неиспользованный не копится
+  if (isRareTact(combat.turn)) combat.rerollsLeft = rerollsPerTact(combat);
   freezeTact(combat, combat.turn + 2);
   combat.acting = "tact";
   recordEvent(combat, { type: "tactStart" });

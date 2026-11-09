@@ -1,7 +1,7 @@
 // Автотесты приёмов врагов: Сокрушение и Починка, фазы боссов, призыв, вампиризм, скрытые ходы, замороженная клетка.
 // Запуск: npm test
 import { describe, expect, it } from "vitest";
-import { cardWeight, createCombat, getEnemyLane, launch, placeCard } from "../js/engine/combat.ts";
+import { advance, cardWeight, createCombat, getEnemyLane, launch, placeCard, rerollCard } from "../js/engine/combat.ts";
 import { ENEMIES } from "../js/data/enemies.ts";
 import { executeEffects } from "../js/engine/effects.ts";
 import { deckOf, fight, quiet, setLane } from "./helpers.ts";
@@ -69,20 +69,39 @@ describe("Лорд вампиров", () => {
 });
 
 describe("Король-лич", () => {
-  it("замораживает по клетке в каждом такте, заранее — на такты, куда ещё нельзя ставить", () => {
+  it("замораживает по клетке раз в два такта, заранее — на такты, куда ещё нельзя ставить", () => {
     const combat = fightWith("lich_king");
-    // Такты 1–3 решены в начале боя: по одной клетке в каждом
-    expect(combat.frozenCells.map((cell) => Math.ceil(cell / 3)).sort()).toEqual([1, 2, 3]);
+    // Такты 1–3 решены в начале боя: мёрзнут такты 1 и 3, такт 2 свободен
+    expect(combat.frozenCells.map((cell) => Math.ceil(cell / 3)).sort()).toEqual([1, 3]);
     const cell = combat.frozenCells.find((frozen) => frozen <= 6)!;
     expect(placeCard(combat, combat.piles.hand[0].uid, cell)).toEqual({ ok: false, reason: "frozen" });
   });
 });
 
 describe("Особенности шкалы актов 4–10", () => {
-  it("Трясина: последняя клетка каждого такта закрыта", () => {
+  it("Трясина: последняя клетка каждого второго такта закрыта", () => {
     const combat = fight({ blockedCells: [3] });
-    expect(combat.frozenCells.filter((cell) => cell <= 9)).toEqual([3, 6, 9]);
-    expect(placeCard(combat, combat.piles.hand[0].uid, 6, combat.enemies[0].instanceId)).toEqual({ ok: false, reason: "frozen" });
+    expect(combat.frozenCells.filter((cell) => cell <= 9)).toEqual([3, 9]);
+    expect(placeCard(combat, combat.piles.hand[0].uid, 3, combat.enemies[0].instanceId)).toEqual({ ok: false, reason: "frozen" });
+    expect(placeCard(combat, combat.piles.hand[0].uid, 6, combat.enemies[0].instanceId).ok).toBe(true);
+  });
+  it("Жар: −2 HP в конце каждого второго такта", () => {
+    const combat = fight({ extraPassives: [{ trigger: "onTactEnd", everyTacts: 2, effects: [{ type: "loseHp", amount: 2 }] }] });
+    quiet(combat);
+    const hp = combat.hero.hp;
+    advance(combat, 3);
+    expect(combat.hero.hp).toBe(hp);
+    advance(combat, 3);
+    expect(combat.hero.hp).toBe(hp - 2);
+  });
+  it("переброс обновляется раз в два такта", () => {
+    const combat = fight();
+    quiet(combat);
+    expect(rerollCard(combat, combat.piles.hand[0].uid).ok).toBe(true);
+    advance(combat, 3); // начался такт 2: переброса нет
+    expect(combat.rerollsLeft).toBe(0);
+    advance(combat, 3); // такт 3: переброс снова есть
+    expect(combat.rerollsLeft).toBe(1);
   });
   it("Железная дисциплина: карта весом 0 весит 1", () => {
     const combat = fight({ deck: deckOf("tourniquet"), minCardWeight: 1 });

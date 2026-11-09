@@ -101,7 +101,7 @@ export const RELICS: Record<string, RelicData> = {
     name: "Карманные часы",
     icon: "⏱️",
     rarity: "common",
-    description: "+1 переброс карты за ход.",
+    description: "+1 переброс карты (перебросы обновляются раз в два такта).",
     effects: [],
     rules: { rerolls: 1 },
   },

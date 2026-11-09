@@ -298,7 +298,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "lich_king",
     name: "Король-лич",
     hp: [272, 272],
-    // Приём — ледяная печать: в начале каждого хода замораживает клетку дорожки героя
+    // Приём — ледяная печать: раз в два такта замораживает клетку дорожки героя
     freezeCell: true,
     moves: {
       doom: debuff({ vulnerable: 2, weak: 2, slow: 1 }, 2, { w: 2 }),
@@ -557,7 +557,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "frost_giant",
     name: "Ледяной великан",
     hp: [150, 160],
-    // Ледяная печать: в начале каждого хода замораживает клетку героя
+    // Ледяная печать: раз в два такта замораживает клетку героя
     freezeCell: true,
     moves: {
       cold: debuff({ slow: 2, weak: 1 }, 0, { w: 2 }),
@@ -947,7 +947,7 @@ export const ENEMIES: Record<string, EnemyData> = {
     id: "abyss_warden",
     name: "Страж бездны",
     hp: [170, 180],
-    // Медленный, отнимает клетку: ледяная печать каждый ход
+    // Медленный, отнимает клетку: ледяная печать раз в два такта
     freezeCell: true,
     moves: {
       judgment: attack(30, 1, { w: 5, sunder: 3 }),

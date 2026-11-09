@@ -471,7 +471,7 @@ function moveItem(id: number, target: DropTarget): void {
   afterChange();
 }
 
-// Под выбранной картой — что ещё с ней можно сделать: перебросить (раз в такт), подготовить
+// Под выбранной картой — что ещё с ней можно сделать: перебросить (раз в два такта), подготовить
 function createSelectionBar(current: Combat): HTMLElement {
   const bar = el("div", "combat__selection");
   const instance = selectedCard();

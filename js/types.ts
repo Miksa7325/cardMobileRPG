@@ -123,6 +123,7 @@ export interface Power {
   trigger: Trigger;
   cardType?: CardType;
   effects: Effect[];
+  everyTacts?: number; // срабатывает только в такты, кратные этому числу (Жар — раз в два такта)
 }
 
 // ---------- Данные игры ----------
@@ -167,7 +168,7 @@ export interface EnemyData {
   moves: Record<string, EnemyMove>;
   pattern: string[]; // порядок ходов по кругу: имена из moves
   phases?: EnemyPhase[]; // фазы босса по порядку
-  freezeCell?: boolean; // приём: в начале каждого хода замораживает клетку дорожки героя
+  freezeCell?: boolean; // приём: раз в два такта замораживает клетку дорожки героя
 }
 
 export interface HeroData {
@@ -192,7 +193,7 @@ export interface HeroData {
 
 // Правило-реликвия меняет само правило шкалы, а не срабатывает по событию. Числа прибавляются к обычным
 export interface RelicRules {
-  rerolls?: number; // перебросы за ход
+  rerolls?: number; // дополнительные перебросы (обновляются раз в два такта)
   openDraws?: number; // открытые карты добора
   blockCells?: number; // сколько клеток держится блок
   zeroWeight?: number; // карт весом 0 за ход
@@ -240,7 +241,7 @@ export interface ActMechanic {
   wounds?: number;
   extraEnemy?: boolean;
   enemyRamp?: number;
-  blockedCells?: number[]; // клетки каждого такта (1–3), закрытые для героя (Трясина — 3, Иней — 1)
+  blockedCells?: number[]; // клетки такта (1–3), закрытые для героя раз в два такта (Трясина — 3, Иней — 1)
   minCardWeight?: number; // карты легче этого весят столько (Железная дисциплина: вес 0 → 1)
   enemyHaste?: number; // враги начинают бой с Ускорением (Натиск)
 }
@@ -432,7 +433,7 @@ export interface Combat {
   lane: LaneItem[];
   prepared: PreparedSpell[]; // дорожка подготовки Мага
   nextLaneId: number;
-  rerollsLeft: number; // перебросов осталось в этом такте
+  rerollsLeft: number; // перебросов осталось до следующего обновления (раз в два такта)
   brewChoices: BrewChoice[];
   frozenCells: number[]; // замороженные клетки дорожки героя (номера клеток с начала боя): в них нельзя ставить
   blockedCells?: number[]; // клетки каждого такта (1–3), закрытые особенностью акта
