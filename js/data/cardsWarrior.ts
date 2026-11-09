@@ -71,7 +71,7 @@ export const WARRIOR_CARDS: CardData[] = [
   card("iron_wall", "Железная стена", "skill", "uncommon", 2, "self", "Получить {block} блока. Починка {repair}.", [block(13), repair(2)], { effects: [block(17), repair(3)] }),
   card("focus", "Сосредоточение", "skill", "uncommon", 1, "self", "Взять {draw} карты. Добавить Рану в сброс.", [draw(2), wound], { effects: [draw(3), wound] }),
   card("adrenaline", "Боевой задор", "skill", "uncommon", 0, "self", "Получить {haste} Ускорения. Сжечь.", [energy(1), burn], { effects: [energy(2), burn] }),
-  card("stance", "Боевая стойка", "power", "uncommon", 1, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта хода на 1 легче.",
+  card("stance", "Боевая стойка", "power", "uncommon", 1, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта такта на 1 легче.",
     [selfStatus("dexterity", 2)], { effects: [selfStatus("dexterity", 3)] }),
   triggerPower("iron_skin", "Железная кожа", "uncommon", 1, "В конце такта {block} блока.", "onTactEnd", [block(2)], [block(3)]),
   card("rampage", "Буйство", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Ярость 5: ещё 3 удара по {damage}.",

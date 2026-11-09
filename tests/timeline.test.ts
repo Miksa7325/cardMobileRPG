@@ -237,12 +237,18 @@ describe("новые статусы", () => {
     placeCard(combat, uidAt(combat), 1, firstEnemy(combat)); // вес 1 вместо 2
     expect(placeCard(combat, uidAt(combat), 2, firstEnemy(combat)).ok).toBe(true);
   });
-  it("Ловкость: каждые 2 стака — первая карта боя на 1 легче", () => {
+  it("Ловкость: каждые 2 стака — первая карта такта на 1 легче", () => {
     const combat = fight({ deck: deckOf("bash") });
     combat.hero.statuses.dexterity = 2;
     placeCard(combat, uidAt(combat), 1, firstEnemy(combat));
-    expect(placeCard(combat, uidAt(combat), 2, firstEnemy(combat)).ok).toBe(true); // вторая — уже вес 2
+    expect(placeCard(combat, uidAt(combat), 2, firstEnemy(combat)).ok).toBe(true); // вторая в том же такте — уже вес 2
     expect(placeCard(combat, uidAt(combat), 3, firstEnemy(combat))).toEqual({ ok: false, reason: "overlap" });
+  });
+  it("Ловкость облегчает первую карту и следующего такта", () => {
+    const combat = fight({ deck: deckOf("bash", 10) });
+    combat.hero.statuses.dexterity = 2;
+    placeCard(combat, uidAt(combat), 4, firstEnemy(combat)); // первая карта такта 2: вес 1, клетка 4
+    expect(placeCard(combat, uidAt(combat), 5, firstEnemy(combat)).ok).toBe(true);
   });
   it("Оглушение срывает следующее действие врага", () => {
     const combat = fight();

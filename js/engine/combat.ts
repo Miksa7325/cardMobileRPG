@@ -8,7 +8,8 @@
 //    переставлять (moveLaneItem) прямо во время боя, не дальше 6 клеток вперёд от указателя времени.
 // 3. Действие срабатывает в своей последней клетке, карта весом 0 — на своём стыке клеток. При ничьей первым герой,
 //    если только у врага нет Ускорения. Каждая сработавшая карта приводит в руку новую.
-// 4. Ходов нет — есть такты по 3 клетки: в начале такта Яд, Горение, Прилив, переброс; в конце — Слабость убывает.
+// 4. Ходов нет — есть такты по 3 клетки: в начале такта Яд, Горение, Прилив, переброс; в конце — Комбо сгорает.
+//    Слабость теряет стак после каждой атаки носителя, Ловкость облегчает первую карту каждого такта.
 // launch — для тестов и бота: начать и прогнать 6 клеток подряд.
 import { CONFIG } from "../config.ts";
 import { ENEMIES } from "../data/enemies.ts";
@@ -33,9 +34,8 @@ const T = CONFIG.timeline;
 // Горизонт: на сколько клеток вперёд от указателя можно ставить карты и видны ходы врагов
 const HORIZON = T.cells;
 
-// Убывают на 1 в конце такта. Уязвимость сама не проходит, её снимает только Починка.
-// Сила и Ловкость остаются; Яд, Горение, Замедление, Ускорение и прочие убывают по своим правилам
-const DECAYING_STATUSES: StatusId[] = ["weak"];
+// В конце такта сами статусы не убывают: Слабость теряет стак после каждой атаки носителя (spendWeak),
+// Уязвимость снимают Починка и крупный блок, Яд, Горение, Замедление, Ускорение и прочие убывают по своим правилам.
 // Сгорают целиком в конце такта: Комбо Убийцы
 const TACT_STATUSES: StatusId[] = ["combo"];
 
@@ -186,7 +186,7 @@ export interface HeroSlot {
   hasted: boolean; // и стак Ускорения
 }
 
-// Сколько клеток срезает Ловкость с первой карты боя на дорожке: каждые 2 стака — 1 клетка
+// Сколько клеток срезает Ловкость с первой карты каждого такта на дорожке: каждые 2 стака — 1 клетка
 function dexterityCut(combat: Combat): number {
   return Math.floor((combat.hero.statuses.dexterity ?? 0) / 2);
 }
@@ -283,21 +283,24 @@ function chainLane(combat: Combat, lane: LaneItem[], marks: Map<string, { slowed
   const slots = new Map<number, HeroSlot>();
   const cut = dexterityCut(combat);
   let prevEnd = 0;
-  let first = true;
+  // Такты, в которых уже началась карта: Ловкость облегчает только первую карту такта
+  const tactsWithCard = new Set<number>();
   const weighted = lane.filter((item) => item.weight > 0).sort((a, b) => a.start - b.start || a.id - b.id);
   for (const item of weighted) {
-    const isFirst = first;
-    first = false;
     if (item.resolved) {
+      tactsWithCard.add(tactOfCell(item.start));
       prevEnd = item.end ?? prevEnd;
       slots.set(item.id, { start: item.start, end: prevEnd, weight: item.weight, slowed: false, hasted: false });
       continue;
     }
     const mark = marks.get(`l${item.id}`);
+    const start = Math.max(item.start, prevEnd + 1);
+    const tact = tactOfCell(start);
+    const isFirst = !tactsWithCard.has(tact);
+    tactsWithCard.add(tact);
     let weight = isFirst ? Math.max(1, item.weight - cut) : item.weight;
     if (mark?.slowed) weight += 1;
     if (mark?.hasted) weight = Math.max(1, weight - 1);
-    const start = Math.max(item.start, prevEnd + 1);
     const end = Math.max(combat.clock, start + weight - 1);
     prevEnd = end;
     slots.set(item.id, { start, end, weight, slowed: mark?.slowed ?? false, hasted: mark?.hasted ?? false });
@@ -938,6 +941,7 @@ function playResolvedCard(combat: Combat, instance: CardInstance, targetId: stri
   const context = { source: combat.hero, targets: resolveTargets(combat, card.target, targetId), fromCard: true, exhausted: false };
   recordEvent(combat, { type: "cardPlayed", cardId: card.id, targetId });
   executeEffects(combat, effects, context);
+  spendWeak(combat.hero, effects);
   fireTrigger(combat, "onCardPlayed", { cardType: card.type });
 
   if (context.exhausted) {
@@ -969,6 +973,7 @@ function resolveEnemyAction(combat: Combat, enemy: EnemyUnit, slot: ReturnType<t
   recordEvent(combat, { type: "enemyAction", enemyId: enemy.instanceId, intent: move.intent });
   executeEffects(combat, move.effects, { source: enemy, targets: [combat.hero], fromCard: false });
   if (isOver(combat)) return;
+  spendWeak(enemy, move.effects);
 
   // Безумие: после каждого своего хода враг становится сильнее
   if (combat.enemyRamp) {
@@ -1008,13 +1013,17 @@ function startTact(combat: Combat): void {
   checkPhases(combat);
 }
 
-// Конец такта: силы и реликвии «в конце такта», Слабость −1, Комбо сгорает
+// Конец такта: силы и реликвии «в конце такта», Комбо сгорает
 function finishTact(combat: Combat): void {
   fireTrigger(combat, "onTactEnd");
   for (const unit of [combat.hero, ...combat.enemies]) {
-    for (const status of DECAYING_STATUSES) reduceStatus(unit, status);
     for (const status of TACT_STATUSES) delete unit.statuses[status];
   }
+}
+
+// Слабость теряет стак после каждой атаки носителя — действия, которое наносит урон (сколько бы ударов в нём ни было)
+function spendWeak(unit: HeroUnit | EnemyUnit, effects: Effect[]): void {
+  if (effects.some((effect) => effect.type === "damage")) reduceStatus(unit, "weak");
 }
 
 // ---------- Что показать игроку ----------

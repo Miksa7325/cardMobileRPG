@@ -89,7 +89,7 @@ export const ASSASSIN_CARDS: CardData[] = [
     [status("weak", 2), selfStatus("strength", 2), burn], { effects: [status("weak", 3), selfStatus("strength", 4), burn], description: "Наложить {weak} Слабости. Получить {strength} Силы. Сжечь." }),
   triggerPower("a_toxic_blades", "Отравленные клинки", "uncommon", 2, "Каждая атака: {poison} Яда всем врагам.", "onCardPlayed",
     [allStatus("poison", 1)], [allStatus("poison", 2)], "attack"),
-  card("a_light_feet", "Лёгкая поступь", "power", "uncommon", 1, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта хода на 1 легче.",
+  card("a_light_feet", "Лёгкая поступь", "power", "uncommon", 1, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта такта на 1 легче.",
     [selfStatus("dexterity", 2)], { effects: [selfStatus("dexterity", 3)] }),
   triggerPower("a_venom_aura", "Ядовитая аура", "uncommon", 1, "В конце такта {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
   triggerPower("a_killer_instinct", "Чутьё убийцы", "uncommon", 1, "Когда враг умирает, взять {draw} карты.", "onEnemyDeath", [draw(2)], [draw(3)]),

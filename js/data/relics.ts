@@ -74,7 +74,7 @@ export const RELICS: Record<string, RelicData> = {
     name: "Лёгкие сапоги",
     icon: "🥾",
     rarity: "common",
-    description: "В начале боя +2 Ловкости: первая карта хода на 1 легче.",
+    description: "В начале боя +2 Ловкости: первая карта такта на 1 легче.",
     trigger: "onCombatStart",
     effects: [{ type: "applyStatus", status: "dexterity", amount: 2, target: "self" }],
   },

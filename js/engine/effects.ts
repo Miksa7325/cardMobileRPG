@@ -304,6 +304,16 @@ function dealDamage(
   return Math.min(hpLost, target.hp + hpLost);
 }
 
+// Снимает с бойца до amount стаков Уязвимости (сломанной брони)
+function repairArmor(combat: Combat, unit: HeroUnit | EnemyUnit, amount: number): void {
+  const stacks = unit.statuses.vulnerable ?? 0;
+  const removed = Math.min(stacks, amount);
+  if (removed === 0) return;
+  if (removed === stacks) delete unit.statuses.vulnerable;
+  else unit.statuses.vulnerable = stacks - removed;
+  recordEvent(combat, { type: "repair", targetId: unitId(combat, unit), amount: removed });
+}
+
 // Обработчик эффекта одного вида: получает эффект именно этого вида
 type Handler<T extends EffectType> = (combat: Combat, effect: EffectOf<T>, context: EffectContext) => void;
 // Эффекты вне боя (золото, реликвии) здесь не обрабатываются: их исполняет engine/run.ts
@@ -338,6 +348,8 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
       const amount = calculateBlock(effect.amount + getBonus(effect, context.source), target, context.fromCard);
       addBlock(combat, target, amount);
       recordEvent(combat, { type: "block", targetId: unitId(combat, target), amount, hp: target.hp, block: target.block });
+      // Крупная порция блока подправляет доспех: снимает Уязвимость с того, кто её получил
+      if (amount >= CONFIG.blockRepair.minBlock) repairArmor(combat, target, CONFIG.blockRepair.amount);
     }
   },
   applyStatus(combat, effect, context) {
@@ -355,15 +367,9 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
       if (added > 0) recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: "vulnerable", amount: added });
     }
   },
-  // Починка: снимает Уязвимость с того, кто играет карту. Обычный блок броню не чинит
+  // Починка: снимает Уязвимость с того, кто играет карту. Ещё чинит понемногу крупная порция блока (см. block)
   repair(combat, effect, context) {
-    const unit = context.source;
-    const stacks = unit.statuses.vulnerable ?? 0;
-    const removed = Math.min(stacks, effect.amount);
-    if (removed === 0) return;
-    if (removed === stacks) delete unit.statuses.vulnerable;
-    else unit.statuses.vulnerable = stacks - removed;
-    recordEvent(combat, { type: "repair", targetId: unitId(combat, unit), amount: removed });
+    repairArmor(combat, context.source, effect.amount);
   },
   // Тратит ресурс героя (Ярость, Комбо, Тьму, Реагенты) на сильный эффект. Если ресурса не хватает, ничего не происходит
   spend(combat, effect, context) {

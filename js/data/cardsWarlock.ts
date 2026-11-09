@@ -89,7 +89,7 @@ export const WARLOCK_CARDS: CardData[] = [
   card("w_abyss_gaze", "Взгляд бездны", "skill", "uncommon", 1, "enemy", "Наложить {vulnerable} Уязвимости. Взять {draw} карту.",
     [status("vulnerable", 2), draw(1)], { effects: [status("vulnerable", 3), draw(1)] }),
   triggerPower("w_dark_embrace", "Объятия тьмы", "uncommon", 1, "Когда карта сгорает, {block} блока.", "onExhaust", [block(3)], [block(4)]),
-  card("w_demon_skin", "Кожа демона", "power", "uncommon", 2, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта хода на 1 легче.",
+  card("w_demon_skin", "Кожа демона", "power", "uncommon", 2, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта такта на 1 легче.",
     [selfStatus("dexterity", 3)], { effects: [selfStatus("dexterity", 4)] }),
   triggerPower("w_curse_aura", "Аура порчи", "uncommon", 1, "В конце такта {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
   card("w_hunger", "Голод", "power", "uncommon", 1, "self", "В начале такта +{strength} Сила и −{loseHp} HP.", [], { cost: 0 },

@@ -36,6 +36,7 @@ export const CONFIG = {
   weakMaxStacks: 3, // больше 3 Слабости не бывает: не больше −30%
   vulnerablePercent: 10, // +10% получаемого урона за каждый стак Уязвимости
   vulnerableMaxStacks: 10, // больше 10 Уязвимости не бывает: не больше +100%
+  blockRepair: { minBlock: 10, amount: 1 }, // порция блока от minBlock снимает amount Уязвимости с того, кто её получил
   warriorDamageReduction: 20, // Воин получает на 20% меньше урона от ударов (Яд, Горение и плата HP не снижаются)
 
   maxPlayTimePerNodeMs: 600000, // простой дольше 10 минут не считается временем игры

@@ -155,13 +155,34 @@ describe("статусы", () => {
     expect(combat.hero.hp).toBe(hp - 10);
     expect(combat.hero.statuses.rage).toBeUndefined();
   });
-  it("Слабость убывает на 1 в конце шкалы, Уязвимость и Сила остаются", () => {
+  it("Слабость сама не убывает, а теряет стак после каждой атаки носителя; Уязвимость и Сила остаются", () => {
     const combat = fight();
     quiet(combat);
-    Object.assign(combat.hero.statuses, { vulnerable: 2, weak: 1, strength: 3 });
+    Object.assign(combat.hero.statuses, { vulnerable: 2, weak: 2, strength: 3 });
     launch(combat);
-    expect(combat.hero.statuses).toMatchObject({ vulnerable: 2, strength: 3 });
-    expect(combat.hero.statuses.weak).toBeUndefined();
+    expect(combat.hero.statuses).toMatchObject({ vulnerable: 2, weak: 2, strength: 3 });
+    placeCard(combat, combat.piles.hand[0].uid, combat.clock + 1, combat.enemies[0].instanceId);
+    launch(combat);
+    expect(combat.hero.statuses.weak).toBe(1);
+  });
+  it("Слабость врага убывает после его удара, а не после защиты", () => {
+    const combat = fight();
+    const enemy = combat.enemies[0];
+    setLane(enemy, ["guard"]);
+    enemy.statuses.weak = 2;
+    launch(combat);
+    expect(enemy.statuses.weak).toBe(2);
+    setLane(enemy, ["hack"], combat.clock);
+    launch(combat);
+    expect(enemy.statuses.weak).toBe(1);
+  });
+  it("порция блока от 10 снимает 1 Уязвимость с того, кто её получил, меньшая — нет", () => {
+    const combat = fight();
+    combat.hero.statuses.vulnerable = 3;
+    executeEffects(combat, [{ type: "block", amount: 9 }], { source: combat.hero, targets: [combat.hero], fromCard: true });
+    expect(combat.hero.statuses.vulnerable).toBe(3);
+    executeEffects(combat, [{ type: "block", amount: 10 }], { source: combat.hero, targets: [combat.hero], fromCard: true });
+    expect(combat.hero.statuses.vulnerable).toBe(2);
   });
   it("Слабость не набирается больше 3", () => {
     const combat = fight();
