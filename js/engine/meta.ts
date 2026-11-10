@@ -98,10 +98,18 @@ export function keepEquipment(meta: Meta, run: Run): void {
   meta.heroes[run.heroId] = { ...meta.heroes[run.heroId], dead: false, equipment: getEquipment(run) };
 }
 
-// Герой погиб навсегда: снаряжение пропадает вместе с ним. Если он был выбран, выбираем первого живого
-function buryHero(meta: Meta, heroId: HeroId): void {
-  meta.heroes[heroId] = { dead: true };
-  if (meta.selectedHero === heroId) meta.selectedHero = getAliveHeroIds(meta)[0] ?? heroId;
+// Герой погиб: пропадают только несданные золото и эссенции. Снаряжение, всё набранное в забеге, открытые акты
+// и несданные Осколки ждут его возрождения в Храме (решено 2026-11-10). Если он был выбран, выбираем первого живого
+function buryHero(meta: Meta, run: Run): void {
+  const record = meta.heroes[run.heroId];
+  meta.heroes[run.heroId] = {
+    ...record,
+    dead: true,
+    equipment: getEquipment(run),
+    fallenShards: (record?.fallenShards ?? 0) + run.shards,
+  };
+  run.shards = 0;
+  if (meta.selectedHero === run.heroId) meta.selectedHero = getAliveHeroIds(meta)[0] ?? run.heroId;
 }
 
 // Обмен в гильдии: все эссенции, которых хватает на целое золото, превращаются в золото.
@@ -119,6 +127,9 @@ export function exchangeEssences(meta: Meta): number {
 function reachAct(meta: Meta, heroId: HeroId, act: number): void {
   const record = (meta.heroes[heroId] ??= { dead: false });
   record.bestAct = Math.max(record.bestAct ?? 1, act);
+  // Летопись: рекорд класса остаётся навсегда, даже если героя потом заменят в таверне
+  const chronicle = (meta.bestActs ??= {});
+  chronicle[heroId] = Math.max(chronicle[heroId] ?? 1, act);
 }
 
 // Акт, с которого можно начать забег: номер, название и особенность для окна входа
@@ -287,7 +298,7 @@ export function applyRunToMeta(meta: Meta, run: Run, currentFloor: number) {
   countVictory(meta, run);
   // Погибший теряет всё несданное: и золото, и эссенции, и Осколки
   const loot = died ? { gold: 0, essences: 0, shards: 0 } : bankLoot(meta, run);
-  if (died) buryHero(meta, run.heroId);
+  if (died) buryHero(meta, run);
   else keepEquipment(meta, run);
 
   // Счётчики заданий: то, что набралось в забеге, плюс сам забег

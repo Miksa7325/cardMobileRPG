@@ -8,7 +8,7 @@ import { COSMETICS } from "../data/cosmetics.ts";
 import { HEROES } from "../data/heroes.ts";
 import { RELICS } from "../data/relics.ts";
 import { canUpgradeFirstStep, upgradeCard } from "./deck.ts";
-import { getLockedContent, isHeroDead } from "./meta.ts";
+import { getBestAct, getLockedContent, isHeroDead } from "./meta.ts";
 import { pickRandom, pickWeighted } from "./rng.ts";
 import type { ArenaFight, Equipment, HeroId, Meta, Rng, Run } from "../types.ts";
 
@@ -129,6 +129,21 @@ export function studyCard(meta: Meta, gear: Gear, heroId: HeroId, cardId: string
   gear.nextCardUid += 1;
   delete meta.library?.[heroId];
   if (!meta.seen.cards.includes(cardId)) meta.seen.cards.push(cardId);
+  return true;
+}
+
+// Храм: цена возрождения павшего — растёт с его рекордом глубины
+export function getResurrectPrice(meta: Meta, heroId: HeroId): number {
+  const { resurrect, resurrectPerAct } = CONFIG.city.prices;
+  return resurrect + resurrectPerAct * (getBestAct(meta, heroId) - 1);
+}
+
+// Храм: павший герой возвращается со всем снаряжением, а его несданные Осколки уходят в казну
+export function resurrectHero(meta: Meta, heroId: HeroId): boolean {
+  const record = meta.heroes[heroId];
+  if (!record || !isHeroDead(meta, heroId) || !pay(meta, getResurrectPrice(meta, heroId))) return false;
+  meta.shards += record.fallenShards ?? 0;
+  meta.heroes[heroId] = { ...record, dead: false, fallenShards: 0 };
   return true;
 }
 

@@ -1,4 +1,4 @@
-// Автотесты Осколков мастерства: сколько выпадает за бои, сдача в казну и потеря при гибели. Запуск: npm test
+// Автотесты Осколков мастерства: сколько выпадает за бои, сдача в казну, гибель и возрождение. Запуск: npm test
 import { describe, expect, it } from "vitest";
 import { bankLoot, applyRunToMeta, createMeta } from "../js/engine/meta.ts";
 import { createNodeCombat, createRun, enterNode, finishCombat, getCurrentNode } from "../js/engine/run.ts";
@@ -47,11 +47,50 @@ describe("Осколки мастерства", () => {
     expect(meta.shards).toBe(3);
     expect(run.shards).toBe(0);
   });
-  it("при гибели несданные Осколки пропадают", () => {
+});
+
+describe("Гибель и возрождение (решено 2026-11-10)", () => {
+  // Герой погиб с добычей: 3 Осколка за босса, золото и эссенции, лишняя карта в колоде
+  function fallen() {
     const run = winIn("boss", 3);
+    run.gold = 40;
+    run.deck.push({ uid: 999, cardId: "strike", level: 2 });
     run.status = "lost";
     const meta = createMeta();
+    meta.gold = 500;
     applyRunToMeta(meta, run, 1);
-    expect(meta.shards).toBe(0);
+    return { meta, run };
+  }
+
+  it("павший теряет только несданные золото и эссенции, остальное ждёт его", () => {
+    const { meta, run } = fallen();
+    const record = meta.heroes.warrior!;
+    expect(record.dead).toBe(true);
+    expect(meta.gold).toBe(500); // золото забега в казну не пришло
+    expect(meta.shards).toBe(0); // Осколки ещё у павшего
+    expect(record.fallenShards).toBe(3);
+    expect(record.equipment!.deck.some((card) => card.uid === 999 && card.level === 2)).toBe(true);
+    expect(record.equipment!.deck).toHaveLength(run.deck.length);
+  });
+
+  it("Храм возрождает за золото: снаряжение на месте, Осколки уходят в казну", async () => {
+    const { getResurrectPrice, resurrectHero } = await import("../js/engine/town.ts");
+    const { meta } = fallen();
+    const price = getResurrectPrice(meta, "warrior");
+    expect(resurrectHero(meta, "warrior")).toBe(true);
+    expect(meta.gold).toBe(500 - price);
+    expect(meta.shards).toBe(3);
+    expect(meta.heroes.warrior!.dead).toBe(false);
+    expect(meta.heroes.warrior!.equipment!.deck.some((card) => card.uid === 999)).toBe(true);
+  });
+
+  it("найм в таверне начинает с нуля, а рекорд класса в летописи остаётся", async () => {
+    const { hireHero } = await import("../js/engine/town.ts");
+    const { meta } = fallen();
+    meta.heroes.warrior!.bestAct = 4;
+    meta.bestActs = { warrior: 4 };
+    expect(hireHero(meta, "warrior")).toBe(true);
+    expect(meta.heroes.warrior).toBeUndefined();
+    expect(meta.bestActs.warrior).toBe(4);
   });
 });

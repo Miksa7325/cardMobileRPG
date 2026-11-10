@@ -67,7 +67,7 @@ export const BUILDINGS: Record<string, BuildingData> = {
     x: 6,
     y: 148,
     name: "Храм",
-    description: "Жрецы очищают от лишних карт и благословляют на крепкое здоровье. Паломники несут святыни в забеги.",
+    description: "Жрецы возвращают павших героев со всем снаряжением, очищают от лишних карт и благословляют на крепкое здоровье. Паломники несут святыни в забеги.",
     price: 180,
     service: "temple",
     unlocks: { relics: ["prayer_beads", "holy_water", "censer", "memorial_candle", "evil_eye"] },

@@ -603,8 +603,10 @@ export interface Supplies {
 
 export interface HeroRecord {
   dead: boolean;
+  // Снаряжение героя: живого — с прошлых забегов, павшего — всё, что было при нём в момент гибели (ждёт возрождения)
   equipment?: Equipment;
-  bestAct?: number; // рекорд глубины: самый дальний акт, куда доходил герой (начать можно с актов 1–11, не глубже)
+  bestAct?: number; // самый дальний акт, куда доходил герой (начать можно с актов 1–11, не глубже)
+  fallenShards?: number; // Осколки, которые павший не успел сдать: вернутся в казну при возрождении
 }
 
 export interface Meta {
@@ -613,6 +615,7 @@ export interface Meta {
   shards: number; // Осколки мастерства в казне города
   selectedHero: HeroId;
   heroes: Partial<Record<HeroId, HeroRecord>>;
+  bestActs?: Partial<Record<HeroId, number>>; // летопись: рекорд глубины каждого класса — не стирается гибелью и наймом
   supplies: Supplies;
   buildings: string[];
   totals: Record<string, number>;

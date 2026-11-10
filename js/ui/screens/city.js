@@ -566,7 +566,9 @@ function openChronicler() {
     if (!stats) continue;
     const row = el("div", "quest chronicle");
     const fate = isHeroDead(meta, heroId) ? texts.fallen : "";
-    row.append(el("span", "chronicle__label", hero.name + fate), el("b", "chronicle__value", texts.heroLine(stats.runs, stats.wins)));
+    // Рекорд глубины класса из летописи: его не стирают ни гибель, ни найм в таверне
+    const bestAct = meta.bestActs?.[heroId] ?? 1;
+    row.append(el("span", "chronicle__label", hero.name + fate), el("b", "chronicle__value", texts.heroLine(stats.runs, stats.wins, bestAct)));
     list.append(row);
   }
   dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));

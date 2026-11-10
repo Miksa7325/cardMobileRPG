@@ -8,11 +8,11 @@ import { ENEMIES } from "../../data/enemies.ts";
 import { HEROES, getMaxPotions } from "../../data/heroes.ts";
 import { RELICS } from "../../data/relics.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
-import { buyFromTrader, getPotionGoods, isHeroDead, isTraderGoodOwned } from "../../engine/meta.ts";
+import { buyFromTrader, getBestAct, getPotionGoods, isHeroDead, isTraderGoodOwned } from "../../engine/meta.ts";
 import { createRng } from "../../engine/rng.ts";
 import {
   blessHero, buyCosmetic, buyFortune, cleanseCard, forgeRelic, getArenaFights, getBlessingPrice, getGear, getLibraryOffers,
-  getStudyPrice, getTrainableCards, hireHero, isCosmeticOwned, studyCard, trainCard, wearCosmetic,
+  getResurrectPrice, getStudyPrice, getTrainableCards, hireHero, isCosmeticOwned, resurrectHero, studyCard, trainCard, wearCosmetic,
 } from "../../engine/town.ts";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
@@ -79,6 +79,24 @@ function appendHeroLine({ dialog, meta, run, heroId }) {
   }
   dialog.append(el("p", "quests__hint", TEXTS.services.forHero(HEROES[heroId].name)));
   return true;
+}
+
+// Храм: павшие герои и кнопка возрождения. Возрождённый возвращается со всем, что было при нём
+function appendResurrections({ dialog, meta, done }) {
+  const fallen = Object.values(HEROES).filter((hero) => isHeroDead(meta, hero.id));
+  if (fallen.length === 0) return;
+  const list = el("div", "quest-dialog__list");
+  for (const hero of fallen) {
+    const price = getResurrectPrice(meta, hero.id);
+    const button = createButton(TEXTS.services.resurrect(price), "", () => {
+      if (!resurrectHero(meta, hero.id)) return fail(button, TEXTS.trader.notEnoughGold);
+      showTooltip(TEXTS.services.resurrected(hero.name));
+      done();
+    });
+    button.disabled = meta.gold < price;
+    list.append(createRow(hero.name, TEXTS.services.resurrectText(getBestAct(meta, hero.id)), button));
+  }
+  dialog.append(list);
 }
 
 function fail(button, reasonText) {
@@ -158,9 +176,10 @@ const SERVICES = {
     dialog.append(forge);
   },
 
-  // Храм: очистить колоду от карты и благословить на здоровье
+  // Храм: возродить павшего героя, очистить колоду от карты и благословить на здоровье
   temple(context) {
     const { dialog, meta, run, heroId, done, reopen } = context;
+    appendResurrections(context);
     if (!appendHeroLine(context)) return;
     const gear = getGear(meta, run, heroId);
     const cleanse = createButton(TEXTS.services.cleanse(CONFIG.city.prices.cleanse), "button--secondary", () => {
