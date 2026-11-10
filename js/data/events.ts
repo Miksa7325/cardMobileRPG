@@ -26,7 +26,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Отдать кровь",
         result: "Старик вкладывает в ладонь склянку и исчезает в тумане.",
-        effects: [{ type: "loseHp", amount: 6 }, { type: "gainPotion" }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "gainPotion" }, { type: "gainPotion" }],
       },
       { text: "Отказаться", result: "Старик пожимает плечами.", effects: [] },
     ],
@@ -39,7 +39,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Открыть",
         result: "Игла вонзается в руку, зато внутри монеты.",
-        effects: [{ type: "loseHp", amount: 6 }, { type: "gainGold", amount: 15 }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "gainGold", amount: 30 }, { type: "gainShards", amount: 1 }],
       },
       { text: "Не трогать", result: "Жадность губит чаще, чем чудовища.", effects: [] },
     ],
@@ -49,8 +49,8 @@ export const EVENTS: Record<string, EventData> = {
     title: "Целебный источник",
     text: "Вода светится слабым голубым светом. Её хватит только на один раз.",
     choices: [
-      { text: "Напиться", result: "Раны затягиваются прямо на глазах.", effects: [{ type: "heal", amount: 18 }] },
-      { text: "Наполнить флягу", result: "Вода во фляге меняет цвет.", effects: [{ type: "gainPotion" }] },
+      { text: "Напиться", result: "Раны затягиваются прямо на глазах.", effects: [{ type: "heal", amount: 6 }] },
+      { text: "Наполнить флягу", result: "Вода во фляге меняет цвет.", effects: [{ type: "gainPotion" }, { type: "loseHp", amount: 2 }] },
     ],
   },
   ghost_smith: {
@@ -61,12 +61,12 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Раздуть горн",
         result: "Молот бьёт беззвучно, но оружие становится острее.",
-        effects: [{ type: "loseHp", amount: 10 }, { type: "upgradeRandomCards", count: 2 }],
+        effects: [{ type: "loseHp", amount: 8 }, { type: "upgradeRandomCards", count: 2 }],
       },
       {
         text: "Попросить о малой услуге",
         result: "Призрак недоволен, и искры обжигают тебя.",
-        effects: [{ type: "loseHp", amount: 5 }, { type: "upgradeRandomCards", count: 1 }],
+        effects: [{ type: "loseHp", amount: 2 }, { type: "upgradeRandomCards", count: 1 }],
       },
     ],
   },
@@ -78,7 +78,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Забрать",
         result: "Идол твой, но рана от него не заживает.",
-        effects: [{ type: "gainGold", amount: 30 }, { type: "addCard", cardId: "wound" }],
+        effects: [{ type: "gainGold", amount: 55 }, { type: "addCard", cardId: "wound" }],
       },
       { text: "Оставить", result: "Идол смотрит тебе вслед.", effects: [] },
     ],
@@ -91,9 +91,9 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Тренироваться",
         result: "Ты узнал новый приём.",
-        effects: [{ type: "loseHp", amount: 6 }, { type: "addCard", rarity: "uncommon" }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "addCard", rarity: "uncommon" }, { type: "upgradeRandomCards", count: 1 }],
       },
-      { text: "Перевести дух", result: "Немного покоя никому не вредит.", effects: [{ type: "heal", amount: 8 }] },
+      { text: "Перевести дух", result: "Немного покоя никому не вредит.", effects: [{ type: "heal", amount: 6 }] },
     ],
   },
   blood_pact: {
@@ -104,7 +104,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Подписать",
         result: "Что-то внутри тебя навсегда затихает.",
-        effects: [{ type: "loseMaxHp", amount: 6 }, { type: "addCard", rarity: "rare" }],
+        effects: [{ type: "loseMaxHp", amount: 2 }, { type: "addCard", rarity: "rare" }],
       },
       { text: "Отказаться", result: "Голос тихо смеётся.", effects: [] },
     ],
@@ -117,7 +117,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Покаяться",
         result: "В колоде стало на одну карту меньше.",
-        effects: [{ type: "loseHp", amount: 7 }, { type: "removeRandomCard", rarity: "starter" }],
+        effects: [{ type: "loseHp", amount: 4 }, { type: "removeRandomCard", rarity: "starter" }, { type: "gainShards", amount: 1 }],
       },
       { text: "Уйти", result: "Монах кивает и возвращается к молитве.", effects: [] },
     ],
@@ -130,12 +130,12 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Съесть гриб",
         result: "Мир плывёт, но ты чувствуешь себя крепче.",
-        effects: [{ type: "gainMaxHp", amount: 7 }, { type: "loseHp", amount: 4 }],
+        effects: [{ type: "gainMaxHp", amount: 4 }, { type: "loseHp", amount: 3 }],
       },
       {
         text: "Собрать грибы на продажу",
         result: "Грибник у выхода из пещеры платит не торгуясь.",
-        effects: [{ type: "gainGold", amount: 10 }],
+        effects: [{ type: "gainGold", amount: 15 }],
       },
     ],
   },
@@ -149,7 +149,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Сыграть на кровь",
         result: "Ты проиграл, зато подсмотрел его лучший приём.",
-        effects: [{ type: "loseHp", amount: 8 }, { type: "addCard", rarity: "uncommon" }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "addCard", rarity: "rare" }],
       },
       { text: "Пройти мимо", result: "Шулер пожимает плечами и ищет другого простака.", effects: [] },
     ],
@@ -162,12 +162,12 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Потренироваться с ним",
         result: "Синяки пройдут, а приём останется.",
-        effects: [{ type: "loseHp", amount: 5 }, { type: "upgradeRandomCards", count: 1 }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "upgradeRandomCards", count: 2 }],
       },
       {
         text: "Выслушать его байки",
         result: "Растроганный ветеран суёт тебе горсть трофейных монет.",
-        effects: [{ type: "gainGold", amount: 5 }],
+        effects: [{ type: "gainGold", amount: 15 }],
       },
     ],
   },
@@ -179,7 +179,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Проводить",
         result: "Дорога была опасной, но паломник держит слово.",
-        effects: [{ type: "loseHp", amount: 4 }, { type: "gainPotion" }],
+        effects: [{ type: "loseHp", amount: 4 }, { type: "gainPotion" }, { type: "gainShards", amount: 1 }],
       },
       { text: "Указать дорогу", result: "Он благословляет тебя, и становится легче.", effects: [{ type: "heal", amount: 6 }] },
     ],
@@ -192,7 +192,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Отдать часть жизни",
         result: "Контрабандист исчезает раньше, чем ты рассмотрел покупку.",
-        effects: [{ type: "loseMaxHp", amount: 6 }, { type: "gainRelic" }],
+        effects: [{ type: "loseMaxHp", amount: 4 }, { type: "gainRelic" }],
       },
       { text: "Уйти", result: "Сундук захлопывается за твоей спиной.", effects: [] },
     ],
@@ -207,7 +207,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Читать",
         result: "Знание жжёт изнутри.",
-        effects: [{ type: "loseMaxHp", amount: 5 }, { type: "addCard", rarity: "rare" }],
+        effects: [{ type: "loseHp", amount: 5 }, { type: "addCard", cardId: "wound" }, { type: "addCard", rarity: "epic" }],
       },
       { text: "Закрыть книгу", result: "Шёпот со страниц стихает.", effects: [] },
     ],
@@ -222,7 +222,7 @@ export const EVENTS: Record<string, EventData> = {
         result: "Ты понял больше, чем хотел бы.",
         effects: [{ type: "upgradeRandomCards", count: 2 }, { type: "addCard", cardId: "wound" }],
       },
-      { text: "Забрать чернила", result: "Редкие чернила стоят немало.", effects: [{ type: "gainGold", amount: 8 }] },
+      { text: "Забрать чернила", result: "Редкие чернила стоят немало.", effects: [{ type: "gainGold", amount: 15 }] },
     ],
   },
   mirror_hall: {
@@ -233,7 +233,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Согласиться",
         result: "В зеркале теперь кто-то другой.",
-        effects: [{ type: "removeRandomCard", rarity: "starter" }, { type: "loseHp", amount: 6 }],
+        effects: [{ type: "removeRandomCard", rarity: "starter" }, { type: "removeRandomCard", rarity: "starter" }, { type: "loseHp", amount: 7 }],
       },
       { text: "Разбить зеркало", result: "Среди осколков серебра что-то светится: этим можно закалить оружие.", effects: [{ type: "gainShards", amount: 1 }] },
     ],
@@ -246,7 +246,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Найти тайник",
         result: "Ловушка сработала, но тайник того стоил.",
-        effects: [{ type: "loseHp", amount: 7 }, { type: "addCard", rarity: "uncommon" }, { type: "gainShards", amount: 1 }],
+        effects: [{ type: "loseHp", amount: 5 }, { type: "addCard", rarity: "uncommon" }, { type: "gainShards", amount: 1 }],
       },
       { text: "Сжечь карту", result: "Ты греешься у огня и отдыхаешь.", effects: [{ type: "heal", amount: 5 }] },
     ],
@@ -261,12 +261,12 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Помочь у горна",
         result: "Жар обжигает руки, зато кузнец отдаёт тебе свои рукавицы.",
-        effects: [{ type: "loseHp", amount: 8 }, { type: "gainRelic" }],
+        effects: [{ type: "loseHp", amount: 10 }, { type: "gainRelic" }],
       },
       {
         text: "Подлатать снаряжение",
         result: "Пара ударов молотом — и снаряжение как новое.",
-        effects: [{ type: "upgradeRandomCards", count: 1, cardType: "skill" }],
+        effects: [{ type: "upgradeRandomCards", count: 1, cardType: "skill" }, { type: "loseHp", amount: 2 }],
       },
     ],
   },
@@ -283,7 +283,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Вынуть механизм",
         result: "Внутри вместо шестерёнок — склянка с мерцающей жидкостью.",
-        effects: [{ type: "gainPotion", potionId: "haste_potion" }],
+        effects: [{ type: "gainPotion", potionId: "haste_potion" }, { type: "loseHp", amount: 2 }],
       },
     ],
   },
@@ -300,7 +300,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Разобрать на детали",
         result: "Из лучших пластин выйдет отличная закалка.",
-        effects: [{ type: "gainShards", amount: 2 }],
+        effects: [{ type: "gainShards", amount: 1 }],
       },
     ],
   },
@@ -312,7 +312,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Закончить работу",
         result: "Ты сбиваешь пальцы в кровь, но клинок выходит на славу.",
-        effects: [{ type: "loseHp", amount: 6 }, { type: "upgradeRandomCards", count: 1, cardType: "attack" }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "upgradeRandomCards", count: 2, cardType: "attack" }],
       },
       {
         text: "Собрать заготовки",
@@ -332,7 +332,7 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
     text: "Из трещин в стене хлынули крысы. Их слишком много, чтобы просто пройти.",
     choices: [
       { text: "Прорываться", result: "Ты расшвыриваешь крыс, но они успевают покусать.", effects: [{ type: "loseHp", amount: 7 }] },
-      { text: "Бросить им сумку с едой", result: "Пока крысы дерутся за сумку, ты уходишь.", effects: [{ type: "losePotion", fallbackHp: 4 }] },
+      { text: "Бросить им сумку с едой", result: "Пока крысы дерутся за сумку, ты уходишь.", effects: [{ type: "losePotion", fallbackHp: 7 }] },
     ],
   },
   pickpocket: {
@@ -340,8 +340,8 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
     title: "Карманник",
     text: "В тесном переходе кто-то задевает тебя плечом. Сумка становится легче.",
     choices: [
-      { text: "Догнать вора", result: "Ты отбираешь своё, но вор успевает полоснуть ножом.", effects: [{ type: "loseHp", amount: 5 }] },
-      { text: "Отпустить", result: "Шаги вора стихают в темноте вместе с твоей поклажей.", effects: [{ type: "losePotion", fallbackHp: 5 }] },
+      { text: "Догнать вора", result: "Ты отбираешь своё, но вор успевает полоснуть ножом.", effects: [{ type: "loseHp", amount: 6 }] },
+      { text: "Отпустить", result: "Шаги вора стихают в темноте вместе с твоей поклажей.", effects: [{ type: "losePotion", fallbackHp: 7 }] },
     ],
   },
   cave_in: {
@@ -359,7 +359,7 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
     text: "Из пола поднимается зелёный туман. Он сладко пахнет и режет глаза.",
     choices: [
       { text: "Задержать дыхание и бежать", result: "Ты выскакиваешь из тумана, кашляя и шатаясь.", effects: [{ type: "loseHp", amount: 6 }] },
-      { text: "Переждать в нише", result: "Туман рассеялся, но надышаться ты успел. Это не пройдёт бесследно.", effects: [{ type: "loseMaxHp", amount: 3 }] },
+      { text: "Переждать в нише", result: "Туман рассеялся, но надышаться ты успел. Это не пройдёт бесследно.", effects: [{ type: "loseMaxHp", amount: 2 }] },
     ],
   },
   sprung_trap: {
@@ -368,7 +368,7 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
     text: "Под ногой щёлкает железо: кто-то поставил капкан там, где раньше было чисто.",
     choices: [
       { text: "Вырваться силой", result: "Нога свободна, но зубья оставили глубокие следы.", effects: [{ type: "loseHp", amount: 9 }] },
-      { text: "Разжать осторожно", result: "Ты возишься долго, и рана успевает загноиться.", effects: [{ type: "loseHp", amount: 3 }, { type: "addCard", cardId: "wound" }] },
+      { text: "Разжать осторожно", result: "Ты возишься долго, и рана успевает загноиться.", effects: [{ type: "loseHp", amount: 1 }, { type: "addCard", cardId: "wound" }] },
     ],
   },
   dark_whisper: {
@@ -376,7 +376,7 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
     title: "Шёпот во тьме",
     text: "Голос из темноты зовёт тебя по имени и обещает показать короткую дорогу.",
     choices: [
-      { text: "Пойти на голос", result: "Голос привёл тебя назад, но кое-чему научил по пути.", effects: [{ type: "loseMaxHp", amount: 4 }, { type: "upgradeRandomCards", count: 1 }] },
+      { text: "Пойти на голос", result: "Голос привёл тебя назад, но кое-чему научил по пути.", effects: [{ type: "loseMaxHp", amount: 5 }, { type: "upgradeRandomCards", count: 1 }] },
       { text: "Заткнуть уши и идти", result: "Шёпот ещё долго звучит в голове.", effects: [{ type: "addCard", cardId: "wound" }] },
     ],
   },
@@ -385,7 +385,7 @@ export const TRAVEL_EVENTS: Record<string, EventData> = {
     title: "Мёртвый искатель",
     text: "У стены сидит искатель приключений. Он мёртв недавно, а рядом с ним — его кошель.",
     choices: [
-      { text: "Обыскать тело", result: "Монеты твои, но мертвец был болен, и ты это чувствуешь.", effects: [{ type: "gainGold", amount: 12 }, { type: "addCard", cardId: "wound" }] },
+      { text: "Обыскать тело", result: "Монеты твои, но мертвец был болен, и ты это чувствуешь.", effects: [{ type: "gainGold", amount: 10 }, { type: "addCard", cardId: "wound" }] },
       { text: "Пройти мимо", result: "Ты отводишь взгляд и ускоряешь шаг.", effects: [] },
     ],
   },

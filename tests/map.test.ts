@@ -124,10 +124,10 @@ describe("События этапа 6", () => {
     const { CARDS } = await import("../js/data/cards.ts");
     const run = await play("workshop", 0);
     const upgraded = run.deck.filter((card) => card.level > 0);
-    expect(upgraded).toHaveLength(1);
-    expect(CARDS[upgraded[0].cardId].type).toBe("attack");
-    expect((await play("fallen_armor", 1)).shards).toBe(2);
-    expect((await play("fallen_armor", 1, (run) => { run.act = 4; })).shards).toBeGreaterThan(2);
+    expect(upgraded).toHaveLength(2);
+    expect(upgraded.every((card) => CARDS[card.cardId].type === "attack")).toBe(true);
+    expect((await play("fallen_armor", 1)).shards).toBe(1);
+    expect((await play("fallen_armor", 1, (run) => { run.act = 4; })).shards).toBeGreaterThan(1);
   });
 
   it("Карманник крадёт зелье, а не золото", async () => {

@@ -429,8 +429,9 @@ const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
   loseHp(run, effect) {
     run.hp = Math.max(1, run.hp - effect.amount);
   },
+  // Золото из событий растёт с актом, как Осколки (docs/events.md)
   gainGold(run, effect) {
-    run.gold += effect.amount;
+    run.gold += scaledGold(run, effect.amount);
   },
   // Отдать золото, которое несёт герой. Больше, чем есть, не отнимут
   loseGold(run, effect) {
@@ -634,6 +635,11 @@ export function openChest(run: Run): void {
   const shards = rollShards(run, rng, CONFIG.rewards.shards.chest);
   const potionId = grantRandomPotion(run, rng);
   run.pendingReward = { essences: 0, shards, relicId: null, potionId, potionsFull: potionId === null, cardIds: [] };
+}
+
+// Золото из событий: в поздних актах больше — × множитель наград акта
+export function scaledGold(run: Run, base: number): number {
+  return Math.round(base * getAct(run).rewards.essences);
 }
 
 // Осколки из событий и Тайника: в поздних актах больше — × множитель наград акта, но не меньше 1

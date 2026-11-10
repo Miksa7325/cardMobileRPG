@@ -4,7 +4,7 @@ import { POTIONS } from "../../data/potions.ts";
 import { RELICS } from "../../data/relics.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { chooseEventOption, finishEvent, getEventData } from "../../engine/events.ts";
-import { scaledShards } from "../../engine/run.ts";
+import { scaledGold, scaledShards } from "../../engine/run.ts";
 import { saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
 import { createRunBar } from "../components/runBar.js";
@@ -50,8 +50,10 @@ export function describeEffects(effects, run) {
   const texts = TEXTS.event.effects;
   return effects.map((effect) => {
     switch (effect.type) {
-      case "loseHp": case "heal": case "gainGold": case "loseGold": case "gainMaxHp": case "loseMaxHp":
+      case "loseHp": case "heal": case "loseGold": case "gainMaxHp": case "loseMaxHp":
         return texts[effect.type](effect.amount);
+      case "gainGold":
+        return texts.gainGold(scaledGold(run, effect.amount));
       case "addCard":
         return effect.cardId === "wound" ? texts.wound : texts.card[effect.rarity];
       case "removeRandomCard":

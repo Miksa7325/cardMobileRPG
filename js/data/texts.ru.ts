@@ -549,7 +549,7 @@ export const TEXTS = {
       gainMaxHp: (amount: number) => `+${amount} к максимуму HP`,
       loseMaxHp: (amount: number) => `−${amount} к максимуму HP`,
       wound: "Рана в колоду",
-      card: { common: "обычная карта", uncommon: "необычная карта", rare: "редкая карта" },
+      card: { common: "обычная карта", uncommon: "необычная карта", rare: "редкая карта", epic: "эпическая карта", legendary: "легендарная карта" },
       removeStarter: "убрать стартовую карту",
       upgrade: (count: number) => (count === 1 ? "улучшить карту" : `улучшить ${count} карты`),
       upgradeType: { attack: "улучшить атаку", skill: "улучшить навык", power: "улучшить силу", status: "улучшить карту" },
