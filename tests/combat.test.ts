@@ -276,14 +276,14 @@ describe("Ярость Воина", () => {
     expect(combat.hero.statuses.rage).toBe(1);
   });
   it("«Ярость N» тратит Ярость на сильный эффект, если её хватает", () => {
-    const combat = fight({ deck: deckOf("rage_burst") });
+    const combat = fight({ deck: deckOf("rage_flash") });
     quiet(combat);
     const enemy = combat.enemies[0];
     combat.hero.statuses.rage = 3;
     const hp = enemy.hp;
     placeCard(combat, combat.piles.hand[0].uid, 1, enemy.instanceId);
     launch(combat);
-    expect(enemy.hp).toBe(hp - 15);
+    expect(enemy.hp).toBe(hp - 16); // 4 + 12 за Ярость 3
     expect(combat.hero.statuses.rage).toBe(1); // 3 потрачено, +1 за атаку
   });
 });

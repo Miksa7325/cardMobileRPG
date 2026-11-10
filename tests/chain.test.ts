@@ -141,7 +141,7 @@ describe("связка", () => {
     expect(bonusesFired(combat)).toEqual([]);
   });
   it("карта весом 0 на стыке между ними — звено: связка идёт через неё", () => {
-    const { combat, uids, target } = setup(["tourniquet", "t_after_skill"]); // Жгут — навык весом 0
+    const { combat, uids, target } = setup(["adrenal_rush", "t_after_skill"]); // Всплеск — навык весом 0
     placeCard(combat, uids[0], 1);
     placeCard(combat, uids[1], 2, target);
     launch(combat);

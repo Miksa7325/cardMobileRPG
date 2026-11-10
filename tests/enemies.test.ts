@@ -104,7 +104,7 @@ describe("Особенности шкалы актов 4–10", () => {
     expect(combat.rerollsLeft).toBe(1);
   });
   it("Железная дисциплина: карта весом 0 весит 1", () => {
-    const combat = fight({ deck: deckOf("tourniquet"), minCardWeight: 1 });
+    const combat = fight({ deck: deckOf("adrenal_rush"), minCardWeight: 1 });
     expect(cardWeight(combat.piles.hand[0], combat)).toBe(1);
     expect(cardWeight(combat.piles.hand[0])).toBe(0);
   });

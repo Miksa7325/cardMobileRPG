@@ -324,6 +324,13 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 
 // Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
 const BORROWED_ART = {
+  // Новая колода Воина (этап 7): рисунки прежних карт, свои — на этапе 9
+  heavy_swing: "heavy_blow", seam_strike: "sunder", crushing_blow: "finishing_blow", ram: "shoulder_charge", wide_swing: "cleave",
+  deaf_guard: "brace", rebuff: "parry", furious_lunge: "wild_slash", through_pain: "reckless_swing",
+  armor_split: "sunder", justice_hammer: "executioner", heavy_hand: "focus", rage_flash: "rage_burst", run_up: "warm_up", frenzy: "rampage",
+  dash: "momentum", crusher: "stunning_blow", thunder: "whirlwind", riposte: "counterattack", shield_bearer: "shield_wall",
+  armor_expert: "battle_trance", titan_hammer: "heavy_blow", unbreakable: "unstoppable", living_fortress: "fury_shield",
+  blood_harvest: "reaper", war_experience: "perfect_form", destroyer: "execution", bastion: "shield_wall",
   patch: "bandage", pierce_armor: "sunder", rivets: "iron_skin", reforge: "brace", forged_armor: "iron_wall", counter_blow: "counterattack",
   a_tighten: "a_smoke", a_blood_flourish: "a_garrote", a_bloodletting: "a_bleed",
   w_bone_patch: "w_ward", w_blood_for_blood: "w_drain", w_ritual_scar: "w_blood_offering",

@@ -117,6 +117,13 @@ export interface ChainBonus {
   effects: Effect[];
 }
 
+// Правила боя, которые меняют легендарные силы (docs/cards/*.md):
+// eternalBlock — блок героя не исчезает со временем, caps — свой потолок статуса (Ярость 20 вместо 10)
+export interface HeroRules {
+  eternalBlock?: boolean;
+  caps?: Partial<Record<StatusId, number>>;
+}
+
 // Символы-стыки по краям карты: клинок, щит, искра
 export type JointSymbol = "blade" | "shield" | "spark";
 
@@ -144,6 +151,7 @@ export interface CardData {
   // Уровни 2, 3… до легендарной: что меняется ещё (поверх предыдущих). Пропишем на этапе 5
   levels?: Partial<Omit<CardData, "id" | "upgraded" | "levels">>[];
   power?: Power;
+  rules?: HeroRules; // легендарная сила-правило: меняет правило боя для героя, когда карта сработала
   chain?: ChainBonus; // бонус цепочки
   chain2?: ChainBonus; // второй бонус цепочки: только у редких карт, больше двух не бывает (разбор механик)
   joints?: { left?: JointSymbol; right?: JointSymbol };
@@ -367,6 +375,7 @@ export interface HeroUnit extends Unit {
   powers: (Power & { cardId: string })[]; // разыгранные карты-силы
   passives: Power[]; // особенность класса и то, что навешивает акт
   damageReduction: number; // защита класса в процентах: Воин получает меньше урона от ударов
+  rules?: HeroRules; // правила от сыгранных легендарных сил
 }
 
 // Ход врага на его дорожке. Ходы стоят встык с клетки 1, где кончается — считает движок по весам и статусам

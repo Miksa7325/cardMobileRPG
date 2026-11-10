@@ -5,7 +5,7 @@ import { CARDS } from "../data/cards.ts";
 import { RELICS } from "../data/relics.ts";
 import { blockCells } from "./rules.ts";
 import type {
-  CardType, Combat, CombatEvent, Effect, EffectContext, EffectOf, EffectType, EnemyUnit, HeroUnit, RelicData, StatusId,
+  CardType, Combat, CombatEvent, Effect, EffectContext, EffectOf, EffectType, EnemyUnit, HeroRules, HeroUnit, RelicData, StatusId,
   Trigger, Unit,
 } from "../types.ts";
 import { createCardInstance, drawCards } from "./deck.ts";
@@ -13,7 +13,7 @@ import { nextInt } from "./rng.ts";
 
 // Для формул хватает статусов: так можно посчитать урон и для «пустого» бойца из предпросмотра.
 // damageReduction — защита класса в процентах (у Воина)
-type HasStatuses = Pick<Unit, "statuses">;
+type HasStatuses = Pick<Unit, "statuses"> & { rules?: HeroRules };
 type DamageTarget = HasStatuses & { damageReduction?: number };
 
 // Больше этого числа стаков статус не набирает
@@ -51,10 +51,14 @@ export function absoluteTime(combat: Combat, cell = combat.clock): number {
   return cell;
 }
 
+// Блок, который не исчезает со временем (сила-правило «Бастион»): срок дальше любого боя
+export const ETERNAL_BLOCK = 1e9;
+
 // Новая порция блока: держится blockCells клеток с этого момента
 export function addBlock(combat: Combat, unit: Unit, amount: number): void {
   if (amount <= 0) return;
-  unit.blocks.push({ amount, expires: absoluteTime(combat) + blockCells(combat) });
+  const eternal = unit === combat.hero && combat.hero.rules?.eternalBlock;
+  unit.blocks.push({ amount, expires: eternal ? ETERNAL_BLOCK : absoluteTime(combat) + blockCells(combat) });
   unit.block += amount;
 }
 
@@ -101,7 +105,7 @@ export function boostEffects(effects: Effect[], boost: number): Effect[] {
 // Прибавляет стаки статуса с учётом потолка. Возвращает, сколько стаков реально добавилось
 function addStatus(unit: HasStatuses, status: StatusId, amount: number): number {
   const before = unit.statuses[status] ?? 0;
-  const cap = STATUS_CAPS[status] ?? Infinity;
+  const cap = unit.rules?.caps?.[status] ?? STATUS_CAPS[status] ?? Infinity;
   const after = Math.min(before + amount, cap);
   if (after > 0) unit.statuses[status] = after;
   return after - before;
@@ -111,7 +115,7 @@ function addStatus(unit: HasStatuses, status: StatusId, amount: number): number 
 // потом всё остальное в записанном порядке. Так Сокрушение ломает броню до удара этой же карты,
 // а у многоударной карты статус ложится один раз, перед первым ударом
 function isTargetStatus(effect: Effect): boolean {
-  return (effect.type === "applyStatus" && effect.target !== "self") || effect.type === "sunder";
+  return (effect.type === "applyStatus" && effect.target !== "self") || effect.type === "sunder" || effect.type === "multiplyStatus";
 }
 
 export function orderEffects(effects: Effect[]): Effect[] {
@@ -428,7 +432,9 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
   multiplyStatus(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
       const stacks = target.statuses[effect.status];
-      if (stacks) target.statuses[effect.status] = stacks * effect.factor;
+      // Потолок статуса действует и на умножение (Уязвимость — не больше 10)
+      const cap = (target as HasStatuses).rules?.caps?.[effect.status] ?? STATUS_CAPS[effect.status] ?? Infinity;
+      if (stacks) target.statuses[effect.status] = Math.min(stacks * effect.factor, cap);
     }
   },
   // Враг зовёт помощника: если живых помощников этого вида меньше max (по умолчанию 1) и есть место

@@ -25,10 +25,10 @@ export const HEROES: Record<HeroId, HeroData> = {
       ],
     },
     deck: [
-      // Рассечение вместо одного Удара: урон по всем врагам (подобрано симулятором)
-      "strike", "strike", "strike", "cleave",
-      "defend", "defend", "defend", "patch",
-      "bash", "rage_burst",
+      // 4 атаки, 4 защиты, карта починки и карта темы класса (docs/classes.md)
+      "strike", "strike", "strike", "strike",
+      "defend", "defend", "defend", "defend",
+      "patch", "bash",
     ],
     relics: ["burning_blood"],
   },

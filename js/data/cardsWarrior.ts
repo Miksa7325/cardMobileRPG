@@ -1,127 +1,112 @@
-// Карты Воина: «танк в доспехах». Ломает броню врагов (Сокрушение), чинит свою (Починка), копит Ярость
-// за атаки и пропущенные удары. Таблица «было → стало» и причины изменений — в docs/cards/warrior.md.
-// Вес карты — третье число после редкости: сколько клеток шкалы она занимает.
-import {
-  block, burn, card, chained, damage, draw, energy, gainResource, grow, heal, hits, allStatus, loseHp, repair, selfStatus, spend, status, sunder,
-  triggerPower, wound,
-} from "./cardHelpers.ts";
-import type { CardData } from "../types.ts";
+// Карты Воина: «танк в доспехах». 54 карты (этап 7): 4 стартовых вида, 16 обычных, 14 необычных, 10 редких,
+// 7 эпических, 3 легендарных. Три темы: Молот (Сокрушение и тяжёлые удары), Щит (блок и Починка), Ярость.
+// Таблица колоды с ценой каждой карты по таблице баланса — в docs/cards/warrior.md.
+// Вес карты — число после редкости: сколько клеток шкалы она занимает.
+// Отдельных улучшенных версий нет: каждая ступень улучшения даёт +20% к числам (engine/deck.ts).
+import { block, burn, card, chained, damage, draw, energy, gainResource, grow, heal, hits, loseHp, repair, selfStatus, spend, status, sunder } from "./cardHelpers.ts";
+import type { CardData, Effect, HeroRules, Power } from "../types.ts";
+
+const sunderAll = (amount: number): Effect => ({ ...sunder(amount), target: "allEnemies" });
+const rage = (amount: number) => gainResource("rage", amount);
+const tactStart = (effects: Effect[]): Power => ({ trigger: "onTactStart", effects });
+
+// Сила: эффекты при розыгрыше, постоянный эффект (power) и правило боя (rules) — что есть
+function power(
+  id: string, name: string, rarity: CardData["rarity"], cost: number, description: string, effects: Effect[], extra: { power?: Power; rules?: HeroRules } = {},
+): CardData {
+  return { ...card(id, name, "power", rarity, cost, "self", description, effects), ...extra };
+}
 
 export const WARRIOR_CARDS: CardData[] = [
-  // ---------- Стартовые ----------
-  card("strike", "Удар", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
-  card("defend", "Защита", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)],
-    { effects: [block(8), repair(1)], description: "Получить {block} блока. Починка {repair}." }),
-  card("bash", "Сокрушение", "attack", "starter", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(8)], { effects: [sunder(3), damage(10)] }),
-  card("rage_burst", "Выплеск ярости", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Ярость 3: ещё {damage} урона.",
-    [damage(5), spend("rage", 3, [damage(10)])], { effects: [damage(7), spend("rage", 3, [damage(14)])] }),
-  card("patch", "Залатать", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(4), repair(2)], { effects: [block(6), repair(3)] }),
+  // ---------- Стартовые: колода 4 + 4 + 1 + 1 ----------
+  card("strike", "Удар", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)]),
+  card("defend", "Защита", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)]),
+  card("patch", "Залатать", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(3), repair(2)]),
+  card("bash", "Пролом", "attack", "starter", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(8)]),
 
-  // ---------- Обычные: атаки ----------
-  card("cleave", "Рассечение", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(8)], { effects: [damage(11)] }),
-  chained(card("twin_strike", "Двойной удар", "attack", "common", 1, "enemy", "Нанести {damage} урона дважды. Первая: ещё удар на {damage}.",
-    hits(5, 2), { effects: hits(7, 2) }), "first", [damage(5)], [damage(7)]),
-  card("knee_strike", "Удар в колено", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {weak} Слабости.",
-    [damage(6), status("weak", 2)], { effects: [damage(8), status("weak", 3)] }),
-  card("quick_slash", "Быстрый выпад", "attack", "common", 1, "enemy", "Нанести {damage} урона. Взять {draw} карту.", [damage(5), draw(1)], { effects: [damage(7), draw(1)] }),
-  chained(card("shield_bash", "Удар щитом", "attack", "common", 1, "enemy", "Нанести {damage} урона. Получить {block} блока. После навыка: ещё {damage} урона.",
-    [damage(5), block(5)], { effects: [damage(7), block(7)] }), "afterSkill", [damage(4)], [damage(5)]),
-  card("kick", "Пинок", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(7)], { effects: [sunder(2), damage(9)] }),
-  card("triple_slash", "Тройной удар", "attack", "common", 2, "enemy", "Нанести {damage} урона трижды.", hits(5, 3), { effects: hits(7, 3) }),
-  card("reckless_swing", "Безрассудный взмах", "attack", "common", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.",
-    [damage(10), loseHp(3)], { effects: [damage(13), loseHp(3)] }),
-  card("hilt_bash", "Удар рукоятью", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(6)], { effects: [sunder(2), damage(7)] }),
-  card("hamstring", "Подрезать жилы", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Наложить {weak} Слабости.",
-    [sunder(1), damage(4), status("weak", 1)], { effects: [sunder(1), damage(6), status("weak", 2)] }),
-  chained(card("finishing_blow", "Решающий удар", "attack", "common", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.",
-    [damage(10)], { effects: [damage(13)] }), "final", [damage(8)], [damage(10)]),
-  card("wild_slash", "Дикий взмах", "attack", "common", 1, "enemy", "Нанести {damage} урона. Добавить Рану в сброс.", [damage(11), wound], { effects: [damage(14), wound] }),
-  card("shoulder_charge", "Таран плечом", "attack", "common", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Получить {block} блока.",
-    [sunder(1), damage(11), block(5)], { effects: [sunder(1), damage(14), block(7)] }),
-  chained(card("blood_rush", "Кровавый порыв", "attack", "common", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP. Получить {rage} Ярости. После атаки: ещё {rage} Ярость.",
-    [damage(8), loseHp(2), gainResource("rage", 2)], { effects: [damage(11), loseHp(2), gainResource("rage", 2)] }), "afterAttack", [gainResource("rage", 1)]),
-  card("reckless_charge", "Безрассудный натиск", "attack", "common", 2, "enemy", "Нанести {damage} урона: +2 за каждую Ярость.",
-    [grow(damage(4), "rage", 2)], { effects: [grow(damage(6), "rage", 2)] }),
-  card("pierce_armor", "Пробить доспех", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(4)], { effects: [sunder(3), damage(5)] }),
-
-  // ---------- Обычные: навыки ----------
-  card("brace", "Упор", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(7), repair(1)], { effects: [block(10), repair(2)] }),
-  card("parry", "Парирование", "skill", "common", 1, "self", "Получить {block} блока.", [block(6)], { effects: [block(8)] }),
-  card("taunt", "Насмешка", "skill", "common", 1, "enemy", "Наложить {vulnerable} Уязвимости. Получить {block} блока.",
-    [status("vulnerable", 2), block(4)], { effects: [status("vulnerable", 3), block(6)] }),
-  card("rally", "Собраться с духом", "skill", "common", 1, "self", "Взять {draw} карты.", [draw(2)], { effects: [draw(3)] }),
-  card("dirty_trick", "Грязный приём", "skill", "common", 0, "enemy", "Наложить {weak} Слабости. Сжечь.", [status("weak", 1), burn], { effects: [status("weak", 2), burn] }),
-  card("tourniquet", "Жгут", "skill", "common", 0, "self", "Починка {repair}. Вылечить {heal} HP. Сжечь.", [repair(2), heal(2), burn], { effects: [repair(3), heal(4), burn] }),
-  card("warm_up", "Разминка", "skill", "common", 1, "self", "Получить {strength} Силы. Сжечь.", [selfStatus("strength", 2), burn], { effects: [selfStatus("strength", 4), burn] }),
-  card("battle_cry", "Грозный вызов", "skill", "common", 0, "allEnemies", "Наложить {vulnerable} Уязвимости всем врагам. Сжечь.",
-    [allStatus("vulnerable", 1), burn], { effects: [allStatus("vulnerable", 2), burn] }),
-  card("fury_shield", "Щит гнева", "skill", "common", 1, "self", "Получить {block} блока: +1 за каждую Ярость.", [grow(block(4), "rage", 1)], { effects: [grow(block(6), "rage", 2)] }),
-  card("war_cry", "Боевой клич", "skill", "common", 0, "self", "Получить {rage} Ярости. Сжечь.", [gainResource("rage", 2), burn], { effects: [gainResource("rage", 3), burn] }),
-  card("second_wind", "Второе дыхание", "skill", "common", 1, "self", "Получить {block} блока. Взять {draw} карту.", [block(4), draw(1)], { effects: [block(6), draw(1)] }),
-  card("bandage", "Перевязка", "skill", "common", 1, "self", "Вылечить {heal} HP. Сжечь.", [heal(6), burn], { effects: [heal(9), burn] }),
-  card("intimidate", "Устрашение", "skill", "common", 1, "allEnemies", "Наложить {weak} Слабости всем врагам. Сжечь.",
-    [allStatus("weak", 2), burn], { effects: [allStatus("weak", 3), burn] }),
-  card("rivets", "Клёпки", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(5), repair(1)], { effects: [block(6), repair(2)] }),
-  chained(card("reforge", "Перековка", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}. После атаки: ещё {block} блока.",
-    [block(5), repair(2)], { effects: [block(7), repair(2)] }), "afterAttack", [block(3)], [block(4)]),
+  // ---------- Обычные ----------
+  // Молот
+  card("heavy_swing", "Тяжёлый замах", "attack", "common", 2, "enemy", "Нанести {damage} урона.", [damage(17)]),
+  card("seam_strike", "Удар по шву", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(5)]),
+  chained(card("crushing_blow", "Дробящий удар", "attack", "common", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.", [damage(12)]), "final", [damage(9)]),
+  card("ram", "Таран", "attack", "common", 3, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(21)]),
+  card("wide_swing", "Размах", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(11)]),
+  // Щит
+  card("deaf_guard", "Глухая оборона", "skill", "common", 2, "self", "Получить {block} блока.", [block(14)]),
+  card("rivets", "Подбить клёпки", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(4), repair(3)]),
+  card("shield_bash", "Удар щитом", "attack", "common", 1, "enemy", "Нанести {damage} урона. Получить {block} блока.", [damage(4), block(3)]),
+  chained(card("stance", "Стойка", "skill", "common", 1, "self", "Получить {block} блока. После навыка: ещё {block} блока.", [block(5)]), "afterSkill", [block(3)]),
+  card("rebuff", "Отпор", "attack", "common", 2, "enemy", "Нанести {damage} урона. Получить {block} блока.", [damage(8), block(7)]),
+  // Ярость
+  card("furious_lunge", "Яростный выпад", "attack", "common", 1, "enemy", "Нанести {damage} урона: +1 за каждую Ярость.", [grow(damage(5), "rage", 1)]),
+  card("battle_cry", "Боевой клич", "skill", "common", 1, "self", "Получить {rage} Ярости и {block} блока.", [rage(3), block(3)]),
+  card("twin_strike", "Двойной удар", "attack", "common", 1, "enemy", "Нанести {damage} урона дважды.", hits(4, 2)),
+  card("through_pain", "Через боль", "attack", "common", 1, "enemy", "Потерять {loseHp} HP. Нанести {damage} урона. Получить {rage} Ярости.", [loseHp(2), damage(8), rage(2)]),
+  // Общие
+  card("dirty_trick", "Грязный приём", "skill", "common", 0, "enemy", "Наложить {weak} Слабости. Сжечь.", [status("weak", 2), burn]),
+  card("second_wind", "Второе дыхание", "skill", "common", 1, "self", "Получить {block} блока. Взять {draw} карту.", [block(4), draw(1)]),
 
   // ---------- Необычные ----------
-  chained(card("heavy_blow", "Тяжёлый удар", "attack", "uncommon", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Финал: ещё {damage} урона.",
-    [sunder(1), damage(14)], { effects: [sunder(2), damage(18)] }), "final", [damage(6)], [damage(8)]),
-  card("iron_wall", "Железная стена", "skill", "uncommon", 2, "self", "Получить {block} блока. Починка {repair}.", [block(13), repair(2)], { effects: [block(17), repair(3)] }),
-  card("focus", "Сосредоточение", "skill", "uncommon", 1, "self", "Взять {draw} карты. Добавить Рану в сброс.", [draw(2), wound], { effects: [draw(3), wound] }),
-  card("adrenaline", "Боевой задор", "skill", "uncommon", 0, "self", "Получить {haste} Ускорения. Сжечь.", [energy(1), burn], { effects: [energy(2), burn] }),
-  card("stance", "Боевая стойка", "power", "uncommon", 1, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта такта на 1 легче.",
-    [selfStatus("dexterity", 2)], { effects: [selfStatus("dexterity", 3)] }),
-  triggerPower("iron_skin", "Железная кожа", "uncommon", 1, "В конце такта {block} блока.", "onTactEnd", [block(2)], [block(3)]),
-  card("rampage", "Буйство", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Ярость 5: ещё 3 удара по {damage}.",
-    [damage(8), spend("rage", 5, hits(7, 3))], { effects: [damage(10), spend("rage", 5, hits(9, 3))] }),
-  card("unstoppable", "Неудержимость", "skill", "uncommon", 1, "self", "Ярость 4: получить {strength} Силы. Сжечь.",
-    [spend("rage", 4, [selfStatus("strength", 4)]), burn], { effects: [spend("rage", 3, [selfStatus("strength", 4)]), burn], description: "Ярость 3: получить {strength} Силы. Сжечь." }),
-  card("seething", "Кипящая кровь", "power", "uncommon", 1, "self", "В начале такта +{rage} Ярость.", [], { cost: 0 },
-    { trigger: "onTactStart", effects: [gainResource("rage", 1)] }),
-  card("sunder", "Раскол брони", "attack", "uncommon", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(5)], { effects: [sunder(3), damage(7)] }),
-  card("whirlwind", "Вихрь", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем врагам дважды.", hits(6, 2), { effects: hits(8, 2) }),
-  chained(card("executioner", "Палач", "attack", "uncommon", 3, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Финал: ещё Сокрушение {sunder}.",
-    [sunder(1), damage(24)], { effects: [sunder(1), damage(30)] }), "final", [sunder(2)], [sunder(3)]),
-  card("blood_strike", "Кровавый удар", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(13), loseHp(4)], { effects: [damage(17), loseHp(4)] }),
-  chained(card("counterattack", "Контратака", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Получить {block} блока. После навыка: ещё {damage} урона.",
-    [damage(10), block(10)], { effects: [damage(13), block(13)] }), "afterSkill", [damage(5)], [damage(6)]),
-  card("momentum", "Натиск", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Получить {haste} Ускорения. Сжечь.",
-    [damage(6), energy(1), burn], { effects: [damage(9), energy(1), burn] }),
-  card("stunning_blow", "Оглушающий удар", "attack", "uncommon", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Наложить {weak} Слабости.",
-    [sunder(2), damage(9), status("weak", 2)], { effects: [sunder(3), damage(12), status("weak", 3)] }),
-  card("shield_wall", "Стена щитов", "skill", "uncommon", 2, "self", "Получить {block} блока. Наложить {weak} Слабость всем врагам.",
-    [block(10), allStatus("weak", 1)], { effects: [block(14), allStatus("weak", 1)] }),
-  card("blood_surge", "Через боль", "skill", "uncommon", 1, "self", "Получить {haste} Ускорения. Потерять {loseHp} HP. Сжечь.",
-    [energy(2), loseHp(5), burn], { effects: [energy(3), loseHp(5), burn] }),
-  card("fortress", "Крепость", "skill", "uncommon", 3, "self", "Получить {block} блока. Починка {repair}.", [block(22), repair(3)], { effects: [block(28), repair(4)] }),
-  triggerPower("battle_trance", "Боевой транс", "uncommon", 1, "Каждая атака: {block} блока.", "onCardPlayed", [block(1)], [block(2)], "attack"),
-  triggerPower("bloodthirst", "Кровожадность", "uncommon", 1, "Когда враг умирает, вылечить {heal} HP.", "onEnemyDeath", [heal(3)], [heal(5)]),
-  triggerPower("forged_armor", "Кованый доспех", "uncommon", 2, "В конце такта Починка {repair}.", "onTactEnd", [repair(1)], [repair(1), block(2)]),
-  chained(card("counter_blow", "Встречный удар", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. После атаки: ещё {damage} урона.",
-    [damage(6)], { effects: [damage(8)] }), "afterAttack", [damage(6)], [damage(8)]),
+  // Молот
+  card("armor_split", "Раскол брони", "attack", "uncommon", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(3), damage(13)]),
+  card("earthquake", "Землетряс", "attack", "uncommon", 3, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам.", [sunderAll(1), damage(19)]),
+  chained(card("justice_hammer", "Молот правосудия", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.", [damage(14)]), "final", [damage(14)]),
+  power("heavy_hand", "Тяжёлая рука", "uncommon", 1, "Получить {strength} Силы.", [selfStatus("strength", 2)]),
+  // Щит
+  card("iron_wall", "Железная стена", "skill", "uncommon", 2, "self", "Получить {block} блока. Починка {repair}.", [block(13), repair(5)]),
+  chained(card("counterattack", "Контрудар", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Получить {block} блока. После навыка: ещё {damage} урона.",
+    [damage(9), block(6)]), "afterSkill", [damage(8)]),
+  card("fortress", "Крепость", "skill", "uncommon", 3, "self", "Получить {block} блока. Починка {repair}.", [block(24), repair(4)]),
+  power("forged_armor", "Кованый доспех", "uncommon", 2, "Починка {repair}. В конце такта: Починка {repair} и {block} блока.", [repair(2)],
+    { power: { trigger: "onTactEnd", effects: [repair(1), block(2)] } }),
+  // Ярость
+  card("rage_flash", "Вспышка гнева", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Ярость 3: ещё {damage} урона.", [damage(4), spend("rage", 3, [damage(12)])]),
+  card("blood_rush", "Кровавый порыв", "attack", "uncommon", 1, "enemy", "Потерять {loseHp} HP. Нанести {damage} урона. Получить {rage} Ярости.", [loseHp(3), damage(10), rage(3)]),
+  card("run_up", "Разгон", "skill", "uncommon", 1, "self", "Получить {rage} Ярости и {haste} Ускорение. Взять {draw} карту. Сжечь.", [rage(4), energy(1), draw(1), burn]),
+  chained(card("frenzy", "Неистовство", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона трижды. После атаки: ещё удар на {damage}.", hits(6, 3)), "afterAttack", [damage(6)]),
+  // Общие
+  card("intimidate", "Устрашение", "skill", "uncommon", 1, "allEnemies", "Наложить {weak} Слабости всем врагам. Получить {block} блока.", [status("weak", 2), block(4)]),
+  card("dash", "Рывок", "skill", "uncommon", 1, "self", "Получить {haste} Ускорения и {block} блока.", [energy(2), block(2)]),
 
   // ---------- Редкие ----------
-  card("rage", "Нарастающий гнев", "power", "rare", 1, "self", "В начале такта +{strength} Сила.", [], { cost: 0 },
-    { trigger: "onTactStart", effects: [selfStatus("strength", 2)] }),
-  card("execution", "Казнь", "attack", "rare", 3, "enemy", "Нанести {damage} урона: +3 за каждую Ярость.", [grow(damage(6), "rage", 3)], { effects: [grow(damage(10), "rage", 3)] }),
-  card("berserk_roar", "Рёв берсерка", "attack", "rare", 1, "allEnemies", "Ярость 6: нанести {damage} урона всем и получить {block} блока.",
-    [spend("rage", 6, [damage(20), block(10)])], { effects: [spend("rage", 6, [damage(26), block(14)])] }),
-  chained(chained(card("earthquake", "Землетрясение", "attack", "rare", 3, "allEnemies",
-    "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам. После атаки: ещё Сокрушение {sunder} всем. Финал: ещё {damage} урона всем.",
-    [{ ...sunder(1), target: "allEnemies" }, damage(20)], { effects: [{ ...sunder(1), target: "allEnemies" }, damage(26)] }),
-  "afterAttack", [{ ...sunder(1), target: "allEnemies" }]), "final", [damage(6)], [damage(8)]),
-  card("reaper", "Жнец", "attack", "rare", 2, "allEnemies", "Нанести {damage} урона всем врагам. Вылечить {heal} HP. Сжечь.",
-    [damage(9), heal(6), burn], { effects: [damage(12), heal(8), burn] }),
-  // Два бонуса цепочки (docs/cards/double-chain.md): в начале цепочки сильнее ломает броню, в конце — добивает
+  // Молот. У Обезглавить два бонуса цепочки: в начале цепочки сильнее ломает броню, в конце — добивает
   chained(chained(card("decapitate", "Обезглавить", "attack", "rare", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Первая: ещё Сокрушение {sunder}. Финал: ещё {damage} урона.",
-    [sunder(2), damage(22)], { effects: [sunder(3), damage(28)] }), "first", [sunder(1)], [sunder(1)]), "final", [damage(8)], [damage(10)]),
-  card("last_stand", "Последний рубеж", "skill", "rare", 2, "self", "Получить {block} блока. Починка {repair}. Сжечь.",
-    [block(30), repair(5), burn], { effects: [block(40), repair(5), burn] }),
-  card("adrenal_rush", "Всплеск", "skill", "rare", 1, "self", "Получить {haste} Ускорения. Взять {draw} карты. Сжечь.",
-    [energy(2), draw(2), burn], { effects: [energy(3), draw(3), burn] }),
-  card("berserker", "Берсерк", "power", "rare", 0, "self", "Получить {strength} Силы. Потерять {loseHp} HP.", [selfStatus("strength", 6), loseHp(6)], { effects: [selfStatus("strength", 8), loseHp(6)] }),
-  card("war_avatar", "Аватар войны", "power", "rare", 3, "self", "Получить {strength} Силы. Получить {dexterity} Ловкости.", [selfStatus("strength", 6), selfStatus("dexterity", 3)], { cost: 2 }),
-  card("perfect_form", "Идеальная форма", "power", "rare", 1, "self", "В начале такта взять {draw} карту.", [], { cost: 0 }, { trigger: "onTactStart", effects: [draw(1)] }),
+    [sunder(2), damage(16)]), "first", [sunder(1)]), "final", [damage(6)]),
+  card("crusher", "Сокрушитель", "attack", "rare", 3, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(4), damage(30)]),
+  card("thunder", "Гром", "attack", "rare", 2, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам.", [sunderAll(2), damage(12)]),
+  // Щит
+  card("last_stand", "Последний рубеж", "skill", "rare", 2, "self", "Получить {block} блока. Починка {repair}. Сжечь.", [block(25), repair(3), burn]),
+  chained(card("riposte", "Ответный удар", "attack", "rare", 1, "enemy", "Нанести {damage} урона. Получить {block} блока. После навыка: ещё {damage} урона.",
+    [damage(6), block(4)]), "afterSkill", [damage(3)]),
+  chained(card("shield_bearer", "Щитоносец", "attack", "rare", 2, "enemy", "Нанести {damage} урона. Получить {block} блока. После навыка: ещё {block} блока.",
+    [damage(10), block(10)]), "afterSkill", [block(6)]),
+  // Ярость
+  card("execution", "Казнь", "attack", "rare", 3, "enemy", "Нанести {damage} урона: +3 за каждую Ярость.", [grow(damage(12), "rage", 3)]),
+  card("berserk_roar", "Рёв берсерка", "attack", "rare", 1, "allEnemies", "Ярость 5: нанести {damage} урона всем врагам.", [spend("rage", 5, [damage(14)])]),
+  power("rage", "Нарастающий гнев", "rare", 2, "В начале такта: +{strength} Сила.", [], { power: tactStart([selfStatus("strength", 1)]) }),
+  // Общие
+  card("adrenal_rush", "Всплеск", "skill", "rare", 0, "self", "Получить {haste} Ускорение и {rage} Ярость. Сжечь.", [energy(1), rage(1), burn]),
+
+  // ---------- Эпические ----------
+  // Молот
+  power("armor_expert", "Знаток брони", "epic", 2, "Сокрушение {sunder} всем врагам. В начале такта: Сокрушение {sunder} всем.", [sunderAll(2)], { power: tactStart([sunderAll(1)]) }),
+  chained(card("titan_hammer", "Молот титана", "attack", "epic", 4, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Финал: ещё {damage} урона.", [sunder(3), damage(48)]), "final", [damage(18)]),
+  // Щит
+  card("unbreakable", "Несокрушимый", "skill", "epic", 3, "self", "Получить {block} блока. Починка {repair}.", [block(30), repair(10)]),
+  power("living_fortress", "Живая крепость", "epic", 2, "В начале такта: {block} блока и Починка {repair}.", [], { power: tactStart([block(4), repair(1)]) }),
+  // Ярость
+  power("berserker", "Берсерк", "epic", 1, "Потерять {loseHp} HP. Получить {strength} Силы.", [loseHp(4), selfStatus("strength", 4)]),
+  card("blood_harvest", "Кровавая жатва", "attack", "epic", 2, "allEnemies", "Нанести {damage} урона всем врагам. Вылечить {heal} HP.", [damage(12), heal(6)]),
+  // Общие
+  power("war_experience", "Военный опыт", "epic", 1, "В начале такта: взять {draw} карту.", [], { power: tactStart([draw(1)]) }),
+
+  // ---------- Легендарные: у каждой — эффект-правило, в колоде не больше одной копии ----------
+  // Молот: Уязвимость удваивается до урона этой же карты
+  card("destroyer", "Разрушитель", "attack", "legendary", 3, "enemy", "Сокрушение {sunder}. Удвоить Уязвимость цели. Нанести {damage} урона.",
+    [sunder(2), { type: "multiplyStatus", status: "vulnerable", factor: 2 }, damage(36)]),
+  // Щит: блок Воина больше не исчезает со временем
+  power("bastion", "Бастион", "legendary", 2, "Блок больше не исчезает со временем. Получить {block} блока.", [block(8)], { rules: { eternalBlock: true } }),
+  // Ярость: потолок 20 вместо 10 и вторая Ярость за каждую атаку
+  power("war_avatar", "Аватар войны", "legendary", 2, "Потолок Ярости — 20, каждая атака даёт на 1 Ярость больше. Получить {strength} Силы.", [selfStatus("strength", 3)],
+    { rules: { caps: { rage: 20 } }, power: { trigger: "onCardPlayed", cardType: "attack", effects: [rage(1)] } }),
 ];

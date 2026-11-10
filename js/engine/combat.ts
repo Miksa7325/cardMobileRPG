@@ -21,12 +21,12 @@ import {
   brewOptionCount, canPrepare, drawOnResolve, finalTwice, openDrawCount, prepEmptyGain, rerollsPerTact, zeroWeightPerTact,
 } from "./rules.ts";
 import type {
-  ActionResult, CardData, CardInstance, CardTarget, ChainBonus, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroUnit, Intent,
+  ActionResult, CardData, CardInstance, CardTarget, ChainBonus, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroRules, HeroUnit, Intent,
   LaneItem, Power, PreparedSpell, Rng, RunCard, Statuses,
 } from "../types.ts";
 import { chainBonuses, createCardInstance, createPiles, drawCards, getCardData, takeFromHand } from "./deck.ts";
 import {
-  PLANNING_EFFECTS, addTally, applyBurning, applyLeech, applyPoison, boostEffects, calculateBlock,
+  ETERNAL_BLOCK, PLANNING_EFFECTS, addTally, applyBurning, applyLeech, applyPoison, boostEffects, calculateBlock,
   calculateDamage, executeEffects, expireBlocks, fireTrigger, isOver, recordEvent, reduceStatus, setSummonHandler,
 } from "./effects.ts";
 import { createRng, nextInt } from "./rng.ts";
@@ -954,6 +954,7 @@ function playResolvedCard(combat: Combat, instance: CardInstance, targetId: stri
   addTally(combat, "cardsPlayed");
   // Сила остаётся до конца боя, поэтому её карта не попадает ни в одну стопку
   if (card.power) combat.hero.powers.push({ cardId: card.id, ...card.power });
+  if (card.rules) applyHeroRules(combat, card.rules);
 
   let effects = [...card.effects.filter((effect) => !PLANNING_EFFECTS.has(effect.type)), ...bonus];
   if (boost !== 1) effects = boostEffects(effects, boost);
@@ -969,6 +970,14 @@ function playResolvedCard(combat: Combat, instance: CardInstance, targetId: stri
   } else if (card.type !== "power") {
     combat.piles.discard.push(instance);
   }
+}
+
+// Легендарная сила-правило: меняет правило боя для героя до конца боя
+function applyHeroRules(combat: Combat, rules: HeroRules): void {
+  const hero = combat.hero;
+  hero.rules = { ...hero.rules, ...rules, caps: { ...hero.rules?.caps, ...rules.caps } };
+  // Вечный блок: тот, что уже стоит, тоже перестаёт исчезать
+  if (rules.eternalBlock) for (const portion of hero.blocks) portion.expires = ETERNAL_BLOCK;
 }
 
 function drinkPotion(combat: Combat, potionId: string, targetId: string | null): void {

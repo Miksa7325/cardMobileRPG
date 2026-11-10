@@ -75,19 +75,22 @@ export function getCardData(instance: Leveled): CardData {
   if (instance.level <= 0) return card;
   let data: CardData = { ...card, ...card.upgraded };
   const leveled = Math.min(instance.level, stepsToLegendary(instance.cardId));
-  let formulaSteps = 0;
+  // Нет своей улучшенной версии — первая ступень тоже по формуле
+  let formulaSteps = card.upgraded ? 0 : Math.min(1, leveled);
   for (let level = 2; level <= leveled; level++) {
     const explicit = card.levels?.[level - 2];
     if (explicit) data = { ...data, ...explicit };
     else formulaSteps += 1;
   }
-  if (formulaSteps > 0) data = scaleCard(data, formulaSteps * CONFIG.levelPercent, Math.ceil);
+  // До целого: «Сокрушение 1» не должно удваиваться от одной ступени
+  if (formulaSteps > 0) data = scaleCard(data, formulaSteps * CONFIG.levelPercent, (value) => Math.round(value + 1e-9));
   return data;
 }
 
-// Улучшать можно карты, у которых есть улучшенная версия (Рану нельзя)
+// Улучшать можно любую карту героя (Рану и другие статусы — нельзя). Карта без своей улучшенной версии
+// улучшается по формуле: +20% к числам за ступень (docs/balance.md)
 export function canUpgradeCard(cardId: string): boolean {
-  return CARDS[cardId].upgraded !== undefined;
+  return CARDS[cardId].type !== "status" && CARDS[cardId].cost !== null;
 }
 
 // Первая ступень (обычная → необычная): её дают отдых, тренировочная арена за золото и события

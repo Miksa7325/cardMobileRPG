@@ -45,13 +45,15 @@ describe("редкость карт в наградах", () => {
   });
 
   it("эпическая и легендарная карты выпадают; если карт нужной редкости нет — берётся редкость ниже", () => {
-    CARDS.t_epic = { ...CARDS.strike, id: "t_epic", rarity: "epic", hero: "warrior" };
-    const run = createRun({ heroId: "warrior", seed: 2 });
-    enterNode(run, run.map.rows[0][0]);
-    expect(rollCardChoices(run, createRng(1), { epic: 100 }, 1)).toEqual(["t_epic"]);
-    const fallback = rollCardChoices(run, createRng(1), { legendary: 100 }, 1);
-    expect(CARDS[fallback[0]].rarity).toBe("epic");
-    delete CARDS.t_epic;
+    const rarityOf = (heroId: "warrior" | "mage", weights: Record<string, number>) => {
+      const run = createRun({ heroId, seed: 2 });
+      enterNode(run, run.map.rows[0][0]);
+      return CARDS[rollCardChoices(run, createRng(1), weights, 1)[0]].rarity;
+    };
+    expect(rarityOf("warrior", { epic: 100 })).toBe("epic");
+    expect(rarityOf("warrior", { legendary: 100 })).toBe("legendary");
+    // У Мага новой колоды ещё нет: эпических и легендарных карт нет, берётся редкая
+    expect(rarityOf("mage", { legendary: 100 })).toBe("rare");
   });
 
   it("эпической карте до потолка 1 улучшение, легендарная не улучшается", () => {

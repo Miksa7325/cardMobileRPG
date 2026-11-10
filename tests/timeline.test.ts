@@ -75,7 +75,7 @@ describe("расстановка", () => {
     expect(placeCard(combat, uidAt(combat), 7, target).ok).toBe(true);
   });
   it("карты весом 0 — на стыке клеток, не больше 2 за такт, срабатывают на своём стыке", () => {
-    const combat = fight({ deck: deckOf("tourniquet") }); // Жгут: вес 0, лечит 2 HP
+    const combat = fight({ deck: deckOf("adrenal_rush") }); // Всплеск: вес 0, Ускорение 1
     quiet(combat);
     combat.hero.hp = 50;
     expect(placeCard(combat, uidAt(combat), 0).ok).toBe(true);
@@ -83,7 +83,7 @@ describe("расстановка", () => {
     expect(placeCard(combat, uidAt(combat), 1)).toEqual({ ok: false, reason: "zeroLimit" }); // такт 1: стыки 0–2
     expect(placeCard(combat, uidAt(combat), 3).ok).toBe(true); // стык 3 — уже такт 2
     launch(combat);
-    expect(combat.events.filter((event) => event.type === "heal").map((event) => event.cell)).toEqual([0, 2, 3]);
+    expect(combat.events.filter((event) => event.type === "status" && event.status === "haste").map((event) => event.cell)).toEqual([0, 2, 3]);
   });
   it("карту можно вернуть в руку и переставить", () => {
     const combat = fight();
@@ -96,13 +96,13 @@ describe("расстановка", () => {
     expect(combat.piles.hand).toHaveLength(7);
   });
   it("добор срабатывает сразу при постановке, и карту уже не вернуть", () => {
-    const combat = fight({ deck: deckOf("rally", 12) }); // вес 1, взять 2 карты
+    const combat = fight({ deck: deckOf("second_wind", 12) }); // вес 1, взять 1 карту
     placeCard(combat, uidAt(combat), 1);
-    expect(combat.piles.hand).toHaveLength(6 + 2);
+    expect(combat.piles.hand).toHaveLength(6 + 1);
     expect(removeFromLane(combat, combat.lane[0].id)).toEqual({ ok: false, reason: "locked" });
   });
-  it("бывшее «+N вместимости» — Ускорение N: Боевой задор даёт Ускорение 1", () => {
-    const combat = fight({ deck: deckOf("adrenaline") }); // вес 0
+  it("бывшее «+N вместимости» — Ускорение N: Всплеск даёт Ускорение 1", () => {
+    const combat = fight({ deck: deckOf("adrenal_rush") }); // вес 0
     quiet(combat);
     placeCard(combat, uidAt(combat), 0);
     advance(combat, 1);
@@ -283,11 +283,11 @@ describe("такты", () => {
     expect(combat.hero.statuses.poison).toBeUndefined();
   });
   it("сила «в начале такта» срабатывает каждые 3 клетки", () => {
-    const combat = fight({ deck: deckOf("rage") }); // +2 Силы в начале такта
+    const combat = fight({ deck: deckOf("rage") }); // Нарастающий гнев: вес 2, +1 Сила в начале такта
     quiet(combat);
     placeCard(combat, uidAt(combat), 1);
-    launch(combat); // такты 2 и 3
-    expect(combat.hero.statuses.strength).toBe(4);
+    launch(combat); // сработала в клетке 2, потом начались такты 2 и 3
+    expect(combat.hero.statuses.strength).toBe(2);
   });
 });
 

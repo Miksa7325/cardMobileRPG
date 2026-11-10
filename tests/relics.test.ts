@@ -51,7 +51,7 @@ describe("Правила-реликвии", () => {
 
   it("Кости теней: третья карта весом 0 за такт", () => {
     const place = (relics: string[]) => {
-      const combat = fight({ deck: deckOf("tourniquet"), relics });
+      const combat = fight({ deck: deckOf("adrenal_rush"), relics });
       placeCard(combat, combat.piles.hand[0].uid, 0);
       placeCard(combat, combat.piles.hand[0].uid, 1);
       return placeCard(combat, combat.piles.hand[0].uid, 2);
