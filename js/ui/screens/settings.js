@@ -1,4 +1,5 @@
 // Экран настроек: громкость, скорость анимаций, вибрация, обучение и сброс прогресса.
+import { CONFIG } from "../../config.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import { loadMeta, loadSettings, resetProgress, saveMeta, saveSettings } from "../../save.ts";
 import { playSound } from "../audio.js";
@@ -43,12 +44,13 @@ export function renderSettingsScreen(root) {
     }),
     createVibrationControl(settings),
     createGraphicsControl(settings),
-    createButton(TEXTS.settings.replayTutorial, "button--secondary", () => {
+    // Пока обучение выключено (до этапа 9), повторять его нечего
+    ...(CONFIG.tutorialEnabled ? [createButton(TEXTS.settings.replayTutorial, "button--secondary", () => {
       const meta = loadMeta();
       meta.tutorialDone = false;
       saveMeta(meta);
       showTooltip(TEXTS.settings.tutorialReady);
-    }),
+    })] : []),
     createResetButton(),
     createButton(TEXTS.settings.back, "button--secondary", () => showScreen("start")),
   );

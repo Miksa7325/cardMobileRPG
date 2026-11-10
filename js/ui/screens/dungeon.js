@@ -61,7 +61,7 @@ export function startNewRun(heroId, startAct = 1) {
   state.test.enabled = false;
   resetPlayTimer();
   // Перед первым забегом — учебный бой на шкале, потом одна подсказка про подземелье
-  if (!meta.tutorialDone && startAct === 1) {
+  if (CONFIG.tutorialEnabled && !meta.tutorialDone && startAct === 1) {
     startTutorialBattle(heroId, () => {
       startTutorial();
       showScreen("dungeon");

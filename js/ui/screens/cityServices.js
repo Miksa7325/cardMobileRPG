@@ -210,11 +210,13 @@ const SERVICES = {
       });
     });
     train.disabled = meta.gold < CONFIG.city.prices.training || trainable.length === 0;
-    // Учебный бой на шкале можно повторить здесь: бесплатно и без риска
-    const tutorial = createButton(TEXTS.services.tutorialBattle, "button--large button--secondary", () => {
-      startTutorialBattle(heroId, () => showScreen("city"));
-    });
-    dialog.append(train, tutorial);
+    dialog.append(train);
+    // Учебный бой на шкале можно повторить здесь: бесплатно и без риска (пока обучение выключено — кнопки нет)
+    if (CONFIG.tutorialEnabled) {
+      dialog.append(createButton(TEXTS.services.tutorialBattle, "button--large button--secondary", () => {
+        startTutorialBattle(heroId, () => showScreen("city"));
+      }));
+    }
   },
 
   // Боевая арена: бои без смерти за золото и эссенции
