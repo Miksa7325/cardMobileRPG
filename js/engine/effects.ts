@@ -20,6 +20,7 @@ type DamageTarget = HasStatuses & { damageReduction?: number };
 const STATUS_CAPS: Partial<Record<StatusId, number>> = {
   weak: CONFIG.weakMaxStacks,
   vulnerable: CONFIG.vulnerableMaxStacks,
+  ...CONFIG.resourceCaps,
 };
 
 // Формула урона: база × (1 + 10% за Силу) × (1 − 10% за Слабость) × (1 + 10% за Уязвимость цели) × (1 − защита класса).

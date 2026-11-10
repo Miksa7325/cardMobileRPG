@@ -486,6 +486,19 @@ function zeroWeightInTact(combat: Combat, tact: number): number {
   return combat.lane.filter((item) => item.kind === "card" && item.weight === 0 && tactOfBoundary(item.start) === tact).length;
 }
 
+// Карта варки и такт, в котором её ставят: варить можно не больше CONFIG.brewCardsPerTact карт за такт
+function isBrewCard(card: CardData): boolean {
+  return card.effects.some((effect) => effect.type === "brewPotion");
+}
+
+function placementTact(start: number, weight: number): number {
+  return weight === 0 ? tactOfBoundary(start) : tactOfCell(start);
+}
+
+function brewCardsInTact(combat: Combat, tact: number): number {
+  return combat.lane.filter((item) => item.card && isBrewCard(getCardData(item.card)) && placementTact(item.start, item.weight) === tact).length;
+}
+
 function canAct(combat: Combat): boolean {
   return combat.status === "planning" || combat.status === "running";
 }
@@ -508,6 +521,7 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   if (options.prepare) return prepareSpell(combat, instance, card, weight, targetId);
 
   if (weight === 0 && zeroWeightInTact(combat, tactOfBoundary(start)) >= zeroWeightPerTact(combat)) return fail("zeroLimit");
+  if (isBrewCard(card) && brewCardsInTact(combat, placementTact(start, weight)) >= CONFIG.brewCardsPerTact) return fail("brewLimit");
   const item: LaneItem = {
     id: combat.nextLaneId, kind: "card", card: instance, start, weight, targetId, locked: false, resolved: false,
   };

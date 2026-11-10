@@ -40,6 +40,9 @@ export const CONFIG = {
   weakMaxStacks: 3, // больше 3 Слабости не бывает: не больше −30%
   vulnerablePercent: 10, // +10% получаемого урона за каждый стак Уязвимости
   vulnerableMaxStacks: 10, // больше 10 Уязвимости не бывает: не больше +100%
+  // Потолок ресурсов классов (docs/classes.md): чтобы карты «+N за ресурс» имели предел в долгих боях
+  resourceCaps: { rage: 10, darkness: 10, reagents: 10, surge: 6 },
+  brewCardsPerTact: 1, // Алхимик: не больше стольких карт варки за такт
   blockRepair: { minBlock: 10, amount: 1 }, // порция блока от minBlock снимает amount Уязвимости с того, кто её получил
   warriorDamageReduction: 20, // Воин получает на 20% меньше урона от ударов (Яд, Горение и плата HP не снижаются)
 
@@ -80,6 +83,19 @@ export const CONFIG = {
     // Осколки мастерства — на улучшения карт выше первой ступени. В поздних актах больше: × множитель эссенций акта
     shards: { battleChance: 0.05, battle: 1, elite: 1, boss: 3, chestChance: 0.25, chest: 1 },
     cardChoices: 3, // сколько карт предлагается на выбор
+    // Шансы редкости карты в награде по актам (docs/balance.md, раздел 6): строка — с какого акта действует
+    rarityByAct: [
+      { from: 1, weights: { common: 60, uncommon: 30, rare: 9, epic: 1, legendary: 0 } },
+      { from: 2, weights: { common: 52, uncommon: 33, rare: 12, epic: 3, legendary: 0 } },
+      { from: 3, weights: { common: 45, uncommon: 35, rare: 15, epic: 4, legendary: 1 } },
+      { from: 4, weights: { common: 38, uncommon: 35, rare: 19, epic: 6, legendary: 2 } },
+      { from: 6, weights: { common: 30, uncommon: 35, rare: 23, epic: 9, legendary: 3 } },
+      { from: 8, weights: { common: 24, uncommon: 33, rare: 26, epic: 12, legendary: 5 } },
+      { from: 10, weights: { common: 18, uncommon: 30, rare: 28, epic: 16, legendary: 8 } },
+    ],
+    eliteMinRarity: "uncommon", // после элиты карта не ниже этой редкости
+    bossRarity: { rare: 60, epic: 30, legendary: 10 }, // после босса
+    essencesPerAct: 0.5, // множитель эссенций и Осколков акта: 1 + essencesPerAct × (акт − 1), записан в data/acts.ts
     battleCardChance: 0.6, // шанс выбора карты после обычного боя; после элиты и босса — всегда (разбор механик)
     // Тайник: на выбор зелье, Осколки или золото. Осколки и золото — × множитель эссенций акта
     cache: { shards: 1, gold: 25 },
@@ -103,7 +119,7 @@ export const CONFIG = {
       blessingStep: 25, // на столько дорожает каждое следующее благословение героя
       forge: 70, // кузница: выковать реликвию
       fortune: 40, // гадалка: реликвия на следующий спуск
-      study: { common: 25, uncommon: 40, rare: 70 }, // библиотека: выучить карту этой редкости
+      study: { common: 25, uncommon: 40, rare: 70, epic: 110, legendary: 160 }, // библиотека: выучить карту этой редкости
     },
     blessingHp: 5,
     studyRarityWeights: { common: 50, uncommon: 35, rare: 15 }, // какие карты чаще предлагает библиотека

@@ -11,7 +11,8 @@ import { canUpgradeFirstStep, upgradeCard } from "./deck.ts";
 import { generateMap } from "./map.ts";
 import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.ts";
 import type {
-  CacheOffer, CardData, CardRarity, Combat, Effect, EffectOf, EffectType, Equipment, Gain, HeroId, MapNode, RelicData, RelicRarity, Reward, Rng,
+  CacheOffer, CardData, Combat, Effect, EffectOf, EffectType, Equipment, Gain, HeroId, LadderRarity, MapNode, RarityWeights, RelicData,
+  RelicRarity, Reward, Rng,
   Run,
   SeenLists, Trigger,
 } from "../types.ts";
@@ -597,7 +598,7 @@ function createEliteReward(run: Run): Reward {
   const essences = rollEssences(run, rng, CONFIG.rewards.eliteEssences);
   run.essences += essences;
   const shards = rollShards(run, rng, CONFIG.rewards.shards.elite);
-  return { essences, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: rollCardChoices(run, rng) };
+  return { essences, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: rollCardChoices(run, rng, undefined, undefined, CONFIG.rewards.eliteMinRarity as LadderRarity) };
 }
 
 // После босса: эссенции, реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
@@ -612,7 +613,7 @@ function createBossReward(run: Run): Reward {
     ...grantRandomRelic(run, rng, ["boss"]),
     potionId: null,
     potionsFull: false,
-    cardIds: rollCardChoices(run, rng, "rare"),
+    cardIds: rollCardChoices(run, rng, CONFIG.rewards.bossRarity),
   };
 }
 
@@ -667,18 +668,34 @@ function getCardPool(run: Run): CardData[] {
   ));
 }
 
-// Выбирает разные карты с учётом редкости. onlyRarity оставляет только одну редкость
-export function rollCardChoices(run: Run, rng: Rng, onlyRarity: CardRarity | null = null, count: number = CONFIG.rewards.cardChoices): string[] {
+// Шансы редкости карты в награде для акта (docs/balance.md): последняя строка таблицы, чей акт уже наступил
+export function getRarityWeights(act: number): RarityWeights {
+  const rows = CONFIG.rewards.rarityByAct;
+  return ([...rows].reverse().find((row) => act >= row.from) ?? rows[0]).weights;
+}
+
+const RARITY_ORDER: LadderRarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
+
+// Выбирает разные карты с учётом редкости. weights — свои шансы (после босса), minRarity — не ниже этой (после элиты).
+// Если карт выпавшей редкости нет, берётся ближайшая редкость ниже, а если и таких нет — выше
+export function rollCardChoices(
+  run: Run, rng: Rng, weights: RarityWeights = getRarityWeights(run.act), count: number = CONFIG.rewards.cardChoices,
+  minRarity: LadderRarity = "common",
+): string[] {
   const pool = getCardPool(run);
   const choices: string[] = [];
+  const allowed = Object.fromEntries(Object.entries(weights).filter(([rarity]) => (
+    RARITY_ORDER.indexOf(rarity as LadderRarity) >= RARITY_ORDER.indexOf(minRarity)
+  ))) as RarityWeights;
 
   while (choices.length < count) {
     const free = pool.filter((card) => !choices.includes(card.id));
     if (free.length === 0) break;
-    const rarity = onlyRarity ?? pickWeighted(rng, getAct(run).rewards.rarityWeights);
-    const sameRarity = free.filter((card) => card.rarity === rarity);
-    if (onlyRarity && sameRarity.length === 0) break;
-    choices.push(pickRandom(rng, sameRarity.length > 0 ? sameRarity : free).id);
+    const rolled = RARITY_ORDER.indexOf(pickWeighted(rng, allowed));
+    const order = [...RARITY_ORDER.slice(0, rolled + 1).reverse(), ...RARITY_ORDER.slice(rolled + 1)];
+    const rarity = order.find((entry) => free.some((card) => card.rarity === entry));
+    if (!rarity) break;
+    choices.push(pickRandom(rng, free.filter((card) => card.rarity === rarity)).id);
   }
   for (const cardId of choices) markSeen(run, "cards", cardId);
   return choices;

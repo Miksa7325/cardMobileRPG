@@ -46,7 +46,8 @@ export type Trigger =
 
 export type HeroId = "warrior" | "assassin" | "warlock" | "alchemist" | "mage";
 export type CardType = "attack" | "skill" | "power" | "status";
-export type CardRarity = "starter" | "common" | "uncommon" | "rare";
+// Редкость карты. Эпическая и легендарная — и редкость карты из колоды класса, и ступени улучшения (docs/balance.md)
+export type CardRarity = "starter" | "common" | "uncommon" | "rare" | "epic" | "legendary";
 // Лестница редкости улучшений: каждое улучшение — ступень выше, легендарная — потолок (звёзд нет)
 export type LadderRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export type RelicRarity = "starter" | "common" | "uncommon" | "rare" | "boss";
@@ -182,6 +183,7 @@ export interface HeroData {
   drawPerTurn: number; // сколько карт добирается в начале хода
   potionWeight: number; // вес зелья на шкале: у Алхимика 0
   prepares?: boolean; // Маг: есть дорожка подготовки
+  zeroWeightBonus?: number; // Убийца: на столько больше карт весом 0 за такт
   mechanic: {
     name: string;
     resource: StatusId;
@@ -248,7 +250,7 @@ export interface ActMechanic {
   enemyHaste?: number; // враги начинают бой с Ускорением (Натиск)
 }
 
-export type RarityWeights = Record<"common" | "uncommon" | "rare", number>;
+export type RarityWeights = Partial<Record<LadderRarity, number>>;
 
 export interface ActData {
   name: string;
@@ -259,7 +261,7 @@ export interface ActData {
   enemyHpMultiplier: number;
   bossHpMultiplier?: number;
   enemyStrength: number;
-  rewards: { essences: number; rarityWeights: RarityWeights; relics: RelicRarity[] };
+  rewards: { essences: number; relics: RelicRarity[] }; // шансы редкости карт — CONFIG.rewards.rarityByAct
 }
 
 export interface EventChoice {

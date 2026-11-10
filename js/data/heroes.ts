@@ -39,6 +39,7 @@ export const HEROES: Record<HeroId, HeroData> = {
     maxHp: CONFIG.assassinMaxHp,
     drawPerTurn: CONFIG.drawPerTurn.assassin,
     potionWeight: CONFIG.potionWeight,
+    zeroWeightBonus: 1, // 3 карты весом 0 за такт вместо 2
     mechanic: {
       name: "Комбо",
       resource: "combo",

@@ -16,7 +16,10 @@ const T = CONFIG.timeline;
 export const rerollsPerTact = (combat: Combat): number => T.rerolls + relicBonus(combat, "rerolls");
 export const openDrawCount = (combat: Combat): number => T.openDraws + relicBonus(combat, "openDraws");
 export const blockCells = (combat: Combat): number => T.blockCells + relicBonus(combat, "blockCells");
-export const zeroWeightPerTact = (combat: Combat): number => T.maxZeroWeight + relicBonus(combat, "zeroWeight");
+// Карт весом 0 за такт: у Убийцы на одну больше — это свойство класса
+export const zeroWeightPerTact = (combat: Combat): number => (
+  T.maxZeroWeight + relicBonus(combat, "zeroWeight") + (HEROES[combat.hero.heroId].zeroWeightBonus ?? 0)
+);
 export const brewOptionCount = (combat: Combat): number => 2 + relicBonus(combat, "brewOptions");
 // Сколько новых карт приводит сработавшая карта (Корона углей — на одну больше)
 export const drawOnResolve = (combat: Combat): number => T.drawOnResolve + relicBonus(combat, "extraDraw");

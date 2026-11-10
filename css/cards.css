@@ -90,6 +90,15 @@
   --card-frame: #f1cf6b;
 }
 
+/* Эпическая и легендарная: временные цвета рамки до этапа 9 */
+.card--epic {
+  --card-frame: #c58bf0;
+}
+
+.card--legendary {
+  --card-frame: #ff9a4d;
+}
+
 /* Можно разыграть: карта светится. Нельзя: тускнеет */
 .card--playable {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65), 0 0 8px 1px rgba(255, 214, 110, 0.55);

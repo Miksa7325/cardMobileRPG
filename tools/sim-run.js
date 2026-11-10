@@ -93,7 +93,7 @@ function chooseNextNode(run) {
 
 // ---------- Награды, отдых, события ----------
 
-const RARITY_SCORE = { common: 1, uncommon: 2, rare: 3 };
+const RARITY_SCORE = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
 
 // Карта в награду: самая редкая из предложенных. Колода больше 22 карт — новые не берём
 function chooseRewardCard(run, cardIds) {
