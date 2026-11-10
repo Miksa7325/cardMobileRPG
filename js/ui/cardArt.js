@@ -324,6 +324,11 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 
 // Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
 const BORROWED_ART = {
+  // Новая колода Алхимика (этап 7): рисунки прежних карт, свои — на этапе 9
+  al_cauldron: "al_brew", al_spare_flask: "al_toss", al_reactive_shield: "al_stoneskin", al_burst: "al_spark", al_sediment: "al_mixture",
+  al_elixir: "al_tincture", al_potion_expert: "al_quick_brew", al_critical_mass: "al_mixture", al_napalm: "al_firebomb", al_plague_bomb: "al_caustic",
+  al_masterpiece: "al_double_brew", al_potion_brewer: "al_strength_elixir", al_chain_decay: "al_chain_reaction", al_acid_rain: "al_acid",
+  al_hellbrew: "al_volatile", al_vigor: "al_spark", al_bottomless: "al_lab", al_alkahest: "al_transmute",
   // Новая колода Мага (этап 7): рисунки прежних карт, свои — на этапе 9
   m_fire_pillar: "m_pyroblast", m_blink: "m_time_warp", m_insight: "m_mana_tap", m_wildfire: "m_inferno", m_freeze: "m_frost_aura",
   m_incinerate: "m_ignite", m_time_loop: "m_spell_echo", m_flame_heart: "m_flame_wave", m_permafrost: "m_frost_nova", m_quick_thought: "m_arcane_veil",

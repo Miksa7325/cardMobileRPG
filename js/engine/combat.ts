@@ -521,7 +521,8 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   if (options.prepare) return prepareSpell(combat, instance, card, weight, targetId);
 
   if (weight === 0 && zeroWeightInTact(combat, tactOfBoundary(start)) >= zeroWeightPerTact(combat)) return fail("zeroLimit");
-  if (isBrewCard(card) && brewCardsInTact(combat, placementTact(start, weight)) >= CONFIG.brewCardsPerTact) return fail("brewLimit");
+  if (isBrewCard(card) && !combat.hero.rules?.brewUnlimited
+    && brewCardsInTact(combat, placementTact(start, weight)) >= CONFIG.brewCardsPerTact) return fail("brewLimit");
   const item: LaneItem = {
     id: combat.nextLaneId, kind: "card", card: instance, start, weight, targetId, locked: false, resolved: false,
   };
@@ -984,6 +985,8 @@ function applyHeroRules(combat: Combat, rules: HeroRules): void {
   hero.rules = { ...hero.rules, ...rules, caps: { ...hero.rules?.caps, ...rules.caps } };
   // Вечный блок: тот, что уже стоит, тоже перестаёт исчезать
   if (rules.eternalBlock) for (const portion of hero.blocks) portion.expires = ETERNAL_BLOCK;
+  // Места в сумке зелий
+  if (rules.extraPotions) combat.maxPotions += rules.extraPotions;
 }
 
 function drinkPotion(combat: Combat, potionId: string, targetId: string | null): void {

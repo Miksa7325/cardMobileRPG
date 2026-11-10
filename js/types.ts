@@ -130,6 +130,10 @@ export interface HeroRules {
   burningStays?: boolean; // Горение на врагах не убывает («Вечное пламя»)
   slowStays?: boolean; // Замедление на врагах не тратится («Властелин времени»)
   preparedBoost?: number; // во сколько раз сильнее подготовленное заклинание («Архимагия» — 2)
+  brewUnlimited?: boolean; // варить можно любым числом карт за такт («Бездонный котёл»)
+  extraPotions?: number; // на столько больше мест в сумке зелий («Бездонный котёл»)
+  freeReagents?: boolean; // «Реагенты N» не тратят Реагенты («Философский камень»)
+  mixBonus?: number; // на столько сильнее каждое Сокрушение, Горение и Яд героя («Алкагест»)
   caps?: Partial<Record<StatusId, number>>;
 }
 

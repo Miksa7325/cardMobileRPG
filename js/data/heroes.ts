@@ -97,10 +97,10 @@ export const HEROES: Record<HeroId, HeroData> = {
       ],
     },
     deck: [
-      // Бомба вместо одного Броска: без урона по всем Алхимик проигрывал группам (подобрано симулятором)
-      "al_toss", "al_toss", "al_toss", "al_bomb",
-      "al_guard", "al_guard", "al_guard", "al_resin",
-      "al_brew", "al_catalyst",
+      // 4 атаки, 4 защиты, карта починки и карта темы класса (docs/classes.md)
+      "al_toss", "al_toss", "al_toss", "al_toss",
+      "al_guard", "al_guard", "al_guard", "al_guard",
+      "al_resin", "al_brew",
     ],
     relics: ["field_cauldron"],
   },

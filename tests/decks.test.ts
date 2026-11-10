@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { CARDS } from "../js/data/cards.ts";
 import { HEROES } from "../js/data/heroes.ts";
-import { addCardToHand, advance, launch, placeCard } from "../js/engine/combat.ts";
+import { addCardToHand, advance, chooseBrew, launch, placeCard } from "../js/engine/combat.ts";
 import { getCardData } from "../js/engine/deck.ts";
 import { formatDescription } from "../js/ui/components/card.ts";
 import { CARD_ART } from "../js/ui/cardArt.js";
@@ -14,6 +14,7 @@ const NEW_DECKS: Record<string, string[]> = {
   assassin: ["a_strike", "a_roll", "a_tighten", "a_finisher"],
   warlock: ["w_bolt", "w_shield", "w_bone_patch", "w_sacrifice"],
   mage: ["m_spark", "m_barrier", "m_rune_ward", "m_arcane_blast"],
+  alchemist: ["al_toss", "al_guard", "al_resin", "al_brew"],
 };
 
 // Бой без ходов врага с одной нужной картой в руке
@@ -240,5 +241,49 @@ describe("легендарные карты Мага", () => {
     expect(combat.events.find((event) => event.type === "hit")!.damage).toBe(12);
     advance(combat, 6);
     expect(combat.hero.statuses.surge).toBe(10);
+  });
+});
+
+describe("легендарные карты Алхимика", () => {
+  // Бой Алхимика без ходов врага с нужными картами в руке
+  function alchemist(cardIds: string[]) {
+    const combat = fight({ heroId: "alchemist" });
+    quiet(combat);
+    combat.piles.hand = [];
+    for (const id of cardIds) addCardToHand(combat, id);
+    const enemy = combat.enemies[0];
+    enemy.hp = enemy.maxHp = 500;
+    return { combat, uids: combat.piles.hand.map((card) => card.uid), enemy };
+  }
+
+  it("Бездонный котёл: несколько карт варки за такт и две лишние ячейки в сумке", () => {
+    const { combat, uids } = alchemist(["al_bottomless", "al_brew", "al_brew"]);
+    const before = combat.maxPotions;
+    placeCard(combat, uids[0], 1);
+    chooseBrew(combat, 0, combat.brewChoices[0].options[0]); // варка самой карты: выбор до начала боя
+    advance(combat, 2);
+    expect(combat.maxPotions).toBe(before + 2);
+    expect(placeCard(combat, uids[1], 4).ok).toBe(true);
+    expect(placeCard(combat, uids[2], 5).ok).toBe(true); // вторая карта варки в том же такте 2
+  });
+
+  it("Философский камень: «Реагенты N» не тратят Реагенты", () => {
+    const { combat, uids, enemy } = alchemist(["al_philosopher", "al_burst"]);
+    placeCard(combat, uids[0], 1);
+    placeCard(combat, uids[1], 3, enemy.instanceId);
+    advance(combat, 3);
+    expect(combat.hero.statuses.reagents).toBe(3);
+    expect(enemy.hp).toBe(500 - 12); // 4 и ещё 8 за «Реагенты 2»
+  });
+
+  it("Алкагест: Сокрушение, Горение и Яд героя сильнее на 1", () => {
+    const { combat, uids, enemy } = alchemist(["al_alkahest", "al_acid"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 2);
+    expect(enemy.statuses.burning).toBe(3); // 2 + 1
+    expect(enemy.statuses.poison).toBe(3);
+    placeCard(combat, uids[1], 3, enemy.instanceId);
+    advance(combat, 1);
+    expect(enemy.statuses.vulnerable).toBe(2); // Сокрушение 1 + 1
   });
 });

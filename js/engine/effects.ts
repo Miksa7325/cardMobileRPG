@@ -314,6 +314,12 @@ function dealDamage(
   return Math.min(hpLost, target.hp + hpLost);
 }
 
+// «Алкагест»: Сокрушение, Горение и Яд, которые герой накладывает на врагов, сильнее на mixBonus
+function mixBonus(combat: Combat, context: EffectContext, kind: StatusId | "sunder"): number {
+  if (context.source !== combat.hero || !["sunder", "burning", "poison"].includes(kind)) return 0;
+  return combat.hero.rules?.mixBonus ?? 0;
+}
+
 // Снимает с бойца до amount стаков Уязвимости (сломанной брони)
 function repairArmor(combat: Combat, unit: HeroUnit | EnemyUnit, amount: number): void {
   const stacks = unit.statuses.vulnerable ?? 0;
@@ -363,7 +369,7 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     }
   },
   applyStatus(combat, effect, context) {
-    const amount = effect.amount + getBonus(effect, context.source);
+    const amount = effect.amount + getBonus(effect, context.source) + mixBonus(combat, context, effect.status);
     if (amount <= 0) return;
     for (const target of getTargets(combat, effect, context)) {
       const added = addStatus(target, effect.status, amount);
@@ -372,8 +378,9 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
   },
   // Сокрушение: ломает броню цели. Стоит среди статусов на цель, поэтому срабатывает до урона этой же карты
   sunder(combat, effect, context) {
+    const amount = effect.amount + mixBonus(combat, context, "sunder");
     for (const target of getTargets(combat, effect, context)) {
-      const added = addStatus(target, "vulnerable", effect.amount);
+      const added = addStatus(target, "vulnerable", amount);
       if (added > 0) recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: "vulnerable", amount: added });
     }
   },
@@ -386,7 +393,11 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
     const unit = context.source;
     const stacks = unit.statuses[effect.status] ?? 0;
     if (stacks < effect.amount) return;
-    if (stacks === effect.amount) delete unit.statuses[effect.status];
+    // «Философский камень»: «Реагенты N» не тратят Реагенты
+    const free = unit === combat.hero && effect.status === "reagents" && combat.hero.rules?.freeReagents;
+    if (free) {
+      // ничего не тратим
+    } else if (stacks === effect.amount) delete unit.statuses[effect.status];
     else unit.statuses[effect.status] = stacks - effect.amount;
     executeEffects(combat, effect.effects, context);
   },
