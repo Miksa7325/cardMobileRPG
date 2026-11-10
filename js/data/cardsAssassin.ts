@@ -11,8 +11,10 @@ const haste = (amount: number) => selfStatus("haste", amount);
 const bleed = (amount: number) => status("bleed", amount);
 
 // Приговор: «Цепь 5», а после улучшения — «Цепь 4»
-const verdict = chained(card("a_execute", "Приговор", "attack", "rare", 1, "enemy", "Нанести {damage} урона. Цепь 5: ещё {damage} урона.",
-  [damage(5)], { effects: [damage(6)], description: "Нанести {damage} урона. Цепь 4: ещё {damage} урона." }), "chain", [damage(30)], [damage(34)], 5);
+// Второй бонус — Финал (docs/cards/double-chain.md): конец длинной цепочки
+const verdict = chained(chained(card("a_execute", "Приговор", "attack", "rare", 1, "enemy", "Нанести {damage} урона. Цепь 5: ещё {damage} урона. Финал: ещё {damage} урона.",
+  [damage(5)], { effects: [damage(6)], description: "Нанести {damage} урона. Цепь 4: ещё {damage} урона. Финал: ещё {damage} урона." }),
+"chain", [damage(30)], [damage(34)], 5), "final", [damage(10)], [damage(12)]);
 verdict.upgraded!.chain = { kind: "chain", n: 4, effects: [damage(34)] };
 
 export const ASSASSIN_CARDS: CardData[] = [
@@ -102,7 +104,8 @@ export const ASSASSIN_CARDS: CardData[] = [
   // ---------- Редкие ----------
   card("a_coup", "Удар милосердия", "attack", "rare", 3, "enemy", "Добивание: {damage} урона, +5 за каждое Комбо.", [grow(damage(6), "combo", 5)], { effects: [grow(damage(10), "combo", 5)] }),
   verdict,
-  card("a_perfect_kill", "Идеальное убийство", "attack", "rare", 3, "enemy", "Нанести {damage} урона.", [damage(40)], { effects: [damage(52)] }),
+  chained(chained(card("a_perfect_kill", "Идеальное убийство", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Первая: Сокрушение {sunder}. Цепь 4: ещё {damage} урона.",
+    [damage(40)], { effects: [damage(52)] }), "first", [sunder(2)], [sunder(3)]), "chain", [damage(15)], [damage(20)], 4),
   card("a_death_mark", "Метка смерти", "skill", "rare", 2, "enemy", "Наложить {poison} Яда и {vulnerable} Уязвимости. Сжечь.",
     [status("poison", 6), status("vulnerable", 2), burn], { effects: [status("poison", 8), status("vulnerable", 3), burn] }),
   card("a_thousand_poisons", "Тысяча ядов", "skill", "rare", 1, "enemy", "Утроить Яд врага. Сжечь.", [multiplyStatus("poison", 3), burn], { cost: 0 }),

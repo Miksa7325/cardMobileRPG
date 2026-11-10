@@ -96,10 +96,13 @@ export const WARLOCK_CARDS: CardData[] = [
     { trigger: "onTactStart", effects: [selfStatus("strength", 2), loseHp(1)] }),
 
   // ---------- Редкие ----------
-  card("w_abyss", "Бездна", "attack", "rare", 3, "allEnemies", "Нанести {damage} урона всем врагам: +2 за каждую Тьму.",
+  chained(chained(card("w_abyss", "Бездна", "attack", "rare", 3, "allEnemies",
+    "Нанести {damage} урона всем врагам: +2 за каждую Тьму. После навыка: +{darkness} к Тьме. Финал: ещё {damage} урона всем.",
     [grow(damage(6), "darkness", 2)], { effects: [grow(damage(9), "darkness", 2)] }),
+  "afterSkill", [gainResource("darkness", 1)], [gainResource("darkness", 2)]), "final", [damage(6)], [damage(8)]),
   triggerPower("w_eclipse", "Затмение", "rare", 2, "В начале такта +{darkness} Тьма.", "onTactStart", [gainResource("darkness", 1)], [gainResource("darkness", 2)]),
-  card("w_annihilate", "Уничтожение", "attack", "rare", 3, "enemy", "Нанести {damage} урона.", [damage(40)], { effects: [damage(52)] }),
+  chained(chained(card("w_annihilate", "Уничтожение", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Первая: Сокрушение {sunder}. Финал: вылечить {heal} HP.",
+    [damage(40)], { effects: [damage(52)] }), "first", [sunder(2)], [sunder(3)]), "final", [heal(6)], [heal(8)]),
   card("w_soul_feast", "Пир душ", "attack", "rare", 2, "allEnemies", "Нанести {damage} урона всем врагам. Вылечить {heal} HP. Сжечь.",
     [damage(10), heal(8), burn], { effects: [damage(13), heal(10), burn] }),
   card("w_last_pact", "Последний договор", "skill", "rare", 0, "self", "Получить {haste} Ускорения. Потерять {loseHp} HP. Сжечь.",

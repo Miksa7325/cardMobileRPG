@@ -81,12 +81,15 @@ export const MAGE_CARDS: CardData[] = [
   card("m_ice_prison", "Ледяная тюрьма", "skill", "uncommon", 2, "enemy", "Наложить {slow} Замедления. Сжечь.", [slow(3), burn], { effects: [slow(4), burn] }),
 
   // ---------- Редкие ----------
-  card("m_pyroblast", "Пиробласт", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(22), burning(5)], { effects: [damage(28), burning(7)] }),
+  chained(chained(card("m_pyroblast", "Пиробласт", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Наложить {burning} Горения. Первая: ещё {burning} Горения. Финал: ещё {damage} урона.",
+    [damage(22), burning(5)], { effects: [damage(28), burning(7)] }), "first", [burning(3)], [burning(4)]), "final", [damage(10)], [damage(12)]),
   card("m_clear_mind", "Ясный разум", "power", "rare", 2, "self", "В начале такта взять {draw} карту.", [], { cost: 1 }, { trigger: "onTactStart", effects: [draw(1)] }),
   card("m_absolute_zero", "Абсолютный ноль", "skill", "rare", 2, "allEnemies", "Наложить {slow} Замедления всем врагам. Получить {block} блока. Сжечь.",
     [slowAll(2), block(14), burn], { effects: [slowAll(2), block(18), burn] }),
   card("m_inferno", "Инферно", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(22)], { effects: [damage(30)] }),
-  card("m_starfall", "Звездопад", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам 4 раза.", hits(5, 4), { effects: hits(7, 4) }),
+  chained(chained(card("m_starfall", "Звездопад", "attack", "rare", 4, "allEnemies",
+    "Нанести {damage} урона всем врагам 4 раза. После атаки: ещё удар на {damage} всем. Финал: Замедление {slow} всем.",
+    hits(5, 4), { effects: hits(7, 4) }), "afterAttack", [damage(5)], [damage(7)]), "final", [allStatus("slow", 1)], [allStatus("slow", 2)]),
   card("m_archmage", "Архимаг", "power", "rare", 3, "self", "Получить {strength} Силы.", [selfStatus("strength", 6)], { cost: 2 }),
   card("m_mana_storm", "Буря маны", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам: +3 за каждый Прилив.", [grow(damage(4), "surge", 3)],
     { effects: [grow(damage(6), "surge", 4)], description: "Нанести {damage} урона всем врагам: +4 за каждый Прилив." }),
