@@ -15,8 +15,30 @@ describe("Карта акта", () => {
     for (const map of maps) {
       expect(map.rows).toHaveLength(12);
       const boss = Object.values(map.nodes).find((node) => node.type === "boss")!;
-      expect(boss.floor).toBeGreaterThan(CONFIG.map.bossMinFloor);
+      expect(boss.floor).toBeGreaterThan(CONFIG.map.bossMinFloor[0]);
     }
+  });
+
+  it("особые этажи — в своих промежутках и разные от акта к акту", () => {
+    const floorOf = (map: ReturnType<typeof generateMap>, type: string) => mainNodes(map).find((node) => node.type === type)?.floor;
+    const chests = new Set<number>();
+    for (const map of maps) {
+      const chest = floorOf(map, "chest")!;
+      const rest = floorOf(map, "rest");
+      expect(chest).toBeGreaterThanOrEqual(CONFIG.map.chestFloor[0]);
+      expect(chest).toBeLessThanOrEqual(CONFIG.map.chestFloor[1]);
+      // Сундук и отдых занимают весь свой этаж
+      expect(mainNodes(map).filter((node) => node.floor === chest).every((node) => node.type === "chest")).toBe(true);
+      // В промежутке отдыха есть этаж, где отдых — все комнаты
+      const [restFrom, restTo] = CONFIG.map.restFloor;
+      const allRest = (floor: number) => mainNodes(map).filter((node) => node.floor === floor).every((node) => node.type === "rest");
+      expect(Array.from({ length: restTo - restFrom + 1 }, (_, i) => restFrom + i).some(allRest)).toBe(true);
+      const firstElite = Math.min(...mainNodes(map).filter((node) => node.type === "elite").map((node) => node.floor));
+      expect(firstElite).toBeGreaterThanOrEqual(CONFIG.map.eliteMinFloor[0]);
+      chests.add(chest);
+      expect(rest === undefined || rest >= 2).toBe(true);
+    }
+    expect(chests.size).toBeGreaterThan(1);
   });
 
   it("2–3 комнаты сохранения: не ниже 3 этажа, не ближе 3 этажей друг к другу, каждая в своей колонке", () => {
@@ -126,5 +148,37 @@ describe("События этапа 6", () => {
     chooseEventOption(run, 1);
     expect(run.gold).toBe(50);
     expect(run.potions).toHaveLength(0);
+  });
+});
+
+describe("Глубина и светлячки (разбор механик)", () => {
+  it("враги на верхних этажах не крепче, чем внизу: глубины нет", async () => {
+    const { createNodeCombat } = await import("../js/engine/run.ts");
+    const run = createRun({ heroId: "warrior", seed: 4 });
+    const low = run.map.rows[1][0];
+    const high = run.map.rows[10][0];
+    const hpAt = (nodeId: string) => {
+      run.currentNodeId = nodeId;
+      run.map.nodes[nodeId].type = "battle";
+      return createNodeCombat(run).enemyHpMultiplier;
+    };
+    expect(hpAt(high)).toBe(hpAt(low));
+  });
+
+  it("светлячки освещают комнату, проходы из неё и Тайники с сундуками в пределах 3 комнат", async () => {
+    const { releaseFireflies, isNodeRevealed } = await import("../js/engine/run.ts");
+    const run = createRun({ heroId: "warrior", seed: 5, fireflies: true });
+    const target = run.map.rows[0][0];
+    const node = run.map.nodes[target];
+    // Тайник через две комнаты вверх от освещённой
+    const second = run.map.nodes[node.next[0]];
+    const third = run.map.nodes[second.next[0]];
+    third.type = "cache";
+    expect(releaseFireflies(run, target)).toBe(true);
+    expect(isNodeRevealed(run, target)).toBe(true);
+    for (const next of node.next) expect(isNodeRevealed(run, next)).toBe(true);
+    expect(isNodeRevealed(run, third.id)).toBe(true);
+    // Банка пуста до следующего отдыха
+    expect(run.fireflies?.charged).toBe(false);
   });
 });

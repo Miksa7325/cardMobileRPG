@@ -26,10 +26,9 @@ const act = ACTS[0];
 
 function setupFor(enemyIds) {
   const boss = enemyIds.some((id) => act.boss.includes(id));
-  const depth = boss ? 0 : FLOOR;
   return {
-    enemyHpMultiplier: CONFIG.enemyHpMultiplier * (1 + CONFIG.depth.hpPerFloor * depth) * (boss ? act.bossHpMultiplier ?? 1 : act.enemyHpMultiplier),
-    enemyStrength: act.enemyStrength + Math.floor(depth / CONFIG.depth.floorsPerStrength),
+    enemyHpMultiplier: CONFIG.enemyHpMultiplier * (boss ? act.bossHpMultiplier ?? 1 : act.enemyHpMultiplier),
+    enemyStrength: act.enemyStrength,
   };
 }
 

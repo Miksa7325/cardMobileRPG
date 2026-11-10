@@ -7,7 +7,7 @@
 //   --fights=30          сколько боёв на каждую пару «герой — враги»
 //   --beam=32            ширина поиска: сколько лучших недостроенных расстановок бот держит на каждом шаге (больше — умнее, но медленнее)
 //   --act=1              какой акт (номер с 1)
-//   --floor=0            этаж, на котором идёт обычный бой и элита (глубже — враги крепче)
+//   --floor=0            этаж для подписи отчёта (глубины больше нет: этаж на врагов не влияет)
 //   --heroes=warrior,mage   только эти герои
 //   --strength-scale=2   умножить все числа Силы (карты, враги, реликвии, зелья, акты) — для подбора чисел
 //   --out=tools/baseline/current   сохранить итог в .json и .md с этим именем
@@ -49,13 +49,11 @@ const HERO_IDS = args.heroes ? args.heroes.split(",") : Object.keys(HEROES);
 
 // Те же множители, что в createNodeCombat (js/engine/run.js), без случайного выбора группы
 function actSetup(act, type) {
-  const depth = type === "boss" ? 0 : FLOOR;
-  const depthHp = 1 + CONFIG.depth.hpPerFloor * depth;
-  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength) * CONFIG.depth.strengthPerStep;
+  // Глубины этажа больше нет (разбор механик): этаж на силу врагов не влияет
   const actMultiplier = type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier;
   return {
-    enemyHpMultiplier: CONFIG.enemyHpMultiplier * depthHp * actMultiplier,
-    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0) + depthStrength,
+    enemyHpMultiplier: CONFIG.enemyHpMultiplier * actMultiplier,
+    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0),
     enemyBlock: act.mechanic.enemyBlock ?? 0,
     enemyRamp: act.mechanic.enemyRamp ?? 0,
     heroStatuses: act.mechanic.heroPoison ? { poison: act.mechanic.heroPoison } : {},

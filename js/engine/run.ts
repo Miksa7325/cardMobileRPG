@@ -258,8 +258,33 @@ export function releaseFireflies(run: Run, nodeId: string | null): boolean {
   if (!run.fireflies?.charged || nodeId === null || isNodeCleared(run, nodeId)) return false;
   if (![...getAvailableNodeIds(run), ...getLowerNodeIds(run)].includes(nodeId)) return false;
   run.fireflies.charged = false;
-  if (!run.revealedNodeIds.includes(nodeId)) run.revealedNodeIds.push(nodeId);
+  for (const id of fireflyReach(run, nodeId)) {
+    if (!run.revealedNodeIds.includes(id)) run.revealedNodeIds.push(id);
+  }
   return true;
+}
+
+// Что освещают светлячки (разбор механик): саму комнату, все проходы из неё дальше, а ещё Тайники и сундуки
+// не дальше FIREFLY_TREASURE_RANGE комнат от неё — по туннелям в обе стороны
+const FIREFLY_TREASURE_RANGE = 3;
+function fireflyReach(run: Run, nodeId: string): string[] {
+  const lit = new Set<string>([nodeId, ...run.map.nodes[nodeId].next]);
+  const distance = new Map<string, number>([[nodeId, 0]]);
+  const queue = [nodeId];
+  for (let head = 0; head < queue.length; head++) {
+    const id = queue[head];
+    const step = distance.get(id)! + 1;
+    if (step > FIREFLY_TREASURE_RANGE) continue;
+    const neighbours = [...run.map.nodes[id].next, ...getLowerNodeIds(run, id)].filter((next): next is string => next !== null);
+    for (const next of neighbours) {
+      if (distance.has(next)) continue;
+      distance.set(next, step);
+      queue.push(next);
+      const type = run.map.nodes[next].type;
+      if (type === "cache" || type === "chest") lit.add(next);
+    }
+  }
+  return [...lit];
 }
 
 // На отдыхе и в комнате сохранения светлячки снова собираются в банку
@@ -294,12 +319,7 @@ export function createNodeCombat(run: Run): Combat {
   }
   for (const enemyId of enemyIds) markSeen(run, "enemies", enemyId);
 
-  // Чем глубже этаж акта, тем враги крепче и сильнее: обойти все комнаты не должно быть бесплатно.
-  // У босса своя настройка в акте, этаж на него не влияет
-  const depth = type === "boss" ? 0 : getCurrentNode(run).floor;
-  const depthHp = 1 + CONFIG.depth.hpPerFloor * depth;
-  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength) * CONFIG.depth.strengthPerStep;
-
+  // Глубины этажа нет (разбор механик): враги акта одинаково сильны на любом этаже, сложность растёт только с актом.
   // Зараза: в колоду каждого боя замешаны Раны. После боя они исчезают вместе с колодой боя
   const wounds = Array.from({ length: act.mechanic.wounds ?? 0 }, () => ({ cardId: "wound", level: 0 }));
   return createCombat({
@@ -312,9 +332,9 @@ export function createNodeCombat(run: Run): Combat {
     relics: run.relics,
     potions: run.potions,
     // У босса своё здоровье: он и так копит Силу весь бой, и общий множитель акта сделал бы его непробиваемым
-    enemyHpMultiplier: CONFIG.enemyHpMultiplier * depthHp * (type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier),
-    // Сила врагов: своя у каждого акта, прибавка от особенности и от глубины
-    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0) + depthStrength,
+    enemyHpMultiplier: CONFIG.enemyHpMultiplier * (type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier),
+    // Сила врагов: своя у каждого акта и прибавка от особенности
+    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0),
     enemyBlock: act.mechanic.enemyBlock ?? 0,
     enemyRamp: act.mechanic.enemyRamp ?? 0,
     heroStatuses: act.mechanic.heroPoison ? { poison: act.mechanic.heroPoison } : {},

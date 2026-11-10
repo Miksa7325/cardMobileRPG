@@ -8,6 +8,7 @@ import type { ActMechanic, DungeonMap, MapNode, NodeType, Rng } from "../types.t
 // mechanic — особенность акта из data/acts.js: deadEnds меняет число тупиков, noRest убирает отдых
 export function generateMap(rng: Rng, mechanic: ActMechanic = {}): DungeonMap {
   const { floors, columns, pathCount } = CONFIG.map;
+  const layout = rollLayout(rng);
   const nodes: Record<string, MapNode> = {};
   const rows: string[][] = [];
 
@@ -30,17 +31,31 @@ export function generateMap(rng: Rng, mechanic: ActMechanic = {}): DungeonMap {
     if (nextPaths) paths = nextPaths;
   }
 
-  assignNodeTypes(rng, nodes, rows, mechanic);
-  placeSaveRooms(rng, nodes, rows);
-  addDeadEnds(rng, nodes, mechanic.deadEnds ?? CONFIG.map.deadEnds);
-  placeBoss(rng, nodes, rows);
+  assignNodeTypes(rng, nodes, rows, mechanic, layout);
+  placeSaveRooms(rng, nodes, rows, layout);
+  addDeadEnds(rng, nodes, mechanic.deadEnds ?? CONFIG.map.deadEnds, layout);
+  placeBoss(rng, nodes, rows, layout);
   return { nodes, rows };
+}
+
+// Особые этажи акта: у каждого свой промежуток в CONFIG.map, в каждом акте — свой случайный этаж из него
+export interface MapLayout {
+  chestFloor: number; // этаж, где всегда сундук
+  restFloor: number; // этаж перед боссом, где всегда отдых
+  eliteMinFloor: number; // раньше этого этажа элиты нет
+  bossMinFloor: number; // туннель к боссу отходит не ниже этого этажа
+}
+
+function rollLayout(rng: Rng): MapLayout {
+  const roll = ([from, to]: number[]) => nextInt(rng, from, to);
+  const { chestFloor, restFloor, eliteMinFloor, bossMinFloor } = CONFIG.map;
+  return { chestFloor: roll(chestFloor), restFloor: roll(restFloor), eliteMinFloor: roll(eliteMinFloor), bossMinFloor: roll(bossMinFloor) };
 }
 
 // Комнаты сохранения: 2–3 на акт в случайных комнатах основных путей — не ниже saveMinFloor, не ближе saveGap этажей
 // друг к другу и каждая в своей колонке (на своём пути). Сундук и верхний отдых не трогаем
-function placeSaveRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][]): void {
-  const { saveRooms, saveMinFloor, saveGap, chestFloor, restFloor } = CONFIG.map;
+function placeSaveRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], { chestFloor, restFloor }: MapLayout): void {
+  const { saveRooms, saveMinFloor, saveGap } = CONFIG.map;
   const count = nextInt(rng, saveRooms[0], saveRooms[1]);
   const candidates = rows.flat().map((id) => nodes[id])
     .filter((node) => node.floor >= saveMinFloor && node.floor !== chestFloor && node.floor !== restFloor);
@@ -55,8 +70,8 @@ function placeSaveRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[]
 
 // Комната босса в каждом акте в случайном месте: туннель к ней отходит от случайной комнаты основных путей
 // не ниже bossMinFloor. Верхние комнаты, из которых больше никуда не ведёт, становятся тупиками — босса придётся искать
-function placeBoss(rng: Rng, nodes: Record<string, MapNode>, rows: string[][]): void {
-  const { columns, maxTunnels, bossMinFloor } = CONFIG.map;
+function placeBoss(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], { bossMinFloor }: MapLayout): void {
+  const { columns, maxTunnels } = CONFIG.map;
   const hosts = rows.flat().map((id) => nodes[id]).filter((node) => node.floor >= bossMinFloor && node.next.length < maxTunnels);
   const host = hosts[nextInt(rng, 0, hosts.length - 1)];
   // Сдвиг в сторону нужен только карте: так комната босса не ляжет поверх соседней
@@ -69,8 +84,8 @@ function placeBoss(rng: Rng, nodes: Record<string, MapNode>, rows: string[][]): 
 // Тупики: от некоторых развилок отходит боковой туннель. В нём одна комната, а за ней тупик —
 // иногда с сундуком, иногда пустой. Чтобы идти дальше, придётся вернуться к развилке.
 // Боковых комнат нет в rows: это ряды основных путей, по ним строится карта
-function addDeadEnds(rng: Rng, nodes: Record<string, MapNode>, deadEnds: number): void {
-  const { floors, columns, maxTunnels, deadEndChestChance, deadEndRoomWeights, eliteMinFloor } = CONFIG.map;
+function addDeadEnds(rng: Rng, nodes: Record<string, MapNode>, deadEnds: number, { eliteMinFloor }: MapLayout): void {
+  const { floors, columns, maxTunnels, deadEndChestChance, deadEndRoomWeights } = CONFIG.map;
   // Тупик заканчивается двумя этажами выше развилки и не должен дойти до этажа перед боссом
   const forks = Object.values(nodes).filter((node) => node.floor >= 2 && node.floor <= floors - 3 && node.next.length < maxTunnels);
   for (let index = 0; index < deadEnds && forks.length > 0; index++) {
@@ -132,7 +147,7 @@ function countDistinct(items: number[]): number {
 }
 
 // Типы назначаем снизу вверх: так у каждого узла уже известны типы узлов перед ним
-function assignNodeTypes(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], mechanic: ActMechanic): void {
+function assignNodeTypes(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], mechanic: ActMechanic, layout: MapLayout): void {
   const parents: Record<string, MapNode[]> = {};
   for (const node of Object.values(nodes)) {
     for (const nextId of node.next) (parents[nextId] ??= []).push(node);
@@ -142,14 +157,15 @@ function assignNodeTypes(rng: Rng, nodes: Record<string, MapNode>, rows: string[
     for (const id of row) {
       const node = nodes[id];
       if (node.type) continue;
-      node.type = pickNodeType(rng, node.floor, parents[id] ?? [], mechanic);
+      node.type = pickNodeType(rng, node.floor, parents[id] ?? [], mechanic, layout);
     }
   }
 }
 
 // В акте без передышки отдыха нет: верхний этаж отдыха становится событием
-function pickNodeType(rng: Rng, floor: number, parentNodes: MapNode[], mechanic: ActMechanic): NodeType {
-  const { chestFloor, restFloor, eliteMinFloor, nodeWeights } = CONFIG.map;
+function pickNodeType(rng: Rng, floor: number, parentNodes: MapNode[], mechanic: ActMechanic, layout: MapLayout): NodeType {
+  const { chestFloor, restFloor, eliteMinFloor } = layout;
+  const { nodeWeights } = CONFIG.map;
   if (floor === 1) return "battle";
   if (floor === chestFloor) return "chest";
   if (floor === restFloor) return mechanic.noRest ? "event" : "rest";

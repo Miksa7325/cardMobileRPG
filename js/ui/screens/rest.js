@@ -1,4 +1,4 @@
-// Экран отдыха: восстановить HP или улучшить карту.
+// Экран отдыха: восстановить HP, улучшить карту или пропустить.
 import { TEXTS } from "../../data/texts.ru.ts";
 import { getRestHealAmount, getUpgradableCards, restHeal, restUpgrade } from "../../engine/run.ts";
 import { state } from "../../state.ts";
@@ -33,8 +33,13 @@ export function renderRestScreen(root) {
   const upgradeButton = createButton(TEXTS.rest.upgrade, () => showScreen("restUpgrade"));
   upgradeButton.disabled = getUpgradableCards(run).length === 0;
 
+  // Можно уйти, ничего не взяв (разбор механик): отдых в этой комнате пропадает
+  const skipButton = el("button", "button button--secondary", TEXTS.rest.skip);
+  skipButton.type = "button";
+  skipButton.addEventListener("click", () => showScreen("dungeon"));
+
   const screen = el("main", "center-screen center-screen--with-bar");
-  screen.append(createRunBar(run), el("h1", "center-screen__title", TEXTS.rest.title), healButton, upgradeButton);
+  screen.append(createRunBar(run), el("h1", "center-screen__title", TEXTS.rest.title), healButton, upgradeButton, skipButton);
   root.append(screen);
 }
 
