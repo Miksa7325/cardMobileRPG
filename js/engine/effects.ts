@@ -238,7 +238,8 @@ export function applyLeech(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   const before = hero.hp;
   hero.hp = Math.min(hero.maxHp, hero.hp + drained);
   recordEvent(combat, { type: "heal", targetId: "hero", amount: hero.hp - before, hp: hero.hp, block: hero.block });
-  reduceStatus(unit, "leech");
+  // «Бог крови»: Печать крови на врагах не убывает
+  if (!combat.hero.rules?.leechStays) reduceStatus(unit, "leech");
   notifyIfEnemyDied(combat, unit);
   checkCombatEnd(combat);
 }
@@ -448,7 +449,7 @@ const EFFECT_HANDLERS: { [T in CombatEffectType]: Handler<T> } & Partial<Record<
   // Сжигает все Раны и другие карты, которые нельзя разыграть, из руки
   exhaustWounds(combat) {
     const { piles } = combat;
-    const wounds = piles.hand.filter((card) => CARDS[card.cardId].cost === null);
+    const wounds = piles.hand.filter((card) => CARDS[card.cardId].type === "status");
     piles.hand = piles.hand.filter((card) => !wounds.includes(card));
     for (const card of wounds) {
       piles.exhaust.push(card);

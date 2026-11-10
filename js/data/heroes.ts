@@ -72,10 +72,10 @@ export const HEROES: Record<HeroId, HeroData> = {
       ],
     },
     deck: [
-      // Оберег вместо четвёртого Тёмного разряда: Чернокнижник проигрывал боссу (подобрано симулятором)
-      "w_bolt", "w_bolt", "w_bolt", "w_ward",
-      "w_shield", "w_shield", "w_shield", "w_bone_patch",
-      "w_sacrifice", "w_dark_bolt",
+      // 4 атаки, 4 защиты, карта починки и карта темы класса (docs/classes.md)
+      "w_bolt", "w_bolt", "w_bolt", "w_bolt",
+      "w_shield", "w_shield", "w_shield", "w_shield",
+      "w_bone_patch", "w_sacrifice",
     ],
     relics: ["soul_chalice"],
   },

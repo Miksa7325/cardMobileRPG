@@ -6,12 +6,13 @@ import { addCardToHand, advance, launch, placeCard } from "../js/engine/combat.t
 import { getCardData } from "../js/engine/deck.ts";
 import { formatDescription } from "../js/ui/components/card.ts";
 import { CARD_ART } from "../js/ui/cardArt.js";
-import { fight, giveBlock, quiet } from "./helpers.ts";
+import { fight, giveBlock, quiet, setLane } from "./helpers.ts";
 
 // Классы, у которых колода уже собрана заново: стартовые карты по порядку «атака, защита, починка, карта темы»
 const NEW_DECKS: Record<string, string[]> = {
   warrior: ["strike", "defend", "patch", "bash"],
   assassin: ["a_strike", "a_roll", "a_tighten", "a_finisher"],
+  warlock: ["w_bolt", "w_shield", "w_bone_patch", "w_sacrifice"],
 };
 
 // Бой без ходов врага с одной нужной картой в руке
@@ -135,5 +136,65 @@ describe("легендарные карты Убийцы", () => {
     placeCard(combat, uids[0], 1);
     advance(combat, 3);
     for (const uid of uids.slice(1)) expect(placeCard(combat, uid, 3).ok).toBe(true);
+  });
+});
+
+describe("карты Чернокнижника", () => {
+  // Бой Чернокнижника без ходов врага с нужными картами в руке
+  function warlock(cardIds: string[]) {
+    const combat = fight({ heroId: "warlock" });
+    quiet(combat);
+    combat.piles.hand = [];
+    for (const id of cardIds) addCardToHand(combat, id);
+    return { combat, uids: combat.piles.hand.map((card) => card.uid), enemy: combat.enemies[0] };
+  }
+
+  it("«Сжечь все Раны в руке» сжигает Раны и даёт Тьму за каждую", () => {
+    const { combat, uids } = warlock(["w_cauterize", "wound", "wound"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 1);
+    expect(combat.piles.hand.some((card) => card.cardId === "wound")).toBe(false);
+    expect(combat.piles.exhaust.filter((card) => card.cardId === "wound")).toHaveLength(2);
+    expect(combat.hero.statuses.darkness).toBe(2);
+  });
+
+  it("Кровавый алтарь: плата HP при розыгрыше — уже первая плата", () => {
+    const { combat, uids, enemy } = warlock(["w_blood_rite"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 2);
+    expect(combat.hero.hp).toBe(combat.hero.maxHp - 2);
+    expect(enemy.statuses.leech).toBe(1);
+    expect(combat.hero.block).toBe(2);
+    expect(combat.hero.statuses.darkness).toBe(1);
+  });
+
+  it("Бог крови: Печать крови на врагах не убывает", () => {
+    const { combat, uids, enemy } = warlock(["w_blood_god"]);
+    enemy.hp = enemy.maxHp = 200;
+    placeCard(combat, uids[0], 1);
+    advance(combat, 9); // сработала в клетке 2, потом начала тактов 2, 3 и 4
+    expect(enemy.statuses.leech).toBe(1);
+    expect(enemy.hp).toBe(197);
+  });
+
+  it("Феникс: сожжённая карта уходит в сброс, Тьма за сожжение — как обычно", () => {
+    const { combat, uids, enemy } = warlock(["w_phoenix", "w_soul_burn"]);
+    placeCard(combat, uids[0], 1);
+    placeCard(combat, uids[1], 3, enemy.instanceId);
+    advance(combat, 3);
+    expect(combat.piles.exhaust.some((card) => card.cardId === "w_soul_burn")).toBe(false);
+    const piles = [...combat.piles.discard, ...combat.piles.draw, ...combat.piles.hand];
+    expect(piles.some((card) => card.cardId === "w_soul_burn")).toBe(true);
+    expect(combat.hero.statuses.darkness).toBe(3); // 2 от Феникса и 1 за сожжение
+  });
+
+  it("Владыка проклятий: Слабость на врагах не убывает после их атак", () => {
+    const { combat, uids, enemy } = warlock(["w_curse_lord"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 2);
+    expect(enemy.statuses.weak).toBe(3);
+    setLane(enemy, ["hack"], combat.clock);
+    advance(combat, 3);
+    expect(enemy.statuses.weak).toBe(3);
   });
 });

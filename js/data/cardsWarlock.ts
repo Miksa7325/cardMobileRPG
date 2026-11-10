@@ -1,119 +1,122 @@
-// Карты Чернокнижника: платит HP за силу и растёт от этой платы. Тьма копится весь бой:
-// +1 за каждую плату своим HP и за каждую сожжённую карту. Печать крови в начале такта отнимает HP у врага и лечит героя.
-// Таблица «было → стало» и причины изменений — в docs/cards/warlock.md
+// Карты Чернокнижника: «сила за кровь». 54 карты (этап 7): 4 стартовых вида, 16 обычных, 14 необычных, 10 редких,
+// 7 эпических, 3 легендарных. Три темы: Кровь (плата HP, Печать крови, лечение), Пепел («Сжечь», Раны, карты от Тьмы),
+// Проклятия (Слабость, Уязвимость, Замедление без удара). Таблица колоды с ценами — в docs/cards/warlock.md.
+// Тьма: +1 за каждую плату своим HP и за каждую сожжённую карту, потолок 10. Печать крови в начале такта
+// отнимает HP у врага и лечит героя. Отдельных улучшенных версий нет: ступень улучшения — +20% к числам.
 import {
-  allStatus, block, burn, card, chained, damage, draw, energy, exhaustWounds, fixedDamageToAll, gainResource, grow, heal, hits, loseHp, repair,
-  selfStatus, spend, status, sunder, triggerPower, wound,
+  allStatus, block, burn, card, chained, damage, draw, energy, exhaustWounds, fixedDamageToAll, gainResource, grow, heal, loseHp, repair, selfStatus,
+  spend, status, sunder, wound,
 } from "./cardHelpers.ts";
-import type { CardData } from "../types.ts";
+import type { CardData, Effect, HeroRules, Power } from "../types.ts";
 
 const seal = (amount: number) => status("leech", amount);
+const weak = (amount: number) => status("weak", amount);
+const vulnerable = (amount: number) => status("vulnerable", amount);
+const slow = (amount: number) => status("slow", amount);
+const darkness = (amount: number) => gainResource("darkness", amount);
+const tactStart = (effects: Effect[]): Power => ({ trigger: "onTactStart", effects });
+
+// Сила: эффекты при розыгрыше, постоянный эффект (power) и правило боя (rules) — что есть
+function power(
+  id: string, name: string, rarity: CardData["rarity"], cost: number, description: string, effects: Effect[], extra: { power?: Power; rules?: HeroRules } = {},
+): CardData {
+  return { ...card(id, name, "power", rarity, cost, "self", description, effects), ...extra };
+}
 
 export const WARLOCK_CARDS: CardData[] = [
-  // ---------- Стартовые ----------
-  card("w_bolt", "Тёмный разряд", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
-  card("w_shield", "Щит тьмы", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)],
-    { effects: [block(8), repair(1)], description: "Получить {block} блока. Починка {repair}." }),
-  card("w_sacrifice", "Жертва", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(11), loseHp(3)], { effects: [damage(15), loseHp(3)] }),
-  card("w_dark_bolt", "Сгусток тьмы", "attack", "starter", 1, "enemy", "Нанести {damage} урона: +3 за каждую Тьму.", [grow(damage(5), "darkness", 3)],
-    { effects: [grow(damage(7), "darkness", 4)], description: "Нанести {damage} урона: +4 за каждую Тьму." }),
-  card("w_bone_patch", "Костяные заплаты", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(4), repair(2)], { effects: [block(6), repair(3)] }),
+  // ---------- Стартовые: колода 4 + 4 + 1 + 1 ----------
+  card("w_bolt", "Тёмный разряд", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)]),
+  card("w_shield", "Теневой щит", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)]),
+  card("w_bone_patch", "Костяные заплаты", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(3), repair(2)]),
+  card("w_sacrifice", "Жертва", "skill", "starter", 1, "enemy", "Потерять {loseHp} HP. Наложить {leech} Печати крови.", [loseHp(2), seal(2)]),
 
-  // ---------- Обычные: атаки ----------
-  card("w_drain", "Вытягивание", "attack", "common", 1, "enemy", "Нанести {damage} урона. Вылечить {heal} HP.", [damage(6), heal(2)], { effects: [damage(8), heal(3)] }),
-  card("w_shadow_lash", "Плеть тени", "attack", "common", 1, "enemy", "Нанести {damage} урона.", [damage(8)], { effects: [damage(11)] }),
-  card("w_blood_bolt", "Кровавая стрела", "attack", "common", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(9), loseHp(2)], { effects: [damage(12), loseHp(2)] }),
-  card("w_curse_hit", "Проклятый удар", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(5)], { effects: [sunder(2), damage(7)] }),
-  card("w_hex_bolt", "Стрела порчи", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {weak} Слабости.", [damage(5), status("weak", 2)], { effects: [damage(7), status("weak", 3)] }),
-  card("w_dark_wave", "Тёмная волна", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(5)], { effects: [damage(7)] }),
-  chained(card("w_soul_burn", "Ожог души", "attack", "common", 1, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона. Сжечь.",
-    [damage(13), burn], { effects: [damage(18), burn] }), "final", [damage(6)], [damage(8)]),
-  card("w_cursed_blade", "Проклятый клинок", "attack", "common", 1, "enemy", "Нанести {damage} урона. Добавить Рану в сброс.", [damage(11), wound], { effects: [damage(14), wound] }),
-  card("w_twin_shadow", "Двойная тень", "attack", "common", 1, "enemy", "Нанести {damage} урона дважды.", hits(4, 2), { effects: hits(6, 2) }),
-  card("w_grave_bolt", "Могильный разряд", "attack", "common", 2, "enemy", "Нанести {damage} урона. Получить {block} блока.", [damage(13), block(4)], { effects: [damage(17), block(6)] }),
-  card("w_sap", "Иссушение", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(4), status("poison", 2)], { effects: [damage(5), status("poison", 3)] }),
-  card("w_pain_echo", "Эхо боли", "attack", "common", 1, "enemy", "Нанести {damage} урона. Взять {draw} карту. Потерять {loseHp} HP.",
-    [damage(6), draw(1), loseHp(1)], { effects: [damage(8), draw(1), loseHp(1)] }),
-  card("w_ritual_knife", "Ритуальный нож", "attack", "common", 1, "enemy", "Нанести {damage} урона. Взять {draw} карту. Потерять {loseHp} HP.",
-    [damage(7), draw(1), loseHp(2)], { effects: [damage(9), draw(1), loseHp(2)] }),
-  card("w_shadow_swarm", "Рой теней", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(9)], { effects: [damage(12)] }),
-  card("w_blood_for_blood", "Кровь за кровь", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {leech} Печати крови.", [damage(6), seal(2)], { effects: [damage(8), seal(3)] }),
-
-  // ---------- Обычные: навыки ----------
-  card("w_blood_offering", "Кровавое подношение", "skill", "common", 0, "self", "Потерять {loseHp} HP. Получить {darkness} Тьмы. Сжечь.",
-    [loseHp(3), gainResource("darkness", 2), burn], { effects: [loseHp(3), gainResource("darkness", 3), burn] }),
-  card("w_night_wall", "Ночная стена", "skill", "common", 1, "self", "Получить {block} блока: +2 за каждую Тьму.", [grow(block(4), "darkness", 2)], { effects: [grow(block(6), "darkness", 2)] }),
-  card("w_ward", "Оберег", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(7), repair(1)], { effects: [block(10), repair(2)] }),
-  card("w_veil", "Завеса", "skill", "common", 1, "self", "Получить {block} блока.", [block(6)], { effects: [block(8)] }),
-  card("w_omen", "Знамение", "skill", "common", 1, "self", "Взять {draw} карты.", [draw(2)], { effects: [draw(3)] }),
-  card("w_blood_price", "Кровавая цена", "skill", "common", 0, "self", "Получить {haste} Ускорения. Потерять {loseHp} HP. Сжечь.",
-    [energy(1), loseHp(3), burn], { effects: [energy(2), loseHp(3), burn] }),
-  card("w_weaken", "Немощь", "skill", "common", 0, "enemy", "Наложить {weak} Слабости. Сжечь.", [status("weak", 1), burn], { effects: [status("weak", 2), burn] }),
-  card("w_cauterize", "Прижигание", "skill", "common", 1, "self", "Сжечь все Раны из руки. Получить {block} блока.", [exhaustWounds, block(5)], { effects: [exhaustWounds, block(7)] }),
-  card("w_dark_pact", "Тёмный договор", "skill", "common", 1, "self", "Взять {draw} карты. Добавить Рану в сброс.", [draw(3), wound], { effects: [draw(4), wound] }),
-  card("w_leech", "Глоток жизни", "skill", "common", 0, "self", "Вылечить {heal} HP. Сжечь.", [heal(4), burn], { effects: [heal(6), burn] }),
-  card("w_gloom", "Мрак", "skill", "common", 0, "allEnemies", "Наложить {vulnerable} Уязвимости всем врагам. Сжечь.",
-    [allStatus("vulnerable", 1), burn], { effects: [allStatus("vulnerable", 2), burn] }),
-  chained(card("w_bone_armor", "Костяная броня", "skill", "common", 1, "self", "Получить {block} блока. Потерять {loseHp} HP. После атаки: ещё {block} блока.",
-    [block(9), loseHp(2)], { effects: [block(12), loseHp(2)] }), "afterAttack", [block(3)], [block(4)]),
-  card("w_embers", "Тлеющие угли", "skill", "common", 1, "allEnemies", "Наложить {poison} Яда всем врагам.", [status("poison", 2)], { effects: [status("poison", 3)] }),
-  card("w_empower", "Усиление", "skill", "common", 1, "self", "Получить {strength} Силу. Сжечь.", [selfStatus("strength", 2), burn],
-    { effects: [selfStatus("strength", 4), burn], description: "Получить {strength} Силы. Сжечь." }),
-  card("w_ritual_scar", "Ритуальный шрам", "skill", "common", 0, "self", "Потерять {loseHp} HP. Починка {repair}. Сжечь.", [loseHp(2), repair(2), burn], { effects: [loseHp(2), repair(3), burn] }),
+  // ---------- Обычные ----------
+  // Кровь
+  card("w_blood_bolt", "Кровавая стрела", "attack", "common", 1, "enemy", "Потерять {loseHp} HP. Нанести {damage} урона.", [loseHp(2), damage(11)]),
+  card("w_drain", "Пиявка", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {leech} Печать крови.", [damage(4), seal(1)]),
+  card("w_blood_for_blood", "Кровь за кровь", "attack", "common", 2, "enemy", "Нанести {damage} урона. Наложить {leech} Печати крови.", [damage(9), seal(2)]),
+  card("w_blood_shield", "Кровавый щит", "skill", "common", 1, "self", "Потерять {loseHp} HP. Получить {block} блока.", [loseHp(2), block(9)]),
+  card("w_leech", "Глоток жизни", "skill", "common", 1, "self", "Вылечить {heal} HP.", [heal(4)]),
+  // Пепел
+  card("w_soul_burn", "Пепельный удар", "attack", "common", 1, "enemy", "Нанести {damage} урона. Сжечь.", [damage(10), burn]),
+  card("w_cauterize", "Сожжение ран", "skill", "common", 1, "self", "Сжечь все Раны в руке. Получить {block} блока. Починка {repair}.", [exhaustWounds, block(5), repair(2)]),
+  card("w_dark_bolt", "Тёмный сгусток", "attack", "common", 1, "enemy", "Нанести {damage} урона: +1 за каждую Тьму.", [grow(damage(5), "darkness", 1)]),
+  card("w_dark_pact", "Сделка с тьмой", "skill", "common", 0, "self", "Рана в сброс. Получить {darkness} Тьмы. Взять {draw} карту. Сжечь.", [wound, darkness(3), draw(1), burn]),
+  card("w_night_wall", "Ночная стена", "skill", "common", 1, "self", "Получить {block} блока: +1 за каждую Тьму.", [grow(block(4), "darkness", 1)]),
+  // Проклятия
+  card("w_gloom", "Порча", "skill", "common", 1, "enemy", "Наложить {weak} Слабости и {vulnerable} Уязвимости.", [weak(2), vulnerable(2)]),
+  card("w_hex_bolt", "Стрела порчи", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {weak} Слабости.", [damage(5), weak(2)]),
+  chained(card("w_shackles", "Оковы", "skill", "common", 1, "enemy", "Наложить {slow} Замедления. Первая: ещё {slow} Замедление.", [slow(2)]), "first", [slow(1)]),
+  card("w_omen", "Сглаз", "skill", "common", 2, "allEnemies", "Наложить {vulnerable} Уязвимости и {weak} Слабости всем врагам. Получить {block} блока.", [vulnerable(2), weak(2), block(4)]),
+  // Общие
+  card("w_veil", "Теневая завеса", "skill", "common", 2, "self", "Получить {block} блока. Починка {repair}.", [block(12), repair(2)]),
+  card("w_forbidden", "Тёмное знание", "skill", "common", 1, "self", "Взять {draw} карты. Получить {darkness} Тьму.", [draw(2), darkness(1)]),
 
   // ---------- Необычные ----------
-  card("w_void_lance", "Копьё пустоты", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Тьма 3: ещё {damage} урона.",
-    [damage(8), spend("darkness", 3, [damage(24)])], { effects: [damage(10), spend("darkness", 3, [damage(32)])] }),
-  card("w_blood_seal", "Печать крови", "skill", "uncommon", 1, "enemy", "Наложить {leech} Печати крови.", [seal(3)], { effects: [seal(4)] }),
-  card("w_dark_harvest", "Тёмная жатва", "skill", "uncommon", 1, "self", "Тьма 3: вылечить {heal} HP.", [spend("darkness", 3, [heal(10)])], { effects: [spend("darkness", 3, [heal(14)])] }),
-  card("w_wound_feast", "Пир на ранах", "skill", "uncommon", 1, "self", "Сжечь все Раны из руки. Тьма 2: взять {draw} карты.",
-    [exhaustWounds, spend("darkness", 2, [draw(3)])], { effects: [exhaustWounds, spend("darkness", 2, [draw(4)])] }),
-  card("w_blood_rite", "Кровавый обряд", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(15), loseHp(5)], { effects: [damage(20), loseHp(5)] }),
-  card("w_life_drain", "Похищение жизни", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Вылечить {heal} HP.", [damage(10), heal(5)], { effects: [damage(14), heal(7)] }),
-  card("w_nether_storm", "Буря бездны", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем врагам дважды.", hits(6, 2), { effects: hits(8, 2) }),
-  card("w_curse_weak", "Проклятие немощи", "attack", "uncommon", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Наложить {weak} Слабости.",
-    [sunder(2), damage(8), status("weak", 2)], { effects: [sunder(3), damage(11), status("weak", 3)] }),
-  card("w_black_flame", "Чёрное пламя", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Добавить Рану в сброс. Взять {draw} карту.",
-    [damage(9), wound, draw(1)], { effects: [damage(12), wound, draw(1)] }),
-  chained(card("w_spite", "Злоба", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Получить {block} блока. После навыка: ещё {damage} урона.",
-    [damage(7), block(5)], { effects: [damage(9), block(7)] }), "afterSkill", [damage(4)], [damage(5)]),
-  card("w_agony", "Агония", "skill", "uncommon", 2, "enemy", "Наложить {poison} Яда.", [status("poison", 5)], { effects: [status("poison", 6)] }),
-  card("w_fuel", "Топливо", "skill", "uncommon", 1, "self", "Сжечь все Раны из руки. Получить {haste} Ускорения. Сжечь.",
-    [exhaustWounds, energy(2), burn], { effects: [exhaustWounds, energy(3), burn] }),
-  card("w_shadow_wall", "Стена тьмы", "skill", "uncommon", 2, "self", "Получить {block} блока. Починка {repair}.", [block(13), repair(2)], { effects: [block(17), repair(3)] }),
-  card("w_dread", "Ужас", "skill", "uncommon", 1, "allEnemies", "Наложить {weak} Слабости и {vulnerable} Уязвимость всем врагам. Сжечь.",
-    [allStatus("weak", 2), allStatus("vulnerable", 1), burn], { effects: [allStatus("weak", 3), allStatus("vulnerable", 2), burn], description: "Наложить {weak} Слабости и {vulnerable} Уязвимости всем врагам. Сжечь." }),
-  card("w_forbidden", "Запретное знание", "skill", "uncommon", 1, "self", "Взять {draw} карты. Добавить 2 Раны в сброс.", [draw(4), wound, wound], { effects: [draw(5), wound, wound] }),
-  card("w_ritual", "Ритуал", "skill", "uncommon", 1, "self", "Получить {strength} Силы. Потерять {loseHp} HP. Сжечь.",
-    [selfStatus("strength", 4), loseHp(3), burn], { effects: [selfStatus("strength", 6), loseHp(3), burn] }),
-  card("w_abyss_gaze", "Взгляд бездны", "skill", "uncommon", 1, "enemy", "Наложить {vulnerable} Уязвимости. Взять {draw} карту.",
-    [status("vulnerable", 2), draw(1)], { effects: [status("vulnerable", 3), draw(1)] }),
-  triggerPower("w_dark_embrace", "Объятия тьмы", "uncommon", 1, "Когда карта сгорает, {block} блока.", "onExhaust", [block(3)], [block(4)]),
-  card("w_demon_skin", "Кожа демона", "power", "uncommon", 2, "self", "Получить {dexterity} Ловкости: каждые 2 — первая карта такта на 1 легче.",
-    [selfStatus("dexterity", 3)], { effects: [selfStatus("dexterity", 4)] }),
-  triggerPower("w_curse_aura", "Аура порчи", "uncommon", 1, "В конце такта {poison} Яда всем.", "onTactEnd", [allStatus("poison", 1)], [allStatus("poison", 2)]),
-  card("w_hunger", "Голод", "power", "uncommon", 1, "self", "В начале такта +{strength} Сила и −{loseHp} HP.", [], { cost: 0 },
-    { trigger: "onTactStart", effects: [selfStatus("strength", 2), loseHp(1)] }),
+  // Кровь
+  card("w_blood_seal", "Кровавая печать", "skill", "uncommon", 1, "enemy", "Потерять {loseHp} HP. Наложить {leech} Печати крови.", [loseHp(2), seal(3)]),
+  card("w_ritual_knife", "Кровавый удар", "attack", "uncommon", 2, "enemy", "Потерять {loseHp} HP. Нанести {damage} урона.", [loseHp(3), damage(25)]),
+  card("w_life_drain", "Вампиризм", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Вылечить {heal} HP.", [damage(12), heal(4)]),
+  // Плата HP при розыгрыше — уже первая плата: сила срабатывает и на неё
+  power("w_blood_rite", "Кровавый алтарь", "uncommon", 2, "Потерять {loseHp} HP. Каждая плата своим HP: {leech} Печать крови всем врагам и {block} блока.", [loseHp(2)],
+    { power: { trigger: "onHpPaid", effects: [allStatus("leech", 1), block(2)] } }),
+  // Пепел
+  card("w_pyre", "Погребальный костёр", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем врагам. Сжечь.", [damage(18), burn]),
+  power("w_dark_embrace", "Объятия тьмы", "uncommon", 1, "Когда карта сгорает: {block} блока.", [], { power: { trigger: "onExhaust", effects: [block(3)] } }),
+  card("w_black_flame", "Чёрное пламя", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Тьма 3: ещё {damage} урона.", [damage(4), spend("darkness", 3, [damage(12)])]),
+  card("w_wound_feast", "Жатва душ", "skill", "uncommon", 1, "self", "Сжечь все Раны в руке. Взять {draw} карты. Вылечить {heal} HP.", [exhaustWounds, draw(2), heal(2)]),
+  // Проклятия
+  card("w_curse_weak", "Проклятие немощи", "attack", "uncommon", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона. Наложить {weak} Слабости.", [sunder(2), damage(11), weak(3)]),
+  card("w_dread", "Ужас", "skill", "uncommon", 1, "allEnemies", "Наложить {weak} Слабости и {vulnerable} Уязвимости всем врагам. Сжечь.", [weak(2), vulnerable(2), burn]),
+  card("w_grave_cold", "Могильный холод", "skill", "uncommon", 2, "allEnemies", "Наложить {slow} Замедления всем врагам. Получить {block} блока.", [slow(2), block(10)]),
+  card("w_dark_mark", "Тёмная метка", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Наложить {vulnerable} Уязвимости и {weak} Слабости.", [damage(10), vulnerable(3), weak(2)]),
+  // Общие
+  card("w_shadow_wall", "Стена тьмы", "skill", "uncommon", 2, "self", "Получить {block} блока. Починка {repair}.", [block(13), repair(5)]),
+  card("w_last_pact", "Тёмный пакт", "skill", "uncommon", 0, "self", "Потерять {loseHp} HP. Получить {haste} Ускорение и {darkness} Тьму. Взять {draw} карту. Сжечь.",
+    [loseHp(3), energy(1), darkness(1), draw(1), burn]),
 
   // ---------- Редкие ----------
-  chained(chained(card("w_abyss", "Бездна", "attack", "rare", 3, "allEnemies",
-    "Нанести {damage} урона всем врагам: +2 за каждую Тьму. После навыка: +{darkness} к Тьме. Финал: ещё {damage} урона всем.",
-    [grow(damage(6), "darkness", 2)], { effects: [grow(damage(9), "darkness", 2)] }),
-  "afterSkill", [gainResource("darkness", 1)], [gainResource("darkness", 2)]), "final", [damage(6)], [damage(8)]),
-  triggerPower("w_eclipse", "Затмение", "rare", 2, "В начале такта +{darkness} Тьма.", "onTactStart", [gainResource("darkness", 1)], [gainResource("darkness", 2)]),
-  chained(chained(card("w_annihilate", "Уничтожение", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Первая: Сокрушение {sunder}. Финал: вылечить {heal} HP.",
-    [damage(40)], { effects: [damage(52)] }), "first", [sunder(2)], [sunder(3)]), "final", [heal(6)], [heal(8)]),
-  card("w_soul_feast", "Пир душ", "attack", "rare", 2, "allEnemies", "Нанести {damage} урона всем врагам. Вылечить {heal} HP. Сжечь.",
-    [damage(10), heal(8), burn], { effects: [damage(13), heal(10), burn] }),
-  card("w_last_pact", "Последний договор", "skill", "rare", 0, "self", "Получить {haste} Ускорения. Потерять {loseHp} HP. Сжечь.",
-    [energy(3), loseHp(8), burn], { effects: [energy(4), loseHp(8), burn] }),
-  card("w_dark_fortress", "Тёмная крепость", "skill", "rare", 2, "self", "Получить {block} блока. Починка {repair}. Сжечь.", [block(30), repair(4), burn], { effects: [block(40), repair(4), burn] }),
-  card("w_mind_rot", "Гниение разума", "skill", "rare", 2, "enemy", "Наложить {poison} Яда и {weak} Слабости. Сжечь.",
-    [status("poison", 7), status("weak", 3), burn], { effects: [status("poison", 9), status("weak", 3), burn] }),
-  card("w_necromancy", "Некромантия", "skill", "rare", 1, "self", "Взять {draw} карты. Получить {haste} Ускорения. Сжечь.",
-    [draw(3), energy(1), burn], { effects: [draw(4), energy(2), burn] }),
-  card("w_lich_form", "Форма лича", "power", "rare", 3, "self", "Получить {strength} Силы и {dexterity} Ловкости.", [selfStatus("strength", 6), selfStatus("dexterity", 3)], { cost: 2 }),
-  card("w_blood_god", "Бог крови", "power", "rare", 1, "self", "В начале такта +{haste} Ускорение и −{loseHp} HP.", [], { cost: 0 },
-    { trigger: "onTactStart", effects: [energy(1), loseHp(1)] }),
-  triggerPower("w_ashes", "Пепел", "rare", 1, "Когда карта сгорает, {damage} урона всем врагам.", "onExhaust", [fixedDamageToAll(5)], [fixedDamageToAll(7)]),
+  // Кровь
+  card("w_ritual", "Кровавый ритуал", "skill", "rare", 2, "allEnemies", "Потерять {loseHp} HP. Наложить {leech} Печати крови всем врагам. Вылечить {heal} HP.", [loseHp(5), seal(4), heal(4)]),
+  card("w_soul_feast", "Пир крови", "attack", "rare", 2, "allEnemies", "Нанести {damage} урона всем врагам. Вылечить {heal} HP.", [damage(10), heal(5)]),
+  card("w_cursed_blade", "Кровавый клинок", "attack", "rare", 1, "enemy", "Потерять {loseHp} HP. Нанести {damage} урона. Наложить {leech} Печать крови.", [loseHp(3), damage(12), seal(1)]),
+  // Пепел
+  card("w_abyss", "Бездна", "attack", "rare", 3, "allEnemies", "Нанести {damage} урона всем врагам: +3 за каждую Тьму.", [grow(damage(16), "darkness", 3)]),
+  power("w_ashes", "Пепел", "rare", 1, "Когда карта сгорает: {damage} урона всем врагам и {block} блок.", [], { power: { trigger: "onExhaust", effects: [fixedDamageToAll(2), block(1)] } }),
+  card("w_dark_harvest", "Тёмный урожай", "attack", "rare", 2, "enemy", "Нанести {damage} урона. Тьма 4: ещё {damage} урона.", [damage(10), spend("darkness", 4, [damage(23)])]),
+  // Проклятия
+  chained(card("w_abyss_gaze", "Взгляд бездны", "skill", "rare", 1, "enemy", "Наложить {vulnerable} Уязвимости. Взять {draw} карту. Первая: ещё {weak} Слабости.",
+    [vulnerable(3), draw(1)]), "first", [weak(2)]),
+  card("w_curse_aura", "Проклятие слабости", "skill", "rare", 2, "allEnemies", "Наложить {weak} Слабости, {slow} Замедления и {vulnerable} Уязвимости всем врагам. Получить {block} блока.",
+    [weak(3), slow(2), vulnerable(2), block(2)]),
+  card("w_mind_rot", "Гниение разума", "skill", "rare", 2, "enemy", "Оглушение. Наложить {vulnerable} Уязвимости, {weak} Слабости и {slow} Замедление. Сжечь.",
+    [status("stun", 1), vulnerable(4), weak(3), slow(1), burn]),
+  // Общие
+  card("w_necromancy", "Некромантия", "skill", "rare", 1, "self", "Взять {draw} карты. Получить {haste} Ускорение и {darkness} Тьму. Сжечь.", [draw(3), energy(1), darkness(1), burn]),
+
+  // ---------- Эпические ----------
+  // Кровь
+  power("w_blood_moon", "Кровавая луна", "epic", 2, "В начале такта: {leech} Печать крови всем врагам.", [], { power: tactStart([allStatus("leech", 1)]) }),
+  card("w_offering", "Жертвоприношение", "attack", "epic", 3, "enemy", "Потерять {loseHp} HP. Нанести {damage} урона. Наложить {leech} Печати крови.", [loseHp(6), damage(40), seal(4)]),
+  // Пепел
+  power("w_eclipse", "Затмение", "epic", 2, "Получить {darkness} Тьмы. В начале такта: +{darkness} Тьма и {block} блока.", [darkness(2)], { power: tactStart([darkness(1), block(3)]) }),
+  card("w_dark_verdict", "Приговор тьмы", "attack", "epic", 2, "enemy", "Нанести {damage} урона. Тьма 5: ещё {damage} урона.", [damage(10), spend("darkness", 5, [damage(30)])]),
+  // Проклятия
+  card("w_doom_seal", "Печать рока", "skill", "epic", 2, "enemy", "Наложить {vulnerable} Уязвимости, {weak} Слабости и {slow} Замедления.", [vulnerable(6), weak(3), slow(3)]),
+  power("w_soul_plague", "Чума душ", "epic", 2, "В начале такта: {vulnerable} Уязвимость и {weak} Слабость всем врагам.", [],
+    { power: tactStart([allStatus("vulnerable", 1), allStatus("weak", 1)]) }),
+  // Общие
+  power("w_lich_form", "Форма лича", "epic", 3, "Получить {strength} Силы, {dexterity} Ловкости и {darkness} Тьмы.",
+    [selfStatus("strength", 5), selfStatus("dexterity", 4), darkness(3)]),
+
+  // ---------- Легендарные: у каждой — эффект-правило, в колоде не больше одной копии ----------
+  // Кровь: Печать крови на врагах перестаёт убывать
+  power("w_blood_god", "Бог крови", "legendary", 2, "Печать крови на врагах больше не убывает. Наложить {leech} Печать крови всем врагам.", [allStatus("leech", 1)],
+    { rules: { leechStays: true } }),
+  // Пепел: сожжённые карты уходят в сброс и возвращаются в колоду; Тьму и силы «когда карта сгорает» дают как обычно
+  power("w_phoenix", "Феникс", "legendary", 2, "Сожжённые карты уходят в сброс, а не пропадают. Получить {darkness} Тьмы.", [darkness(2)],
+    { rules: { exhaustToDiscard: true } }),
+  // Проклятия: Слабость на врагах перестаёт убывать
+  power("w_curse_lord", "Владыка проклятий", "legendary", 2, "Слабость на врагах больше не убывает. Наложить {weak} Слабости всем врагам.", [allStatus("weak", 3)],
+    { rules: { weakStays: true } }),
 ];

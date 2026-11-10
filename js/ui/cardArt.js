@@ -324,6 +324,10 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 
 // Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
 const BORROWED_ART = {
+  // Новая колода Чернокнижника (этап 7): рисунки прежних карт, свои — на этапе 9
+  w_blood_shield: "w_blood_price", w_shackles: "w_sap", w_pyre: "w_embers", w_grave_cold: "w_grave_bolt", w_dark_mark: "w_curse_hit",
+  w_blood_moon: "w_hunger", w_offering: "w_blood_offering", w_dark_verdict: "w_annihilate", w_doom_seal: "w_agony", w_soul_plague: "w_nether_storm",
+  w_phoenix: "w_fuel", w_curse_lord: "w_demon_skin",
   // Новая колода Убийцы (этап 7): рисунки прежних карт, свои — на этапе 9
   a_quick_cut: "a_lunge", a_link: "a_flurry", a_festering: "a_venom_nick", a_shadow_dash: "a_light_feet", a_cascade: "a_fan_knives",
   a_plague_blade: "a_envenom", a_toxic_volley: "a_toxic_throw", a_plague_edge: "a_thousand_poisons", a_blood_trail: "a_crippling",

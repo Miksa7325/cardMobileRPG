@@ -968,7 +968,8 @@ function playResolvedCard(combat: Combat, instance: CardInstance, targetId: stri
   fireTrigger(combat, "onCardPlayed", { cardType: card.type });
 
   if (context.exhausted) {
-    combat.piles.exhaust.push(instance);
+    // «Феникс»: сожжённая карта уходит в сброс и вернётся в колоду; Тьма и силы «когда карта сгорает» — как обычно
+    (combat.hero.rules?.exhaustToDiscard ? combat.piles.discard : combat.piles.exhaust).push(instance);
     fireTrigger(combat, "onExhaust");
   } else if (card.type !== "power") {
     combat.piles.discard.push(instance);
@@ -1004,7 +1005,8 @@ function resolveEnemyAction(combat: Combat, enemy: EnemyUnit, slot: ReturnType<t
   recordEvent(combat, { type: "enemyAction", enemyId: enemy.instanceId, intent: move.intent });
   executeEffects(combat, move.effects, { source: enemy, targets: [combat.hero], fromCard: false });
   if (isOver(combat)) return;
-  spendWeak(enemy, move.effects);
+  // «Владыка проклятий»: Слабость на врагах не убывает
+  if (!combat.hero.rules?.weakStays) spendWeak(enemy, move.effects);
 
   // Безумие: после каждого своего хода враг становится сильнее
   if (combat.enemyRamp) {

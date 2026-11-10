@@ -124,6 +124,9 @@ export interface HeroRules {
   keepCombo?: boolean; // пустая клетка не обнуляет Комбо («Бесконечная цепь»)
   poisonStays?: boolean; // Яд на врагах не убывает («Королева ядов»)
   zeroWeightUnlimited?: boolean; // нет лимита карт весом 0 за такт («Призрак»)
+  leechStays?: boolean; // Печать крови на врагах не убывает («Бог крови»)
+  exhaustToDiscard?: boolean; // сожжённые карты уходят в сброс («Феникс»)
+  weakStays?: boolean; // Слабость на врагах не убывает («Владыка проклятий»)
   caps?: Partial<Record<StatusId, number>>;
 }
 
