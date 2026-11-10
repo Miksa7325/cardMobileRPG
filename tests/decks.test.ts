@@ -13,6 +13,7 @@ const NEW_DECKS: Record<string, string[]> = {
   warrior: ["strike", "defend", "patch", "bash"],
   assassin: ["a_strike", "a_roll", "a_tighten", "a_finisher"],
   warlock: ["w_bolt", "w_shield", "w_bone_patch", "w_sacrifice"],
+  mage: ["m_spark", "m_barrier", "m_rune_ward", "m_arcane_blast"],
 };
 
 // Бой без ходов врага с одной нужной картой в руке
@@ -196,5 +197,48 @@ describe("карты Чернокнижника", () => {
     setLane(enemy, ["hack"], combat.clock);
     advance(combat, 3);
     expect(enemy.statuses.weak).toBe(3);
+  });
+});
+
+describe("легендарные карты Мага", () => {
+  // Бой Мага без ходов врага с нужными картами в руке; у врага много HP
+  function mage(cardIds: string[]) {
+    const combat = fight({ heroId: "mage" });
+    quiet(combat);
+    combat.piles.hand = [];
+    for (const id of cardIds) addCardToHand(combat, id);
+    const enemy = combat.enemies[0];
+    enemy.hp = enemy.maxHp = 500;
+    return { combat, uids: combat.piles.hand.map((card) => card.uid), enemy };
+  }
+
+  it("Вечное пламя: Горение на врагах не убывает", () => {
+    const { combat, uids, enemy } = mage(["m_eternal_flame"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 9); // сработала в клетке 2 (Горение 4), потом начала тактов 2, 3 и 4
+    expect(enemy.statuses.burning).toBe(4);
+    expect(enemy.hp).toBe(500 - 12);
+  });
+
+  it("Властелин времени: Замедление на врагах не тратится", () => {
+    const { combat, uids, enemy } = mage(["m_time_lord"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 2);
+    setLane(enemy, ["guard", "guard"], combat.clock);
+    advance(combat, 6); // два хода защиты весом 2 стали весом 3 каждый
+    expect(enemy.statuses.slow).toBe(1);
+    expect(enemy.lane.filter((action) => action.resolved)).toHaveLength(2);
+  });
+
+  it("Архимагия: подготовленное заклинание вдвое сильнее, потолок Прилива — 10", () => {
+    const { combat, uids, enemy } = mage(["m_archmagic", "m_spark"]);
+    placeCard(combat, uids[0], 1);
+    advance(combat, 2);
+    combat.hero.statuses.surge = 9;
+    placeCard(combat, uids[1], 0, enemy.instanceId, { prepare: true });
+    advance(combat, 1); // пустая клетка: Искра готова за одну клетку; начался такт 2 — Прилив +1
+    expect(combat.events.find((event) => event.type === "hit")!.damage).toBe(12);
+    advance(combat, 6);
+    expect(combat.hero.statuses.surge).toBe(10);
   });
 });

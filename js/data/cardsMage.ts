@@ -1,98 +1,125 @@
-// Карты Мага: готовит сильные заклинания заранее (дорожка подготовки: +50%, готовятся очередью 2 × вес клеток, пустые клетки шкалы ускоряют). Лёд — Замедление, огонь — Горение, молния — Сокрушение, время — Оглушение.
-// Чародейские карты растут от Прилива. Таблица «было → стало» — в docs/cards/mage.md.
-// Как каждая карта выглядит на поле боя — в ui/vfx.js
+// Карты Мага: «подготовка заклинаний». 54 карты (этап 7): 4 стартовых вида, 16 обычных, 14 необычных, 10 редких,
+// 7 эпических, 3 легендарных. Три темы: Огонь (урон, Горение, тяжёлые заклинания с «Финалом»), Лёд и время
+// (Замедление, Оглушение, блок), Чары (карты от Прилива, молнии с Сокрушением). Таблица колоды — в docs/cards/mage.md.
+// Любую карту можно поставить на подготовку: она срабатывает на 50% сильнее (свойство класса, в цену карт не входит).
+// Прилив: +1 в начале такта, потолок 6. Отдельных улучшенных версий нет: ступень улучшения — +20% к числам.
 import {
-  allStatus, block, burn, card, chained, damage, draw, gainResource, grow, hits, multiplyStatus, repair, selfStatus, status, sunder, triggerPower,
+  allStatus, block, burn, card, chained, damage, draw, energy, gainResource, grow, hits, repair, selfStatus, status, sunder,
 } from "./cardHelpers.ts";
-import type { CardData } from "../types.ts";
+import type { CardData, Effect, HeroRules, Power } from "../types.ts";
 
-const slow = (amount: number) => status("slow", amount);
-const slowAll = (amount: number) => allStatus("slow", amount);
 const burning = (amount: number) => status("burning", amount);
+const slow = (amount: number) => status("slow", amount);
+const stun = status("stun", 1);
+const surge = (amount: number) => gainResource("surge", amount);
+const sunderAll = (amount: number): Effect => ({ ...sunder(amount), target: "allEnemies" });
+const tactStart = (effects: Effect[]): Power => ({ trigger: "onTactStart", effects });
+
+// Сила: эффекты при розыгрыше, постоянный эффект (power) и правило боя (rules) — что есть
+function power(
+  id: string, name: string, rarity: CardData["rarity"], cost: number, description: string, effects: Effect[], extra: { power?: Power; rules?: HeroRules } = {},
+): CardData {
+  return { ...card(id, name, "power", rarity, cost, "self", description, effects), ...extra };
+}
 
 export const MAGE_CARDS: CardData[] = [
-  // ---------- Стартовые ----------
-  card("m_spark", "Искра", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(5)], { effects: [damage(8)] }),
-  card("m_barrier", "Барьер", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)],
-    { effects: [block(8), repair(1)], description: "Получить {block} блока. Починка {repair}." }),
-  card("m_frostbolt", "Ледяная стрела", "attack", "starter", 2, "enemy", "Нанести {damage} урона. Наложить {slow} Замедления.", [damage(10), slow(1)], { effects: [damage(13), slow(2)] }),
-  card("m_arcane_blast", "Чародейский взрыв", "attack", "starter", 1, "enemy", "Нанести {damage} урона: +2 за каждый Прилив.", [grow(damage(4), "surge", 2)],
-    { effects: [grow(damage(6), "surge", 3)], description: "Нанести {damage} урона: +3 за каждый Прилив." }),
-  card("m_rune_ward", "Руна защиты", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(4), repair(2)], { effects: [block(6), repair(3)] }),
+  // ---------- Стартовые: колода 4 + 4 + 1 + 1 ----------
+  card("m_spark", "Искра", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)]),
+  card("m_barrier", "Барьер", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)]),
+  card("m_rune_ward", "Руна защиты", "skill", "starter", 1, "self", "Получить {block} блока. Починка {repair}.", [block(3), repair(2)]),
+  card("m_arcane_blast", "Чародейский залп", "attack", "starter", 2, "enemy", "Нанести {damage} урона: +2 за каждый Прилив.", [grow(damage(8), "surge", 2)]),
 
   // ---------- Обычные ----------
-  chained(card("m_fireball", "Огненный шар", "attack", "common", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.",
-    [damage(14)], { effects: [damage(19)] }), "final", [damage(6)], [damage(8)]),
-  card("m_flame_wave", "Огненная волна", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(8)], { effects: [damage(11)] }),
-  card("m_lightning", "Молния", "attack", "common", 1, "enemy", "Нанести {damage} урона.", [damage(8)], { effects: [damage(11)] }),
-  card("m_ice_armor", "Ледяная броня", "skill", "common", 2, "self", "Получить {block} блока. Починка {repair}.", [block(12), repair(2)], { effects: [block(16), repair(3)] }),
-  card("m_missiles", "Чародейские стрелы", "attack", "common", 1, "enemy", "Нанести {damage} урона трижды.", hits(4, 3), { effects: hits(5, 3) }),
-  card("m_frost_nova", "Кольцо льда", "skill", "common", 2, "allEnemies", "Наложить {slow} Замедление всем врагам. Получить {block} блока.",
-    [slowAll(1), block(6)], { effects: [slowAll(2), block(8)], description: "Наложить {slow} Замедления всем врагам. Получить {block} блока." }),
-  card("m_static", "Статический разряд", "attack", "common", 1, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам.",
-    [{ ...sunder(1), target: "allEnemies" }, damage(4)], { effects: [{ ...sunder(2), target: "allEnemies" }, damage(6)] }),
-  card("m_ignite", "Поджог", "skill", "common", 1, "enemy", "Наложить {burning} Горения.", [burning(6)], { effects: [burning(9)] }),
-  card("m_ice_shards", "Ледяные осколки", "attack", "common", 1, "enemy", "Нанести {damage} урона дважды. Наложить {slow} Замедление.",
-    [...hits(3, 2), slow(1)], { effects: [...hits(4, 2), slow(2)], description: "Нанести {damage} урона дважды. Наложить {slow} Замедления." }),
-  card("m_scorch", "Опаление", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(5), burning(3)], { effects: [damage(7), burning(4)] }),
-  card("m_arcane_veil", "Чародейский покров", "skill", "common", 1, "self", "Получить {block} блока. Взять {draw} карту.", [block(5), draw(1)], { effects: [block(8), draw(1)] }),
-  card("m_spark_rain", "Дождь искр", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем врагам трижды.", hits(3, 3), { effects: hits(4, 3) }),
-  card("m_mana_shield", "Щит маны", "skill", "common", 1, "self", "Получить {block} блока: +2 за каждый Прилив.", [grow(block(4), "surge", 2)],
-    { effects: [grow(block(6), "surge", 3)], description: "Получить {block} блока: +3 за каждый Прилив." }),
-  chained(card("m_frost_ray", "Луч холода", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {slow} Замедление. Первая: ещё {slow} Замедление.",
-    [damage(4), slow(1)], { effects: [damage(6), slow(1)] }), "first", [slow(1)]),
-  card("m_ember", "Уголёк", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(5), burning(2)], { effects: [damage(6), burning(3)] }),
-  card("m_shock", "Удар током", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(6)], { effects: [sunder(1), damage(8)] }),
-  card("m_frost_shell", "Ледяной панцирь", "skill", "common", 1, "self", "Получить {block} блока. Починка {repair}.", [block(6), repair(1)], { effects: [block(8), repair(2)] }),
-  card("m_channel", "Сосредоточить поток", "skill", "common", 1, "self", "Получить {surge} Прилив. Взять {draw} карту.", [gainResource("surge", 1), draw(1)],
-    { effects: [gainResource("surge", 1), draw(2)], description: "Получить {surge} Прилив. Взять {draw} карты." }),
-  chained(card("m_arcane_bolt", "Чародейский снаряд", "attack", "common", 2, "enemy", "Нанести {damage} урона: +2 за каждый Прилив. Финал: ещё {damage} урона.",
-    [grow(damage(6), "surge", 2)], { effects: [grow(damage(9), "surge", 2)] }), "final", [damage(6)], [damage(8)]),
-  card("m_frost_wall", "Морозная стена", "skill", "common", 2, "self", "Получить {block} блока. Наложить {slow} Замедление всем врагам.", [block(10), slowAll(1)], { effects: [block(14), slowAll(1)] }),
-  card("m_kindle", "Разжечь", "skill", "common", 1, "enemy", "Удвоить Горение врага. Сжечь.", [multiplyStatus("burning", 2), burn], { cost: 0 }),
-  chained(card("m_spark_chain", "Искровая цепь", "attack", "common", 1, "enemy", "Нанести {damage} урона. После атаки: ещё {damage} урона.",
-    [damage(3)], { effects: [damage(4)] }), "afterAttack", [damage(5)], [damage(6)]),
-  chained(card("m_mirror", "Зеркальный щит", "skill", "common", 1, "self", "Получить {block} блока. После атаки: ещё {block} блока.",
-    [block(4)], { effects: [block(6)] }), "afterAttack", [block(4)], [block(5)]),
-  card("m_heat", "Жар", "skill", "common", 1, "allEnemies", "Наложить {burning} Горения всем врагам.", [allStatus("burning", 3)], { effects: [allStatus("burning", 4)] }),
+  // Огонь
+  chained(card("m_fireball", "Огненный шар", "attack", "common", 2, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.", [damage(13)]), "final", [damage(8)]),
+  card("m_scorch", "Опаление", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения.", [damage(5), burning(2)]),
+  card("m_ignite", "Поджог", "skill", "common", 1, "enemy", "Наложить {burning} Горения.", [burning(5)]),
+  card("m_flame_wave", "Волна пламени", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем врагам. Наложить {burning} Горения всем.", [damage(7), burning(3)]),
+  card("m_fire_pillar", "Огненный столб", "attack", "common", 3, "enemy", "Нанести {damage} урона.", [damage(26)]),
+  // Лёд и время
+  card("m_frostbolt", "Ледяная стрела", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {slow} Замедление.", [damage(5), slow(1)]),
+  card("m_ice_armor", "Ледяная броня", "skill", "common", 2, "self", "Получить {block} блока. Починка {repair}.", [block(12), repair(2)]),
+  card("m_frost_wall", "Морозный щит", "skill", "common", 1, "enemy", "Получить {block} блока. Наложить {slow} Замедление.", [block(4), slow(1)]),
+  card("m_ice_shards", "Ледяные осколки", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем врагам. Наложить {slow} Замедление всем.", [damage(8), slow(1)]),
+  chained(card("m_frost_ray", "Стужа", "skill", "common", 1, "enemy", "Наложить {slow} Замедления. Первая: ещё {weak} Слабости.", [slow(2)]), "first", [status("weak", 2)]),
+  // Чары
+  card("m_missiles", "Чародейская стрела", "attack", "common", 1, "enemy", "Нанести {damage} урона: +1 за каждый Прилив.", [grow(damage(5), "surge", 1)]),
+  card("m_shock", "Разряд", "attack", "common", 1, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(1), damage(5)]),
+  card("m_focus", "Сосредоточение", "skill", "common", 1, "self", "Получить {surge} Прилива и {block} блока. Взять {draw} карту.", [surge(2), block(2), draw(1)]),
+  card("m_mana_shield", "Чародейский щит", "skill", "common", 1, "self", "Получить {block} блока: +1 за каждый Прилив.", [grow(block(4), "surge", 1)]),
+  // Общие
+  card("m_blink", "Мерцание", "skill", "common", 0, "self", "Получить {haste} Ускорение. Сжечь.", [energy(1), burn]),
+  card("m_insight", "Прозрение", "skill", "common", 1, "self", "Взять {draw} карты. Получить {surge} Прилив.", [draw(2), surge(1)]),
 
   // ---------- Необычные ----------
-  card("m_blizzard", "Снежная буря", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем врагам дважды. Наложить {slow} Замедление всем.",
-    [...hits(5, 2), slowAll(1)], { effects: [...hits(7, 2), slowAll(2)], description: "Нанести {damage} урона всем врагам дважды. Наложить {slow} Замедления всем." }),
-  card("m_chain_lightning", "Цепная молния", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(12)], { effects: [damage(16)] }),
-  chained(card("m_meteor", "Метеор", "attack", "uncommon", 4, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.",
-    [damage(30)], { effects: [damage(40)] }), "final", [damage(10)], [damage(12)]),
-  card("m_surge", "Поток силы", "attack", "uncommon", 3, "enemy", "Нанести {damage} урона: +4 за каждый Прилив.", [grow(damage(6), "surge", 4)],
-    { effects: [grow(damage(8), "surge", 5)], description: "Нанести {damage} урона: +5 за каждый Прилив." }),
-  card("m_overload", "Перегрузка", "power", "uncommon", 2, "self", "В начале такта ещё +{surge} Прилив.", [], { cost: 1 },
-    { trigger: "onTactStart", effects: [gainResource("surge", 1)] }),
-  triggerPower("m_frost_aura", "Иней", "uncommon", 1, "В конце такта {block} блока.", "onTactEnd", [block(2)], [block(3)]),
-  card("m_focus", "Медитация", "skill", "uncommon", 0, "self", "Взять {draw} карты. Сжечь.", [draw(2), burn], { effects: [draw(3), burn] }),
-  card("m_thunderclap", "Раскат грома", "attack", "uncommon", 2, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам.",
-    [{ ...sunder(1), target: "allEnemies" }, damage(7)], { effects: [{ ...sunder(2), target: "allEnemies" }, damage(9)] }),
-  card("m_mana_tap", "Исток маны", "skill", "uncommon", 1, "self", "Получить {surge} Прилив. Сжечь.", [gainResource("surge", 1), burn], { cost: 0 }),
-  triggerPower("m_spell_echo", "Эхо заклинаний", "uncommon", 1, "Каждая атака: {block} блока.", "onCardPlayed", [block(2)], [block(3)], "attack"),
+  // Огонь
+  chained(card("m_meteor", "Метеор", "attack", "uncommon", 4, "enemy", "Нанести {damage} урона. Финал: ещё {damage} урона.", [damage(36)]), "final", [damage(20)]),
+  card("m_wildfire", "Пожар", "skill", "uncommon", 2, "allEnemies", "Наложить {burning} Горения всем врагам.", [burning(9)]),
+  chained(card("m_ember", "Огненная плеть", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Наложить {burning} Горения. После атаки: ещё {burning} Горения.",
+    [damage(6), burning(2)]), "afterAttack", [burning(2)]),
+  power("m_heat", "Жар", "uncommon", 2, "Наложить {burning} Горения всем врагам. В начале такта: {burning} Горение всем.", [allStatus("burning", 4)],
+    { power: tactStart([allStatus("burning", 1)]) }),
+  // Лёд и время
+  card("m_frost_nova", "Кольцо льда", "skill", "uncommon", 2, "allEnemies", "Наложить {slow} Замедления всем врагам. Получить {block} блока.", [slow(2), block(10)]),
   chained(card("m_frozen_spike", "Ледяной шип", "attack", "uncommon", 3, "enemy", "Нанести {damage} урона. Наложить {slow} Замедления. Финал: ещё {damage} урона.",
-    [damage(18), slow(2)], { effects: [damage(24), slow(2)] }), "final", [damage(8)], [damage(10)]),
-  card("m_split", "Расщепление", "attack", "uncommon", 2, "enemy", "Сокрушение {sunder}. Нанести {damage} урона.", [sunder(2), damage(10)], { effects: [sunder(3), damage(13)] }),
-  card("m_firewall", "Огненная стена", "skill", "uncommon", 2, "self", "Получить {block} блока. Наложить {burning} Горения всем врагам.",
-    [block(8), allStatus("burning", 3)], { effects: [block(11), allStatus("burning", 4)] }),
-  card("m_time_skip", "Скачок времени", "skill", "uncommon", 1, "self", "Получить {haste} Ускорения. Взять {draw} карту.", [selfStatus("haste", 2), draw(1)], { effects: [selfStatus("haste", 3), draw(1)] }),
-  card("m_ice_prison", "Ледяная тюрьма", "skill", "uncommon", 2, "enemy", "Наложить {slow} Замедления. Сжечь.", [slow(3), burn], { effects: [slow(4), burn] }),
+    [damage(18), slow(2)]), "final", [damage(18)]),
+  card("m_frost_shell", "Ледяной панцирь", "skill", "uncommon", 2, "self", "Получить {block} блока. Починка {repair}.", [block(13), repair(5)]),
+  card("m_freeze", "Заморозка", "skill", "uncommon", 2, "enemy", "Оглушение: следующее действие врага сорвётся. Получить {block} блока.", [stun, block(5)]),
+  // Чары
+  card("m_chain_lightning", "Цепная молния", "attack", "uncommon", 2, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам.", [sunderAll(1), damage(11)]),
+  card("m_arcane_bolt", "Чародейский взрыв", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона: +4 за каждый Прилив.", [grow(damage(9), "surge", 4)]),
+  card("m_overload", "Перегрузка", "skill", "uncommon", 0, "self", "Получить {surge} Прилива. Сжечь.", [surge(3), burn]),
+  power("m_surge", "Приливная волна", "uncommon", 2, "Взять {draw} карты. Получить {block} блока. В начале такта: ещё +{surge} Прилив.", [draw(2), block(6)],
+    { power: tactStart([surge(1)]) }),
+  // Общие
+  chained(card("m_mirror", "Зеркальный щит", "skill", "uncommon", 1, "self", "Получить {block} блока. Починка {repair}. После атаки: ещё {block} блока.",
+    [block(5), repair(1)]), "afterAttack", [block(4)]),
+  card("m_time_skip", "Скачок", "skill", "uncommon", 1, "self", "Получить {haste} Ускорения и {surge} Прилив.", [energy(2), surge(1)]),
 
   // ---------- Редкие ----------
+  // Огонь. У Пиробласта два бонуса цепочки: поджечь в начале или закрыть цепочку взрывом
   chained(chained(card("m_pyroblast", "Пиробласт", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Наложить {burning} Горения. Первая: ещё {burning} Горения. Финал: ещё {damage} урона.",
-    [damage(22), burning(5)], { effects: [damage(28), burning(7)] }), "first", [burning(3)], [burning(4)]), "final", [damage(10)], [damage(12)]),
-  card("m_clear_mind", "Ясный разум", "power", "rare", 2, "self", "В начале такта взять {draw} карту.", [], { cost: 1 }, { trigger: "onTactStart", effects: [draw(1)] }),
-  card("m_absolute_zero", "Абсолютный ноль", "skill", "rare", 2, "allEnemies", "Наложить {slow} Замедления всем врагам. Получить {block} блока. Сжечь.",
-    [slowAll(2), block(14), burn], { effects: [slowAll(2), block(18), burn] }),
-  card("m_inferno", "Инферно", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(22)], { effects: [damage(30)] }),
-  chained(chained(card("m_starfall", "Звездопад", "attack", "rare", 4, "allEnemies",
-    "Нанести {damage} урона всем врагам 4 раза. После атаки: ещё удар на {damage} всем. Финал: Замедление {slow} всем.",
-    hits(5, 4), { effects: hits(7, 4) }), "afterAttack", [damage(5)], [damage(7)]), "final", [allStatus("slow", 1)], [allStatus("slow", 2)]),
-  card("m_archmage", "Архимаг", "power", "rare", 3, "self", "Получить {strength} Силы.", [selfStatus("strength", 6)], { cost: 2 }),
-  card("m_mana_storm", "Буря маны", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам: +3 за каждый Прилив.", [grow(damage(4), "surge", 3)],
-    { effects: [grow(damage(6), "surge", 4)], description: "Нанести {damage} урона всем врагам: +4 за каждый Прилив." }),
-  card("m_time_warp", "Остановка времени", "skill", "rare", 3, "allEnemies", "Наложить Оглушение всем врагам: их следующее действие сорвётся. Сжечь.",
-    [allStatus("stun", 1), burn], { cost: 2 }),
+    [damage(24), burning(6)]), "first", [burning(3)]), "final", [damage(8)]),
+  card("m_inferno", "Инферно", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем врагам. Наложить {burning} Горения всем.", [damage(26), burning(7)]),
+  card("m_incinerate", "Испепеление", "attack", "rare", 2, "enemy", "Нанести {damage} урона. Наложить {burning} Горения. Сжечь.", [damage(22), burning(7), burn]),
+  // Лёд и время
+  card("m_blizzard", "Снежная буря", "attack", "rare", 3, "allEnemies", "Нанести {damage} урона всем врагам. Наложить {slow} Замедления всем. Получить {block} блока.",
+    [damage(12), slow(2), block(10)]),
+  card("m_ice_prison", "Ледяная тюрьма", "skill", "rare", 2, "enemy", "Оглушение. Наложить {slow} Замедления. Получить {block} блока.", [stun, slow(2), block(4)]),
+  card("m_absolute_zero", "Абсолютный ноль", "skill", "rare", 2, "allEnemies", "Наложить {slow} Замедления всем врагам. Получить {block} блока. Сжечь.", [slow(3), block(16), burn]),
+  // Чары
+  card("m_thunderclap", "Гроза", "attack", "rare", 3, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам: +2 за каждый Прилив.",
+    [sunderAll(2), grow(damage(14), "surge", 2)]),
+  power("m_clear_mind", "Ясный разум", "rare", 2, "Получить {surge} Прилива и {block} блока. В начале такта: взять {draw} карту.", [surge(2), block(6)], { power: tactStart([draw(1)]) }),
+  card("m_spark_chain", "Чародейский поток", "attack", "rare", 1, "enemy", "Нанести {damage} урона дважды: каждый удар +1 за Прилив.", hits(3, 2).map((hit) => grow(hit, "surge", 1))),
+  // Общие
+  card("m_time_loop", "Петля времени", "skill", "rare", 0, "self", "Получить {haste} Ускорение и {surge} Прилив. Сжечь.", [energy(1), surge(1), burn]),
+
+  // ---------- Эпические ----------
+  // Огонь
+  chained(card("m_starfall", "Огненный шторм", "attack", "epic", 4, "allEnemies", "Нанести {damage} урона всем врагам четыре раза. Финал: {burning} Горения всем.", hits(9, 4)),
+    "final", [burning(8)]),
+  power("m_flame_heart", "Сердце пламени", "epic", 2, "Наложить {burning} Горения всем врагам. В начале такта: {burning} Горения всем.", [allStatus("burning", 3)],
+    { power: tactStart([allStatus("burning", 2)]) }),
+  // Лёд и время
+  card("m_time_warp", "Остановка времени", "skill", "epic", 3, "allEnemies", "Оглушение всем врагам. Наложить {slow} Замедления всем. Получить {block} блока. Взять {draw} карты. Сжечь.",
+    [stun, slow(2), block(20), draw(2), burn]),
+  power("m_permafrost", "Вечная мерзлота", "epic", 2, "Получить {block} блока. В начале такта: {slow} Замедление всем врагам.", [block(6)], { power: tactStart([allStatus("slow", 1)]) }),
+  // Чары
+  card("m_mana_storm", "Буря маны", "attack", "epic", 4, "allEnemies", "Сокрушение {sunder} всем. Нанести {damage} урона всем врагам: +6 за каждый Прилив.",
+    [sunderAll(2), grow(damage(20), "surge", 6)]),
+  power("m_archmage", "Архимаг", "epic", 2, "Получить {strength} Силы и {surge} Прилива. Взять {draw} карту.", [selfStatus("strength", 4), surge(3), draw(1)]),
+  // Общие
+  card("m_quick_thought", "Ускорение мысли", "skill", "epic", 1, "self", "Взять {draw} карты. Получить {haste} Ускорения.", [draw(2), energy(2)]),
+
+  // ---------- Легендарные: у каждой — эффект-правило, в колоде не больше одной копии ----------
+  // Огонь: Горение на врагах перестаёт убывать
+  power("m_eternal_flame", "Вечное пламя", "legendary", 2, "Горение на врагах больше не убывает. Наложить {burning} Горения всем врагам.", [allStatus("burning", 4)],
+    { rules: { burningStays: true } }),
+  // Лёд и время: Замедление на врагах не тратится — каждое их действие на клетку тяжелее до конца боя
+  power("m_time_lord", "Властелин времени", "legendary", 2, "Замедление на врагах больше не тратится. Наложить {slow} Замедление всем врагам.", [allStatus("slow", 1)],
+    { rules: { slowStays: true } }),
+  // Чары: подготовка усиливает вдвое, а не в полтора раза; потолок Прилива 10 вместо 6
+  power("m_archmagic", "Архимагия", "legendary", 2, "Подготовленное заклинание сильнее вдвое, а не в полтора раза. Потолок Прилива — 10. Получить {surge} Прилива.", [surge(2)],
+    { rules: { preparedBoost: 2, caps: { surge: 10 } } }),
 ];

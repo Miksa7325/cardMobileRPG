@@ -849,8 +849,10 @@ function pickNextAction(combat: Combat): (() => void) | null {
 }
 
 // Действие героя или врага сработало: стаки Замедления и Ускорения, ушедшие на него, тратятся
-function spendTimingStacks(unit: HeroUnit | EnemyUnit, slot: { slowed: boolean; hasted: boolean }): void {
-  if (slot.slowed) reduceStatus(unit, "slow");
+function spendTimingStacks(combat: Combat, unit: HeroUnit | EnemyUnit, slot: { slowed: boolean; hasted: boolean }): void {
+  // «Властелин времени»: Замедление на врагах не тратится
+  const slowStays = unit !== combat.hero && combat.hero.rules?.slowStays;
+  if (slot.slowed && !slowStays) reduceStatus(unit, "slow");
   if (slot.hasted) reduceStatus(unit, "haste");
 }
 
@@ -897,7 +899,7 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   item.resolved = true;
   item.start = slot.start;
   item.end = combat.clock;
-  spendTimingStacks(combat.hero, slot);
+  spendTimingStacks(combat, combat.hero, slot);
   // У Мага Оглушение срывает ближайшее подготовленное заклинание, а не карту на дорожке
   if (combat.prepared.length === 0 && stunned(combat, combat.hero, "hero")) {
     if (item.card) {
@@ -926,14 +928,14 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
 function resolvePrepared(combat: Combat, spell: PreparedSpell, slot: HeroSlot): void {
   combat.acting = `prep:${spell.id}`;
   combat.prepared = combat.prepared.filter((entry) => entry !== spell);
-  spendTimingStacks(combat.hero, slot);
+  spendTimingStacks(combat, combat.hero, slot);
   // Сорванное заклинание Мага уходит в сброс
   if (stunned(combat, combat.hero, "hero")) {
     combat.piles.discard.push(spell.card);
     drawAfterResolve(combat);
     return;
   }
-  playResolvedCard(combat, spell.card, spell.targetId, T.preparedBoost);
+  playResolvedCard(combat, spell.card, spell.targetId, combat.hero.rules?.preparedBoost ?? T.preparedBoost);
   drawAfterResolve(combat);
   combat.acting = undefined;
 }
@@ -996,7 +998,7 @@ function resolveEnemyAction(combat: Combat, enemy: EnemyUnit, slot: ReturnType<t
   combat.acting = `enemy:${enemy.instanceId}:${slot.action.id}`;
   slot.action.resolved = true;
   slot.action.end = combat.clock;
-  spendTimingStacks(enemy, slot);
+  spendTimingStacks(combat, enemy, slot);
   if (stunned(combat, enemy, enemy.instanceId)) return;
   bleed(combat, enemy, slot.weight, enemy.instanceId);
   if (isOver(combat) || enemy.hp <= 0) return;

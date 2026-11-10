@@ -122,9 +122,10 @@ export const HEROES: Record<HeroId, HeroData> = {
       ],
     },
     deck: [
+      // 4 атаки, 4 защиты, карта починки и карта темы класса (docs/classes.md)
       "m_spark", "m_spark", "m_spark", "m_spark",
-      "m_barrier", "m_barrier", "m_barrier", "m_rune_ward",
-      "m_frostbolt", "m_arcane_blast",
+      "m_barrier", "m_barrier", "m_barrier", "m_barrier",
+      "m_rune_ward", "m_arcane_blast",
     ],
     relics: ["moon_bell"],
   },

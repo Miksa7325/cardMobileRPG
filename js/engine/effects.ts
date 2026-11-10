@@ -218,7 +218,8 @@ export function applyBurning(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   unit.hp -= hpLost;
   if (unit === combat.hero && hpLost > 0 && unit.hp > 0) fireTrigger(combat, "onHpLost");
   recordEvent(combat, { type: "burning", targetId: unitId(combat, unit), amount: stacks, hpLost, blocked: absorbed, hp: unit.hp, block: unit.block });
-  const left = Math.floor(stacks / 2);
+  // «Вечное пламя»: Горение на врагах не убывает
+  const left = unit !== combat.hero && combat.hero.rules?.burningStays ? stacks : Math.floor(stacks / 2);
   if (left > 0) unit.statuses.burning = left;
   else delete unit.statuses.burning;
   notifyIfEnemyDied(combat, unit);

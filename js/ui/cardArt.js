@@ -324,6 +324,10 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 
 // Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
 const BORROWED_ART = {
+  // Новая колода Мага (этап 7): рисунки прежних карт, свои — на этапе 9
+  m_fire_pillar: "m_pyroblast", m_blink: "m_time_warp", m_insight: "m_mana_tap", m_wildfire: "m_inferno", m_freeze: "m_frost_aura",
+  m_incinerate: "m_ignite", m_time_loop: "m_spell_echo", m_flame_heart: "m_flame_wave", m_permafrost: "m_frost_nova", m_quick_thought: "m_arcane_veil",
+  m_eternal_flame: "m_spark_rain", m_time_lord: "m_static", m_archmagic: "m_lightning",
   // Новая колода Чернокнижника (этап 7): рисунки прежних карт, свои — на этапе 9
   w_blood_shield: "w_blood_price", w_shackles: "w_sap", w_pyre: "w_embers", w_grave_cold: "w_grave_bolt", w_dark_mark: "w_curse_hit",
   w_blood_moon: "w_hunger", w_offering: "w_blood_offering", w_dark_verdict: "w_annihilate", w_doom_seal: "w_agony", w_soul_plague: "w_nether_storm",

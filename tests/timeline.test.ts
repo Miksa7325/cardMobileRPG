@@ -304,14 +304,14 @@ describe("Маг: подготовка", () => {
   const prepEnd = (combat: ReturnType<typeof fight>, index = 0) => heroSchedule(combat).prepared.get(combat.prepared[index].id)!.end;
 
   it("готовится 2 × вес клеток, срабатывает сразу, как готово, и на 50% сильнее", () => {
-    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark"]); // 5 урона, вес 1: готовится 2 клетки
+    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark"]); // 6 урона, вес 1: готовится 2 клетки
     placeCard(combat, uids[0], 0, target, { prepare: true });
     placeCard(combat, uids[1], 1, target);
     placeCard(combat, uids[2], 2, target); // клетки 1 и 2 заняты — ускорения нет
     expect(prepEnd(combat)).toBe(2);
     launch(combat);
     const hits = combat.events.filter((event) => event.type === "hit").map((event) => event.hpLost);
-    expect(hits).toEqual([5, 5, 7]); // две карты в клетках 1 и 2, затем заклинание после клетки 2
+    expect(hits).toEqual([6, 6, 9]); // две карты в клетках 1 и 2, затем заклинание после клетки 2
   });
   it("пустая клетка основной шкалы ускоряет подготовку на 1", () => {
     const { combat, uids, target } = mage(["m_pyroblast"]); // вес 3: готовится 6 клеток
@@ -324,7 +324,7 @@ describe("Маг: подготовка", () => {
     expect(prepEnd(combat)).toBe(2); // каждая пустая клетка даёт 3
   });
   it("заклинания готовятся очередью, лишнее переходит на следующий ход", () => {
-    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark", "m_spark", "m_frostbolt", "m_frostbolt", "m_frostbolt"]);
+    const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark", "m_spark", "m_ice_armor", "m_ice_armor", "m_ice_armor"]);
     for (let i = 0; i < 4; i++) placeCard(combat, uids[i], i + 1, target); // клетки 1–4 заняты
     for (let i = 4; i < 7; i++) placeCard(combat, uids[i], 0, target, { prepare: true }); // вес 2: по 4 клетки
     // клетки 5 и 6 пустые — по 2; третье не успевает: клетки следующего хода считаются без ускорения
@@ -347,7 +347,7 @@ describe("Маг: подготовка", () => {
     placeCard(combat, uids[1], 2, target);
     combat.hero.statuses.stun = 1;
     launch(combat);
-    expect(enemy.hp).toBe(500 - 5); // сорвалось подготовленное, карта на дорожке сработала
+    expect(enemy.hp).toBe(500 - 6); // сорвалось подготовленное, карта на дорожке сработала
   });
 });
 

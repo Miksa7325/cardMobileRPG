@@ -127,6 +127,9 @@ export interface HeroRules {
   leechStays?: boolean; // Печать крови на врагах не убывает («Бог крови»)
   exhaustToDiscard?: boolean; // сожжённые карты уходят в сброс («Феникс»)
   weakStays?: boolean; // Слабость на врагах не убывает («Владыка проклятий»)
+  burningStays?: boolean; // Горение на врагах не убывает («Вечное пламя»)
+  slowStays?: boolean; // Замедление на врагах не тратится («Властелин времени»)
+  preparedBoost?: number; // во сколько раз сильнее подготовленное заклинание («Архимагия» — 2)
   caps?: Partial<Record<StatusId, number>>;
 }
 
