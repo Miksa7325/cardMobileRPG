@@ -121,6 +121,9 @@ export interface ChainBonus {
 // eternalBlock — блок героя не исчезает со временем, caps — свой потолок статуса (Ярость 20 вместо 10)
 export interface HeroRules {
   eternalBlock?: boolean;
+  keepCombo?: boolean; // пустая клетка не обнуляет Комбо («Бесконечная цепь»)
+  poisonStays?: boolean; // Яд на врагах не убывает («Королева ядов»)
+  zeroWeightUnlimited?: boolean; // нет лимита карт весом 0 за такт («Призрак»)
   caps?: Partial<Record<StatusId, number>>;
 }
 

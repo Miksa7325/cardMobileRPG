@@ -324,6 +324,10 @@ for (const [theme, ids] of Object.entries(THEMES)) for (const id of ids) CARD_TH
 
 // Новые карты этапа 5 пока берут рисунок похожей карты; свои рисунки — на этапе 9
 const BORROWED_ART = {
+  // Новая колода Убийцы (этап 7): рисунки прежних карт, свои — на этапе 9
+  a_quick_cut: "a_lunge", a_link: "a_flurry", a_festering: "a_venom_nick", a_shadow_dash: "a_light_feet", a_cascade: "a_fan_knives",
+  a_plague_blade: "a_envenom", a_toxic_volley: "a_toxic_throw", a_plague_edge: "a_thousand_poisons", a_blood_trail: "a_crippling",
+  a_trance: "a_killer_instinct", a_blood_rain: "a_caltrops", a_endless_chain: "a_assassinate", a_poison_queen: "a_death_mark", a_ghost: "a_camouflage",
   // Новая колода Воина (этап 7): рисунки прежних карт, свои — на этапе 9
   heavy_swing: "heavy_blow", seam_strike: "sunder", crushing_blow: "finishing_blow", ram: "shoulder_charge", wide_swing: "cleave",
   deaf_guard: "brace", rebuff: "parry", furious_lunge: "wild_slash", through_pain: "reckless_swing",

@@ -47,11 +47,10 @@ export const HEROES: Record<HeroId, HeroData> = {
       passives: [{ trigger: "onCardPlayed", effects: gain("combo") }],
     },
     deck: [
-      // Уколы и Перекаты вместо Ударов и Уклонений, двое Метательных ножей: после правила карт весом 0
-      // Убийца потерял бесплатные действия (подобрано симулятором)
-      "a_stab", "a_stab", "a_throwing_knives", "a_throwing_knives",
-      "a_roll", "a_roll", "a_roll", "a_tighten",
-      "a_dart", "a_finisher",
+      // 4 атаки, 4 защиты, карта починки и карта темы класса (docs/classes.md)
+      "a_strike", "a_strike", "a_strike", "a_strike",
+      "a_roll", "a_roll", "a_roll", "a_roll",
+      "a_tighten", "a_finisher",
     ],
     relics: ["venom_ring"],
   },

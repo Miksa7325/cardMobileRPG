@@ -15,7 +15,9 @@ describe("уровни улучшений", () => {
     expect(damageOf(strike(1))).toBe(7); // 6 × 1.2 = 7.2
   });
   it("у карты со своей улучшенной версией первая ступень — она", () => {
-    expect(getCardData({ cardId: "a_stab", level: 1 }).effects).toEqual(CARDS.a_stab.upgraded!.effects);
+    CARDS.t_upgraded = { ...CARDS.strike, id: "t_upgraded", upgraded: { effects: [{ type: "damage", amount: 20 }] } };
+    expect(getCardData({ cardId: "t_upgraded", level: 1 }).effects).toEqual([{ type: "damage", amount: 20 }]);
+    delete CARDS.t_upgraded;
   });
   it("лестница редкости: стартовая → необычная → редкая → эпическая → легендарная", () => {
     expect([0, 1, 2, 3, 4].map((level) => getCardRarity(strike(level)))).toEqual(["starter", "uncommon", "rare", "epic", "legendary"]);

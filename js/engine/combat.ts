@@ -794,7 +794,10 @@ export function launch(combat: Combat): ActionResult {
 // Всё, что происходит на одном стыке: действия, кончившиеся в этой клетке, карты весом 0 на стыке, такты
 function resolveBoundary(combat: Combat, boundary: number): void {
   // Комбо — длина текущей цепочки: прошла пустая клетка дорожки героя — цепочка порвалась, Комбо с нуля
-  if (combat.hero.statuses.combo && !busyCells(combat.lane, heroSchedule(combat).lane).has(boundary)) delete combat.hero.statuses.combo;
+  // («Бесконечная цепь» это правило отменяет)
+  if (combat.hero.statuses.combo && !combat.hero.rules?.keepCombo && !busyCells(combat.lane, heroSchedule(combat).lane).has(boundary)) {
+    delete combat.hero.statuses.combo;
+  }
   advancePreparation(combat, boundary);
   combat.clock = boundary;
   for (const unit of [combat.hero, ...combat.enemies]) expireBlocks(combat, unit);

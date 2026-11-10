@@ -201,7 +201,8 @@ export function applyPoison(combat: Combat, unit: HeroUnit | EnemyUnit): void {
   unit.hp = Math.max(0, unit.hp - stacks);
   if (unit === combat.hero && unit.hp > 0) fireTrigger(combat, "onHpLost");
   recordEvent(combat, { type: "poison", targetId: unitId(combat, unit), amount: stacks, hp: unit.hp, block: unit.block });
-  reduceStatus(unit, "poison");
+  // «Королева ядов»: Яд на врагах не убывает
+  if (unit === combat.hero || !combat.hero.rules?.poisonStays) reduceStatus(unit, "poison");
   notifyIfEnemyDied(combat, unit);
   checkCombatEnd(combat);
 }
