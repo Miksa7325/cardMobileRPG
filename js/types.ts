@@ -47,7 +47,7 @@ export type Trigger =
 export type HeroId = "warrior" | "assassin" | "warlock" | "alchemist" | "mage";
 export type CardType = "attack" | "skill" | "power" | "status";
 export type CardRarity = "starter" | "common" | "uncommon" | "rare";
-// Лестница редкости улучшений: каждое улучшение — ступень выше, после легендарной — звёзды
+// Лестница редкости улучшений: каждое улучшение — ступень выше, легендарная — потолок (звёзд нет)
 export type LadderRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 export type RelicRarity = "starter" | "common" | "uncommon" | "rare" | "boss";
 // На кого играется карта или зелье
@@ -259,7 +259,7 @@ export interface ActData {
   enemyHpMultiplier: number;
   bossHpMultiplier?: number;
   enemyStrength: number;
-  rewards: { essences: number; rarityWeights: RarityWeights; relics: RelicRarity[]; potionChance: number };
+  rewards: { essences: number; rarityWeights: RarityWeights; relics: RelicRarity[] };
 }
 
 export interface EventChoice {

@@ -1,6 +1,6 @@
-// Автотесты уровней улучшений: ступени редкости до легендарной и звёзды после неё. Запуск: npm test
+// Автотесты уровней улучшений: ступени редкости до легендарной, дальше — потолок (звёзд нет). Запуск: npm test
 import { describe, expect, it } from "vitest";
-import { canUpgradeFirstStep, getCardData, getCardRarity, getCardStars, stepsToLegendary, upgradeCard } from "../js/engine/deck.ts";
+import { canUpgradeFirstStep, canUpgradeFurther, getCardData, getCardRarity, stepsToLegendary, upgradeCard } from "../js/engine/deck.ts";
 
 const strike = (level: number) => ({ cardId: "strike", level });
 const damageOf = (card: { cardId: string; level: number }) => {
@@ -26,20 +26,19 @@ describe("уровни улучшений", () => {
     expect(damageOf(strike(3))).toBe(13); // 9 × 1.4 = 12.6
     expect(damageOf(strike(4))).toBe(15); // 9 × 1.6 = 14.4
   });
-  it("после легендарной каждое улучшение — звезда: +10% к числам", () => {
-    expect(getCardStars(strike(4))).toBe(0);
-    expect(getCardStars(strike(6))).toBe(2);
-    expect(damageOf(strike(5))).toBe(17); // 15 × 1.1 = 16.5
-    expect(damageOf(strike(6))).toBe(18); // 15 × 1.2
+  it("звёзд нет: легендарная — потолок, дальше карта не улучшается", () => {
+    expect(canUpgradeFurther(strike(3))).toBe(true);
+    expect(canUpgradeFurther(strike(4))).toBe(false);
   });
   it("плата HP и добор от ступеней не растут", () => {
     const swing = getCardData({ cardId: "reckless_swing", level: 4 });
     expect(swing.effects.find((e) => e.type === "loseHp")).toMatchObject({ amount: 3 });
   });
-  it("улучшать можно без ограничения", () => {
+  it("улучшения останавливаются на легендарной", () => {
     const card = strike(0);
     for (let i = 0; i < 8; i++) upgradeCard(card);
-    expect(card.level).toBe(8);
+    expect(card.level).toBe(4);
+    expect(getCardRarity(card)).toBe("legendary");
   });
   it("отдых, арена и события дают только первую ступень", () => {
     expect(canUpgradeFirstStep(strike(0))).toBe(true);

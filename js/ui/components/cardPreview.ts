@@ -1,6 +1,6 @@
 // Большая карта поверх экрана: полное описание, термины и что даст улучшение.
 import { TEXTS } from "../../data/texts.ru.ts";
-import { canUpgradeCard, getCardData, getCardRarity, getCardStars } from "../../engine/deck.ts";
+import { canUpgradeCard, getCardData, getCardRarity } from "../../engine/deck.ts";
 import type { CardInstance } from "../../types.ts";
 
 type Hero = { statuses: Record<string, number | undefined> };
@@ -55,9 +55,8 @@ export function openCardPreview(instance: CardInstance, hero: Hero): void {
 
   const text = formatDescription(card, hero);
   const details: HTMLElement = el("div", "preview__details");
-  // Редкость — с учётом улучшений, после легендарной — звёзды
-  const stars = getCardStars(instance);
-  const rarity = `${TEXTS.preview.rarities[getCardRarity(instance)]}${stars > 0 ? ` ${"★".repeat(stars)}` : ""}`;
+  // Редкость — с учётом улучшений; легендарная — потолок
+  const rarity = TEXTS.preview.rarities[getCardRarity(instance)];
   details.append(
     el("p", "preview__kind", `${TEXTS.preview.types[card.type]} · ${rarity}`),
     createRichText("preview__text", text),

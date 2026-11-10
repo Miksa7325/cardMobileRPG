@@ -16,12 +16,25 @@ function winIn(type: NodeType, seed: number): Run {
 }
 
 describe("Осколки мастерства", () => {
-  it("обычный бой: 1 Осколок примерно в 20% боёв", () => {
-    const drops = Array.from({ length: 400 }, (_, seed) => winIn("battle", seed).pendingReward!.shards);
+  it("обычный бой: 1 Осколок примерно в 5% боёв", () => {
+    const drops = Array.from({ length: 800 }, (_, seed) => winIn("battle", seed).pendingReward!.shards);
     expect(drops.every((amount) => amount === 0 || amount === 1)).toBe(true);
     const share = drops.filter((amount) => amount === 1).length / drops.length;
-    expect(share).toBeGreaterThan(0.14);
-    expect(share).toBeLessThan(0.26);
+    expect(share).toBeGreaterThan(0.02);
+    expect(share).toBeLessThan(0.09);
+  });
+  it("карта после обычного боя — примерно в 60% боёв, после элиты и босса — всегда; зелий после боёв нет", () => {
+    const rewards = Array.from({ length: 400 }, (_, seed) => winIn("battle", seed).pendingReward!);
+    const withCards = rewards.filter((reward) => reward.cardIds.length > 0).length / rewards.length;
+    expect(withCards).toBeGreaterThan(0.5);
+    expect(withCards).toBeLessThan(0.7);
+    expect(rewards.every((reward) => reward.potionId === null)).toBe(true);
+    for (let seed = 0; seed < 20; seed++) {
+      const elite = winIn("elite", seed).pendingReward!;
+      expect(elite.cardIds.length).toBeGreaterThan(0);
+      expect(elite.potionId).toBeNull();
+      expect(winIn("boss", seed).pendingReward!.cardIds.length).toBeGreaterThan(0);
+    }
   });
   it("элита — 1 гарантированно, босс — 3", () => {
     expect(winIn("elite", 1).pendingReward!.shards).toBe(1);

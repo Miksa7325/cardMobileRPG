@@ -40,12 +40,7 @@ export function getCardRarity(instance: Leveled): LadderRarity | "starter" {
   return LADDER[Math.min(index + instance.level, LADDER.length - 1)];
 }
 
-// Звёзды: улучшения сверх легендарной
-export function getCardStars(instance: Leveled): number {
-  return Math.max(0, instance.level - stepsToLegendary(instance.cardId));
-}
-
-// Какие числа растут от ступеней и звёзд: урон, блок, статусы, Сокрушение, Починка, лечение.
+// Какие числа растут от ступеней: урон, блок, статусы, Сокрушение, Починка, лечение.
 // Добор, вместимость, варка и плата HP не растут: иначе карта с каждой ступенью забирала бы больше HP
 const SCALED: ReadonlySet<string> = new Set(["damage", "block", "applyStatus", "sunder", "repair", "heal"]);
 
@@ -74,7 +69,7 @@ export function chainBonuses(card: CardData): ChainBonus[] {
 }
 
 // Данные карты с учётом уровня: уровень 1 — поля из upgraded. Уровни 2… до легендарной — из levels, а где их нет —
-// по формуле: +20% к числам за каждую такую ступень (округление вверх). После легендарной — звёзды (+10%, до целого)
+// по формуле: +20% к числам за каждую такую ступень (округление вверх). Легендарная — потолок: звёзд нет (разбор механик)
 export function getCardData(instance: Leveled): CardData {
   const card = CARDS[instance.cardId];
   if (instance.level <= 0) return card;
@@ -87,8 +82,6 @@ export function getCardData(instance: Leveled): CardData {
     else formulaSteps += 1;
   }
   if (formulaSteps > 0) data = scaleCard(data, formulaSteps * CONFIG.levelPercent, Math.ceil);
-  const stars = getCardStars(instance);
-  if (stars > 0) data = scaleCard(data, stars * CONFIG.starPercent, (value) => Math.round(value + 1e-9));
   return data;
 }
 
@@ -102,9 +95,14 @@ export function canUpgradeFirstStep(instance: Leveled): boolean {
   return instance.level === 0 && canUpgradeCard(instance.cardId);
 }
 
-// Улучшает карту на один уровень. Ограничения нет: после легендарной — звёзды
+// Можно ли улучшить карту ещё на ступень: легендарная — потолок
+export function canUpgradeFurther(instance: Leveled): boolean {
+  return canUpgradeCard(instance.cardId) && instance.level < stepsToLegendary(instance.cardId);
+}
+
+// Улучшает карту на одну ступень, но не выше легендарной
 export function upgradeCard(instance: Leveled): void {
-  if (canUpgradeCard(instance.cardId)) instance.level += 1;
+  if (canUpgradeFurther(instance)) instance.level += 1;
 }
 
 // Добирает карты; если добор пуст, сброс перемешивается и становится добором

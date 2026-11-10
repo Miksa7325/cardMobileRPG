@@ -581,20 +581,15 @@ function grantRandomPotion(run: Run, rng: Rng): string | null {
   return potionId;
 }
 
-// Зелье в награду за бой выпадает с шансом; если места нет, игрок об этом узнает
-function rollPotionReward(run: Run, rng: Rng): { potionId: string | null; potionsFull: boolean } {
-  if (nextFloat(rng) >= getAct(run).rewards.potionChance) return { potionId: null, potionsFull: false };
-  const potionId = grantRandomPotion(run, rng);
-  return { potionId, potionsFull: potionId === null };
-}
-
 // С монстров падают эссенции, а не золото
 function createBattleReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.battleEssences);
   run.essences += essences;
   const shards = rollShards(run, rng, CONFIG.rewards.shards.battle, CONFIG.rewards.shards.battleChance);
-  return { essences, shards, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
+  // Карта после обычного боя — не всегда (разбор механик); зелья после боёв не выпадают
+  const cardIds = nextFloat(rng) < CONFIG.rewards.battleCardChance ? rollCardChoices(run, rng) : [];
+  return { essences, shards, relicId: null, relicFallbackGold: 0, potionId: null, potionsFull: false, cardIds };
 }
 
 function createEliteReward(run: Run): Reward {
@@ -602,7 +597,7 @@ function createEliteReward(run: Run): Reward {
   const essences = rollEssences(run, rng, CONFIG.rewards.eliteEssences);
   run.essences += essences;
   const shards = rollShards(run, rng, CONFIG.rewards.shards.elite);
-  return { essences, shards, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
+  return { essences, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: rollCardChoices(run, rng) };
 }
 
 // После босса: эссенции, реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
