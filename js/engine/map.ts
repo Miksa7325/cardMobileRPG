@@ -32,7 +32,8 @@ export function generateMap(rng: Rng, mechanic: ActMechanic = {}): DungeonMap {
   }
 
   assignNodeTypes(rng, nodes, rows, mechanic, layout);
-  placeSaveRooms(rng, nodes, rows, layout);
+  placeSpecialRooms(rng, nodes, rows, mechanic);
+  placeSaveRooms(rng, nodes, rows);
   addDeadEnds(rng, nodes, mechanic.deadEnds ?? CONFIG.map.deadEnds, layout);
   placeBoss(rng, nodes, rows, layout);
   return { nodes, rows };
@@ -40,25 +41,42 @@ export function generateMap(rng: Rng, mechanic: ActMechanic = {}): DungeonMap {
 
 // Особые этажи акта: у каждого свой промежуток в CONFIG.map, в каждом акте — свой случайный этаж из него
 export interface MapLayout {
-  chestFloor: number; // этаж, где всегда сундук
-  restFloor: number; // этаж перед боссом, где всегда отдых
   eliteMinFloor: number; // раньше этого этажа элиты нет
   bossMinFloor: number; // туннель к боссу отходит не ниже этого этажа
 }
 
 function rollLayout(rng: Rng): MapLayout {
   const roll = ([from, to]: number[]) => nextInt(rng, from, to);
-  const { chestFloor, restFloor, eliteMinFloor, bossMinFloor } = CONFIG.map;
-  return { chestFloor: roll(chestFloor), restFloor: roll(restFloor), eliteMinFloor: roll(eliteMinFloor), bossMinFloor: roll(bossMinFloor) };
+  const { eliteMinFloor, bossMinFloor } = CONFIG.map;
+  return { eliteMinFloor: roll(eliteMinFloor), bossMinFloor: roll(bossMinFloor) };
+}
+
+// Сундук и отдых перед боссом — отдельные комнаты основных путей, этаж целиком они не занимают (решено 2026-11-10):
+// chestRooms сундуков на этажах chestFloor и restRooms отдыхов на этажах restFloor, каждый на своём пути (в своей колонке).
+// В акте без передышки особого отдыха нет
+function placeSpecialRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], mechanic: ActMechanic): void {
+  const { chestFloor, chestRooms, restFloor, restRooms } = CONFIG.map;
+  pickRooms(rng, nodes, rows, chestFloor, chestRooms, "chest");
+  if (!mechanic.noRest) pickRooms(rng, nodes, rows, restFloor, restRooms, "rest");
+}
+
+function pickRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], [from, to]: number[], count: number, type: NodeType): void {
+  const candidates = rows.flat().map((id) => nodes[id]).filter((node) => node.floor >= from && node.floor <= to && node.type !== "chest" && node.type !== "rest");
+  const chosen: MapNode[] = [];
+  while (chosen.length < count && candidates.length > 0) {
+    const node = candidates.splice(nextInt(rng, 0, candidates.length - 1), 1)[0];
+    if (chosen.every((other) => other.column !== node.column)) chosen.push(node);
+  }
+  for (const node of chosen) node.type = type;
 }
 
 // Комнаты сохранения: 2–3 на акт в случайных комнатах основных путей — не ниже saveMinFloor, не ближе saveGap этажей
-// друг к другу и каждая в своей колонке (на своём пути). Сундук и верхний отдых не трогаем
-function placeSaveRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][], { chestFloor, restFloor }: MapLayout): void {
+// друг к другу и каждая в своей колонке (на своём пути). Сундук и отдых не трогаем
+function placeSaveRooms(rng: Rng, nodes: Record<string, MapNode>, rows: string[][]): void {
   const { saveRooms, saveMinFloor, saveGap } = CONFIG.map;
   const count = nextInt(rng, saveRooms[0], saveRooms[1]);
   const candidates = rows.flat().map((id) => nodes[id])
-    .filter((node) => node.floor >= saveMinFloor && node.floor !== chestFloor && node.floor !== restFloor);
+    .filter((node) => node.floor >= saveMinFloor && node.type !== "chest" && node.type !== "rest");
   const chosen: MapNode[] = [];
   while (chosen.length < count && candidates.length > 0) {
     const node = candidates.splice(nextInt(rng, 0, candidates.length - 1), 1)[0];
@@ -162,19 +180,16 @@ function assignNodeTypes(rng: Rng, nodes: Record<string, MapNode>, rows: string[
   }
 }
 
-// В акте без передышки отдыха нет: верхний этаж отдыха становится событием
+// В акте без передышки отдыха нет. Особые сундук и отдых ставит placeSpecialRooms поверх случайных комнат
 function pickNodeType(rng: Rng, floor: number, parentNodes: MapNode[], mechanic: ActMechanic, layout: MapLayout): NodeType {
-  const { chestFloor, restFloor, eliteMinFloor } = layout;
+  const { eliteMinFloor } = layout;
   const { nodeWeights } = CONFIG.map;
   if (floor === 1) return "battle";
-  if (floor === chestFloor) return "chest";
-  if (floor === restFloor) return mechanic.noRest ? "event" : "rest";
 
   const weights: Partial<Record<NodeType, number>> = { ...nodeWeights };
   if (mechanic.noRest) delete weights.rest;
   if (floor < eliteMinFloor) delete weights.elite;
   // Отдых и Тайник не стоят два раза подряд на одном пути
-  if (floor + 1 === restFloor) delete weights.rest;
   for (const parent of parentNodes) {
     if (parent.type === "rest") delete weights.rest;
     if (parent.type === "cache") delete weights.cache;

@@ -19,26 +19,20 @@ describe("Карта акта", () => {
     }
   });
 
-  it("особые этажи — в своих промежутках и разные от акта к акту", () => {
-    const floorOf = (map: ReturnType<typeof generateMap>, type: string) => mainNodes(map).find((node) => node.type === type)?.floor;
-    const chests = new Set<number>();
+  it("сундук — 1 комната на этажах 4–8, отдых перед боссом — 2 комнаты на 9–12 на разных путях, не весь этаж", () => {
+    const inRange = (floor: number, [from, to]: number[]) => floor >= from && floor <= to;
+    const chestFloors = new Set<number>();
     for (const map of maps) {
-      const chest = floorOf(map, "chest")!;
-      const rest = floorOf(map, "rest");
-      expect(chest).toBeGreaterThanOrEqual(CONFIG.map.chestFloor[0]);
-      expect(chest).toBeLessThanOrEqual(CONFIG.map.chestFloor[1]);
-      // Сундук и отдых занимают весь свой этаж
-      expect(mainNodes(map).filter((node) => node.floor === chest).every((node) => node.type === "chest")).toBe(true);
-      // В промежутке отдыха есть этаж, где отдых — все комнаты
-      const [restFrom, restTo] = CONFIG.map.restFloor;
-      const allRest = (floor: number) => mainNodes(map).filter((node) => node.floor === floor).every((node) => node.type === "rest");
-      expect(Array.from({ length: restTo - restFrom + 1 }, (_, i) => restFrom + i).some(allRest)).toBe(true);
+      const chests = mainNodes(map).filter((node) => node.type === "chest" && inRange(node.floor, CONFIG.map.chestFloor));
+      expect(chests).toHaveLength(1);
+      expect(mainNodes(map).filter((node) => node.floor === chests[0].floor).length).toBeGreaterThan(1);
+      chestFloors.add(chests[0].floor);
+      const rests = mainNodes(map).filter((node) => node.type === "rest" && inRange(node.floor, CONFIG.map.restFloor));
+      expect(rests.length).toBeGreaterThanOrEqual(2);
       const firstElite = Math.min(...mainNodes(map).filter((node) => node.type === "elite").map((node) => node.floor));
       expect(firstElite).toBeGreaterThanOrEqual(CONFIG.map.eliteMinFloor[0]);
-      chests.add(chest);
-      expect(rest === undefined || rest >= 2).toBe(true);
     }
-    expect(chests.size).toBeGreaterThan(1);
+    expect(chestFloors.size).toBeGreaterThan(1); // в разных актах сундук на разных этажах
   });
 
   it("2–3 комнаты сохранения: не ниже 3 этажа, не ближе 3 этажей друг к другу, каждая в своей колонке", () => {

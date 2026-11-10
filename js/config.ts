@@ -56,13 +56,17 @@ export const CONFIG = {
     bossMinFloor: [7, 10], // туннель к боссу отходит от комнаты не ниже этого этажа: иначе акт проходился бы за пару боёв
     deadEndChestChance: 0.3, // шанс, что в тупике сундук, а не пустая стена
     deadEndRoomWeights: { battle: 50, event: 30, elite: 20 }, // кто ждёт в комнате перед тупиком
-    chestFloor: [4, 8], // этаж, где всегда сундук
+    // Сундук и отдых перед боссом — отдельные комнаты, этаж целиком они не занимают:
+    // chestRooms сундуков на этажах chestFloor, restRooms отдыхов на этажах restFloor (каждый на своём пути)
+    chestFloor: [4, 8],
+    chestRooms: 1,
     // Комнаты сохранения (только из них можно подняться в город): 2–3 на акт в случайных комнатах основных путей,
     // не ниже saveMinFloor, не ближе saveGap этажей друг к другу и каждая в своей колонке
     saveRooms: [2, 3],
     saveMinFloor: 3,
     saveGap: 3,
-    restFloor: [9, 12], // этаж перед боссом, где всегда отдых
+    restFloor: [9, 12],
+    restRooms: 2,
     eliteMinFloor: [3, 6], // раньше этого этажа элиты нет
     nodeWeights: { battle: 44, event: 24, rest: 12, elite: 8, cache: 5 }, // доли узлов; cache — Тайник
   },
