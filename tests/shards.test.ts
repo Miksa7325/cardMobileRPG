@@ -36,8 +36,9 @@ describe("Осколки мастерства", () => {
       expect(winIn("boss", seed).pendingReward!.cardIds.length).toBeGreaterThan(0);
     }
   });
-  it("элита — 1 гарантированно, босс — 3", () => {
-    expect(winIn("elite", 1).pendingReward!.shards).toBe(1);
+  it("элита — 1 гарантированно (и ещё 1, если реликвия не выпала), босс — 3", () => {
+    const elite = winIn("elite", 1).pendingReward!;
+    expect(elite.shards).toBe(elite.relicId ? 1 : 2);
     expect(winIn("boss", 1).pendingReward!.shards).toBe(3);
   });
   it("в казну Осколки уходят вместе с добычей", () => {

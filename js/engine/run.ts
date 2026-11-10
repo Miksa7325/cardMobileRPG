@@ -484,7 +484,7 @@ const RUN_EFFECT_HANDLERS: { [T in RunEffectType]: RunHandler<T> } = {
       return [{ kind: "relic", id: effect.relicId }];
     }
     const relic = grantRandomRelic(run, rng);
-    return [relic.relicId ? { kind: "relic", id: relic.relicId } : { kind: "gold", amount: relic.relicFallbackGold }];
+    return [relic.relicId ? { kind: "relic", id: relic.relicId } : { kind: "shards", amount: relic.fallbackShards }];
   },
   gainPotion(run, effect, rng) {
     if (effect.potionId) {
@@ -552,16 +552,22 @@ function rollShards(run: Run, rng: Rng, base: number, chance = 1): number {
   return shards;
 }
 
-// Даёт случайную новую реликвию. Если новых нет, вместо неё золото. Без rarities — какие положены в этом акте
-function grantRandomRelic(run: Run, rng: Rng, rarities: RelicRarity[] = getAct(run).rewards.relics): { relicId: string | null; relicFallbackGold: number } {
+// Даёт случайную новую реликвию. Если новых нет, вместо неё Осколки (docs/relics.md): они сразу у героя
+function grantRandomRelic(run: Run, rng: Rng, rarities: RelicRarity[] = getAct(run).rewards.relics): { relicId: string | null; fallbackShards: number } {
   const pool = getRelicPool(run, rarities);
   if (pool.length === 0) {
-    run.gold += CONFIG.rewards.relicFallbackGold;
-    return { relicId: null, relicFallbackGold: CONFIG.rewards.relicFallbackGold };
+    run.shards += CONFIG.rewards.relicFallbackShards;
+    return { relicId: null, fallbackShards: CONFIG.rewards.relicFallbackShards };
   }
   const relic = pickRandom(rng, pool);
   addRelic(run, relic.id);
-  return { relicId: relic.id, relicFallbackGold: 0 };
+  return { relicId: relic.id, fallbackShards: 0 };
+}
+
+// Реликвия в награду: что выдано и сколько Осколков прибавить к награде вместо неё
+function relicReward(run: Run, rng: Rng): { relicId: string | null; extraShards: number } {
+  const { relicId, fallbackShards } = grantRandomRelic(run, rng);
+  return { relicId, extraShards: fallbackShards };
 }
 
 // Зелья, которые могут выпасть: без тех, что ещё не открыты постройками
@@ -590,38 +596,44 @@ function createBattleReward(run: Run): Reward {
   const shards = rollShards(run, rng, CONFIG.rewards.shards.battle, CONFIG.rewards.shards.battleChance);
   // Карта после обычного боя — не всегда (разбор механик); зелья после боёв не выпадают
   const cardIds = nextFloat(rng) < CONFIG.rewards.battleCardChance ? rollCardChoices(run, rng) : [];
-  return { essences, shards, relicId: null, relicFallbackGold: 0, potionId: null, potionsFull: false, cardIds };
+  return { essences, shards, relicId: null, potionId: null, potionsFull: false, cardIds };
 }
 
 function createEliteReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.eliteEssences);
   run.essences += essences;
-  const shards = rollShards(run, rng, CONFIG.rewards.shards.elite);
-  return { essences, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: rollCardChoices(run, rng, undefined, undefined, CONFIG.rewards.eliteMinRarity as LadderRarity) };
+  let shards = rollShards(run, rng, CONFIG.rewards.shards.elite);
+  // Реликвий на всю игру 10 (docs/relics.md): после элиты реликвия — с шансом, иначе Осколок сверх обычного
+  let relicId: string | null = null;
+  if (nextFloat(rng) < CONFIG.rewards.eliteRelicChance) {
+    const relic = relicReward(run, rng);
+    relicId = relic.relicId;
+    shards += relic.extraShards;
+  } else {
+    run.shards += 1;
+    shards += 1;
+  }
+  const cardIds = rollCardChoices(run, rng, undefined, undefined, CONFIG.rewards.eliteMinRarity as LadderRarity);
+  return { essences, shards, relicId, potionId: null, potionsFull: false, cardIds };
 }
 
-// После босса: эссенции, реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
+// После босса: эссенции, реликвия (всегда) и карты редкой редкости и выше
 function createBossReward(run: Run): Reward {
   const rng = nodeRng(run, "reward");
   const essences = rollEssences(run, rng, CONFIG.rewards.bossEssences);
   run.essences += essences;
-  const shards = rollShards(run, rng, CONFIG.rewards.shards.boss);
-  return {
-    essences,
-    shards,
-    ...grantRandomRelic(run, rng, ["boss"]),
-    potionId: null,
-    potionsFull: false,
-    cardIds: rollCardChoices(run, rng, CONFIG.rewards.bossRarity),
-  };
+  const relic = relicReward(run, rng);
+  const shards = rollShards(run, rng, CONFIG.rewards.shards.boss) + relic.extraShards;
+  return { essences, shards, relicId: relic.relicId, potionId: null, potionsFull: false, cardIds: rollCardChoices(run, rng, CONFIG.rewards.bossRarity) };
 }
 
-// Открывает сундук на текущем узле: внутри реликвия
+// Открывает сундук на текущем узле: внутри зелье и Осколок (реликвий на всю игру 10 — сундуки их больше не дают)
 export function openChest(run: Run): void {
   const rng = nodeRng(run, "chest");
-  const shards = rollShards(run, rng, CONFIG.rewards.shards.chest, CONFIG.rewards.shards.chestChance);
-  run.pendingReward = { essences: 0, shards, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
+  const shards = rollShards(run, rng, CONFIG.rewards.shards.chest);
+  const potionId = grantRandomPotion(run, rng);
+  run.pendingReward = { essences: 0, shards, relicId: null, potionId, potionsFull: potionId === null, cardIds: [] };
 }
 
 // Осколки из событий и Тайника: в поздних актах больше — × множитель наград акта, но не меньше 1

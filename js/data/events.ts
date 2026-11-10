@@ -261,7 +261,7 @@ export const EVENTS: Record<string, EventData> = {
       {
         text: "Помочь у горна",
         result: "Жар обжигает руки, зато кузнец отдаёт тебе свои рукавицы.",
-        effects: [{ type: "loseHp", amount: 8 }, { type: "gainRelic", relicId: "smith_gauntlets" }],
+        effects: [{ type: "loseHp", amount: 8 }, { type: "gainRelic" }],
       },
       {
         text: "Подлатать снаряжение",

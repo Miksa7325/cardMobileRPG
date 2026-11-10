@@ -15,7 +15,7 @@
 // enemyStrength акта — Сила всех его врагов: поздние акты собраны из знакомых врагов, и без неё они били бы слабо
 // rewards: essences — множитель эссенций и Осколков за бои: 1 + 0,5 × (акт − 1) (docs/balance.md);
 //   шансы редкости карт в наградах — в CONFIG.rewards.rarityByAct,
-//   relics — какой редкости реликвии у элит и в сундуках. Зелья после боёв не выпадают (разбор механик).
+//   relics — какой редкости реликвии в наградах (все 10 общих — «common», docs/relics.md). Зелья после боёв не выпадают (разбор механик).
 import { CONFIG } from "../config.ts";
 import type { ActData } from "../types.ts";
 export const ACTS: ActData[] = [
@@ -35,7 +35,7 @@ export const ACTS: ActData[] = [
     enemyHpMultiplier: 0.8,
     bossHpMultiplier: 0.92,
     enemyStrength: 0,
-    rewards: { essences: 1, relics: ["common", "uncommon"] },
+    rewards: { essences: 1, relics: ["common"] },
   },
   {
     name: "Затопленный склеп",
@@ -53,7 +53,7 @@ export const ACTS: ActData[] = [
     enemyHpMultiplier: 1,
     bossHpMultiplier: 1.15,
     enemyStrength: 2,
-    rewards: { essences: 1.5, relics: ["common", "uncommon"] },
+    rewards: { essences: 1.5, relics: ["common"] },
   },
   {
     name: "Логово нежити",
@@ -71,7 +71,7 @@ export const ACTS: ActData[] = [
     enemyHpMultiplier: 1,
     bossHpMultiplier: 1.1,
     enemyStrength: 2,
-    rewards: { essences: 2, relics: ["uncommon"] },
+    rewards: { essences: 2, relics: ["common"] },
   },
   {
     name: "Ядовитые топи",
@@ -96,7 +96,7 @@ export const ACTS: ActData[] = [
     // У Матери топей своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 2,
-    rewards: { essences: 2.5, relics: ["uncommon"] },
+    rewards: { essences: 2.5, relics: ["common"] },
   },
   {
     name: "Цитадель тьмы",
@@ -122,7 +122,7 @@ export const ACTS: ActData[] = [
     // У Владыки цитадели своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 2,
-    rewards: { essences: 3, relics: ["uncommon", "boss"] },
+    rewards: { essences: 3, relics: ["common"] },
   },
   {
     name: "Безлунные пещеры",
@@ -148,7 +148,7 @@ export const ACTS: ActData[] = [
     // У Пожирателя света своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 2,
-    rewards: { essences: 3.5, relics: ["uncommon", "boss"] },
+    rewards: { essences: 3.5, relics: ["common"] },
   },
   {
     name: "Кузня демонов",
@@ -171,7 +171,7 @@ export const ACTS: ActData[] = [
     // У Повелителя горна своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 4,
-    rewards: { essences: 4, relics: ["uncommon", "boss"] },
+    rewards: { essences: 4, relics: ["common"] },
   },
   {
     name: "Чумной некрополь",
@@ -190,7 +190,7 @@ export const ACTS: ActData[] = [
     // У Чумного владыки своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 4,
-    rewards: { essences: 4.5, relics: ["uncommon", "boss"] },
+    rewards: { essences: 4.5, relics: ["common"] },
   },
   {
     name: "Легион мёртвых",
@@ -215,7 +215,7 @@ export const ACTS: ActData[] = [
     // У Короля легиона своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 4,
-    rewards: { essences: 5, relics: ["uncommon", "boss"] },
+    rewards: { essences: 5, relics: ["common"] },
   },
   {
     name: "Сердце бездны",
@@ -234,6 +234,6 @@ export const ACTS: ActData[] = [
     // У Сердца бездны своё здоровье: множитель босса не нужен
     bossHpMultiplier: 1,
     enemyStrength: 4,
-    rewards: { essences: 5.5, relics: ["uncommon", "boss"] },
+    rewards: { essences: 5.5, relics: ["common"] },
   },
 ];

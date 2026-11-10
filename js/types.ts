@@ -219,6 +219,7 @@ export interface HeroData {
 // Правило-реликвия меняет само правило шкалы, а не срабатывает по событию. Числа прибавляются к обычным
 export interface RelicRules {
   rerolls?: number; // дополнительные перебросы (обновляются раз в два такта)
+  rerollEveryTact?: boolean; // переброс обновляется каждый такт («Карманные часы»)
   openDraws?: number; // открытые карты добора
   blockCells?: number; // сколько клеток держится блок
   zeroWeight?: number; // карт весом 0 за ход
@@ -236,6 +237,7 @@ export interface RelicData {
   description: string;
   trigger?: Trigger; // у правил-реликвий нет
   effects: Effect[];
+  startEffects?: Effect[]; // ещё и в начале боя (у реликвии с другим trigger)
   cardType?: CardType; // только для карт этого типа
   everyN?: number; // срабатывает каждый N-й раз
   hero?: HeroId; // классовая: выпадает только этому герою
@@ -527,7 +529,6 @@ export interface Reward {
   essences: number;
   shards: number;
   relicId: string | null;
-  relicFallbackGold: number;
   potionId: string | null;
   potionsFull: boolean;
   cardIds: string[];

@@ -155,6 +155,7 @@ export function fireTrigger(combat: Combat, trigger: Trigger, details: { cardTyp
   }
   for (const relicId of combat.relics) {
     const relic = RELICS[relicId];
+    if (trigger === "onCombatStart" && relic.startEffects) runTriggerEffects(combat, relic.startEffects);
     if (relic.trigger === trigger && relicConditionMet(combat, relic, details)) {
       runTriggerEffects(combat, relic.effects);
     }

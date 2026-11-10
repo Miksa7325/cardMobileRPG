@@ -318,11 +318,6 @@ describe("Маг: подготовка", () => {
     placeCard(combat, uids[0], 0, target, { prepare: true });
     expect(prepEnd(combat)).toBe(3); // шкала пустая: каждая клетка даёт 2
   });
-  it("Астролябия: пустая клетка ускоряет на 2", () => {
-    const { combat, uids, target } = mage(["m_pyroblast"], ["astrolabe"]);
-    placeCard(combat, uids[0], 0, target, { prepare: true });
-    expect(prepEnd(combat)).toBe(2); // каждая пустая клетка даёт 3
-  });
   it("заклинания готовятся очередью, лишнее переходит на следующий ход", () => {
     const { combat, uids, target } = mage(["m_spark", "m_spark", "m_spark", "m_spark", "m_ice_armor", "m_ice_armor", "m_ice_armor"]);
     for (let i = 0; i < 4; i++) placeCard(combat, uids[i], i + 1, target); // клетки 1–4 заняты

@@ -1,17 +1,11 @@
-// Автотесты реликвий и зелий этапа 5: правила-реликвии, классовые реликвии, новые зелья. Запуск: npm test
+// Автотесты реликвий (этап 7: 5 стартовых и 10 общих) и зелий. Запуск: npm test
 import { beforeAll, describe, expect, it } from "vitest";
 import { CARDS } from "../js/data/cards.ts";
+import { HEROES } from "../js/data/heroes.ts";
 import { RELICS } from "../js/data/relics.ts";
-import {
-  createCombat, getUpcomingDraws, launch, placeCard, placePotion,
-} from "../js/engine/combat.ts";
-import { addBlock } from "../js/engine/effects.ts";
-import { createMeta } from "../js/engine/meta.ts";
-import { createRun, getRelicPool } from "../js/engine/run.ts";
-import { canPrepare, prepEmptyGain } from "../js/engine/rules.ts";
-import { forgeRelic, getGear } from "../js/engine/town.ts";
-import { createRng } from "../js/engine/rng.ts";
-import type { Combat, HeroId } from "../js/types.ts";
+import { advance, launch, placeCard, placePotion, rerollCard } from "../js/engine/combat.ts";
+import { createNodeCombat, createRun, enterNode, finishCombat, getCurrentNode, openChest } from "../js/engine/run.ts";
+import type { Combat, NodeType, Run } from "../js/types.ts";
 import { deckOf, fight, quiet } from "./helpers.ts";
 
 beforeAll(() => {
@@ -22,59 +16,64 @@ beforeAll(() => {
   };
 });
 
-describe("Правила-реликвии", () => {
-  it("Корона углей: сработавшая карта приводит две новые", () => {
-    const combat = fight({ deck: deckOf("strike", 20), relics: ["crown_of_embers"] });
-    quiet(combat);
-    placeCard(combat, combat.piles.hand[0].uid, 1, combat.enemies[0].instanceId);
-    launch(combat);
-    expect(combat.piles.hand).toHaveLength(6 + 2);
+describe("набор реликвий", () => {
+  it("15 реликвий: 5 стартовых — по одной у класса — и 10 общих", () => {
+    const relics = Object.values(RELICS);
+    expect(relics).toHaveLength(15);
+    expect(relics.filter((relic) => relic.rarity === "starter")).toHaveLength(5);
+    expect(relics.filter((relic) => relic.rarity === "common")).toHaveLength(10);
+    expect(Object.values(HEROES).map((hero) => hero.relics[0]).every((id) => RELICS[id]?.rarity === "starter")).toBe(true);
   });
+});
 
-  it("Карманные часы: +1 переброс за ход", () => {
-    expect(fight({ relics: ["pocket_watch"] }).rerollsLeft).toBe(fight().rerollsLeft + 1);
-  });
-
-  it("Подзорная труба: видны 3 карты добора", () => {
-    const deck = deckOf("strike", 20);
-    expect(getUpcomingDraws(fight({ deck })).length).toBe(2);
-    expect(getUpcomingDraws(fight({ deck, relics: ["spyglass"] })).length).toBe(3);
-  });
-
-  it("Песочные часы: блок держится 8 клеток вместо 6", () => {
-    const expires = (combat: Combat) => {
-      addBlock(combat, combat.hero, 5);
-      return combat.hero.blocks.at(-1)!.expires;
+describe("общие реликвии", () => {
+  it("Карманные часы: переброс обновляется каждый такт", () => {
+    const rerollAfterTact = (relics: string[]) => {
+      const combat = fight({ relics });
+      quiet(combat);
+      rerollCard(combat, combat.piles.hand[0].uid);
+      advance(combat, 3);
+      return combat.rerollsLeft;
     };
-    expect(expires(fight({ relics: ["hourglass"] })) - expires(fight())).toBe(2);
+    expect(rerollAfterTact([])).toBe(0);
+    expect(rerollAfterTact(["pocket_watch"])).toBe(1);
   });
 
-  it("Кости теней: третья карта весом 0 за такт", () => {
-    const place = (relics: string[]) => {
-      const combat = fight({ deck: deckOf("adrenal_rush"), relics });
-      placeCard(combat, combat.piles.hand[0].uid, 0);
+  it("Песочные часы: блок держится 9 клеток вместо 6", () => {
+    const blockAfter = (relics: string[], cells: number) => {
+      const combat = fight({ deck: deckOf("defend"), relics });
+      quiet(combat);
       placeCard(combat, combat.piles.hand[0].uid, 1);
-      return placeCard(combat, combat.piles.hand[0].uid, 2);
+      advance(combat, cells);
+      return combat.hero.block;
     };
-    expect(place([])).toEqual({ ok: false, reason: "zeroLimit" });
-    expect(place(["shadow_dice"]).ok).toBe(true);
+    expect(blockAfter([], 8)).toBe(0);
+    expect(blockAfter(["hourglass"], 8)).toBe(5);
   });
 
-  it("Аламбик: при варке 3 зелья на выбор", () => {
-    const brew = (relics: string[]) => {
-      const combat = createCombat({ heroId: "alchemist", enemyIds: ["skeleton"], seed: 1, deck: deckOf("al_brew"), relics });
-      expect(placeCard(combat, combat.piles.hand[0].uid, 1).ok).toBe(true);
-      return combat.brewChoices[0].options.length;
-    };
-    expect(brew([])).toBe(2);
-    expect(brew(["alembic"])).toBe(3);
+  it("Ремонтный набор: 6 блока в начале боя и Починка 1 в конце такта", () => {
+    const combat = fight({ relics: ["mending_kit"] });
+    quiet(combat);
+    expect(combat.hero.block).toBe(6);
+    combat.hero.statuses.vulnerable = 3;
+    advance(combat, 3);
+    expect(combat.hero.statuses.vulnerable).toBe(2);
   });
 
-  it("Астролябия: пустая клетка ускоряет подготовку на 2 вместо 1; другим героям подготовку не даёт", () => {
-    const mage = (relics: string[]) => createCombat({ heroId: "mage", enemyIds: ["skeleton"], seed: 1, relics });
-    expect(prepEmptyGain(mage([]))).toBe(1);
-    expect(prepEmptyGain(mage(["astrolabe"]))).toBe(2);
-    expect(canPrepare(fight({ relics: ["astrolabe"] }))).toBe(false);
+  it("Точильный камень: каждая 2-я атака — Сокрушение 1 всем врагам", () => {
+    const combat = fight({ relics: ["whetstone"] });
+    quiet(combat);
+    const enemy = combat.enemies[0];
+    placeCard(combat, combat.piles.hand[0].uid, 1, enemy.instanceId);
+    placeCard(combat, combat.piles.hand[0].uid, 2, enemy.instanceId);
+    advance(combat, 1);
+    expect(enemy.statuses.vulnerable).toBeUndefined();
+    advance(combat, 1);
+    expect(enemy.statuses.vulnerable).toBe(1);
+  });
+
+  it("Лёгкие сапоги: 2 Ловкости и Ускорение 1 в начале боя", () => {
+    expect(fight({ relics: ["light_boots"] }).hero.statuses).toMatchObject({ dexterity: 2, haste: 1 });
   });
 
   it("Сердце бездны: «Финал» срабатывает дважды", () => {
@@ -92,53 +91,43 @@ describe("Правила-реликвии", () => {
   });
 });
 
-describe("Реликвии по событиям", () => {
-  it("Осколок льда: Замедление всем врагам в начале боя", () => {
-    const combat = createCombat({ heroId: "warrior", enemyIds: ["skeleton", "skeleton"], seed: 1, relics: ["frost_shard"] });
-    expect(combat.enemies.every((enemy) => enemy.statuses.slow === 1)).toBe(true);
+describe("где выпадают реликвии (docs/relics.md)", () => {
+  // Забег, в котором герой только что победил в комнате нужного вида
+  function winIn(type: NodeType, seed: number, setup: (run: Run) => void = () => {}): Run {
+    const run = createRun({ heroId: "warrior", seed });
+    enterNode(run, run.map.rows[0][0]);
+    getCurrentNode(run).type = type;
+    setup(run);
+    const combat = createNodeCombat(run);
+    combat.status = "won";
+    finishCombat(run, combat);
+    return run;
+  }
+  const commonRelics = Object.values(RELICS).filter((relic) => relic.rarity === "common").map((relic) => relic.id);
+
+  it("босс — реликвия всегда", () => {
+    for (let seed = 0; seed < 20; seed++) expect(winIn("boss", seed).pendingReward!.relicId).not.toBeNull();
   });
 
-  it("Сапоги-скороходы: Ускорение 1 в начале хода", () => {
-    expect(fight({ relics: ["quick_step"] }).hero.statuses.haste).toBe(1);
+  it("элита — реликвия примерно в четверти боёв, иначе Осколок сверх обычного", () => {
+    const rewards = Array.from({ length: 400 }, (_, seed) => winIn("elite", seed).pendingReward!);
+    const share = rewards.filter((reward) => reward.relicId).length / rewards.length;
+    expect(share).toBeGreaterThan(0.17);
+    expect(share).toBeLessThan(0.33);
+    for (const reward of rewards) expect(reward.shards).toBe(reward.relicId ? 1 : 2);
   });
 
-  it("Наковальня: навык чинит доспех", () => {
-    const combat = fight({ deck: deckOf("defend"), relics: ["anvil"] });
-    quiet(combat);
-    combat.hero.statuses.vulnerable = 3;
-    placeCard(combat, combat.piles.hand[0].uid, 1);
-    launch(combat);
-    expect(combat.hero.statuses.vulnerable).toBe(2);
-  });
-});
-
-describe("Классовые реликвии выпадают только своему герою", () => {
-  const classRelics = Object.values(RELICS).filter((relic) => relic.hero);
-
-  it("у каждого класса по одной", () => {
-    expect(classRelics.map((relic) => relic.hero).sort()).toEqual(["alchemist", "assassin", "mage", "warlock", "warrior"]);
+  it("сундук — зелье и Осколок, без реликвии", () => {
+    const run = createRun({ heroId: "warrior", seed: 3 });
+    enterNode(run, run.map.rows[0][0]);
+    openChest(run);
+    expect(run.pendingReward).toMatchObject({ relicId: null, shards: 1 });
+    expect(run.pendingReward!.potionId).not.toBeNull();
   });
 
-  it("в наградах забега — только своя", () => {
-    for (const heroId of ["warrior", "mage"] as HeroId[]) {
-      const pool = getRelicPool(createRun({ heroId, seed: 1 }), ["common", "uncommon"]);
-      const own = pool.filter((relic) => relic.hero).map((relic) => relic.hero);
-      expect(own).toEqual([heroId]);
-    }
-  });
-
-  it("в Кузнице — только своя", () => {
-    const meta = createMeta();
-    meta.buildings.push("forge");
-    meta.gold = 100000;
-    const gear = getGear(meta, null, "assassin");
-    const rng = createRng(7);
-    let relicId: string | null;
-    while ((relicId = forgeRelic(meta, gear, "assassin", rng))) {
-      const hero = RELICS[relicId].hero;
-      expect(hero === undefined || hero === "assassin").toBe(true);
-    }
-    expect(gear.relics).toContain("shadow_dice");
+  it("реликвий не осталось — 2 Осколка вместо реликвии", () => {
+    const run = winIn("boss", 4, (entry) => entry.relics.push(...commonRelics));
+    expect(run.pendingReward).toMatchObject({ relicId: null, shards: 3 + 2 });
   });
 });
 

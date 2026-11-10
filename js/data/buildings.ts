@@ -59,7 +59,7 @@ export const BUILDINGS: Record<string, BuildingData> = {
     description: "Кузнец куёт реликвии на заказ. Его диковины будут попадаться и в забегах.",
     price: 140,
     service: "forge",
-    unlocks: { relics: ["chainmail", "smith_hammer", "keen_edge", "horseshoe", "steel_pauldron"] },
+    unlocks: {}, // реликвии больше не открывает: что Кузнице делать с 10 реликвиями — на этапе 8
   },
   temple: {
     id: "temple",
@@ -70,7 +70,7 @@ export const BUILDINGS: Record<string, BuildingData> = {
     description: "Жрецы возвращают павших героев со всем снаряжением, очищают от лишних карт и благословляют на крепкое здоровье. Паломники несут святыни в забеги.",
     price: 180,
     service: "temple",
-    unlocks: { relics: ["prayer_beads", "holy_water", "censer", "memorial_candle", "evil_eye"] },
+    unlocks: {}, // реликвии больше не открывает — на этапе 8
   },
   training: {
     id: "training",

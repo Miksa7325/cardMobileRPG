@@ -4,7 +4,7 @@ import { HEROES } from "../data/heroes.ts";
 import { RELICS } from "../data/relics.ts";
 import type { Combat, RelicRules } from "../types.ts";
 
-type NumberRule = Exclude<keyof RelicRules, "finalTwice">;
+type NumberRule = Exclude<keyof RelicRules, "finalTwice" | "rerollEveryTact">;
 
 // Сумма прибавок к правилу от всех реликвий героя
 function relicBonus(combat: Combat, rule: NumberRule): number {
@@ -33,6 +33,11 @@ export function canPrepare(combat: Combat): boolean {
 
 // На сколько пустая клетка основной шкалы ускоряет подготовку
 export const prepEmptyGain = (combat: Combat): number => T.prepEmptyCell + relicBonus(combat, "prepEmptyBonus");
+
+// «Карманные часы»: переброс обновляется каждый такт
+export function rerollEveryTact(combat: Combat): boolean {
+  return combat.relics.some((relicId) => RELICS[relicId]?.rules?.rerollEveryTact);
+}
 
 export function finalTwice(combat: Combat): boolean {
   return combat.relics.some((relicId) => RELICS[relicId]?.rules?.finalTwice);

@@ -29,9 +29,6 @@ export function renderRewardScreen(root) {
     const relic = RELICS[reward.relicId];
     screen.append(el("p", "reward__line", TEXTS.reward.relic(relic.name, relic.icon, relic.description)));
   }
-  if (reward.relicFallbackGold > 0) {
-    screen.append(el("p", "reward__line", TEXTS.reward.noRelic(reward.relicFallbackGold)));
-  }
   if (reward.potionId) {
     const potion = POTIONS[reward.potionId];
     screen.append(el("p", "reward__line", TEXTS.reward.potion(potion.name, potion.icon, potion.description)));

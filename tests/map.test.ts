@@ -116,10 +116,8 @@ describe("События этапа 6", () => {
     return run;
   }
 
-  it("Кузнец в подземелье даёт Рукавицы кузнеца, а если они есть — случайную реликвию", async () => {
-    expect((await play("dungeon_smith", 0)).relics).toContain("smith_gauntlets");
-    const again = await play("dungeon_smith", 0, (run) => run.relics.push("smith_gauntlets"));
-    expect(again.relics.length).toBe(3); // стартовая, рукавицы и ещё одна случайная
+  it("Кузнец в подземелье даёт случайную реликвию", async () => {
+    expect((await play("dungeon_smith", 0)).relics).toHaveLength(2); // стартовая и новая
   });
 
   it("Мастерская улучшает именно атаку, а Осколки растут с актом", async () => {

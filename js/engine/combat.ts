@@ -18,7 +18,7 @@ import { HEROES, getMaxPotions } from "../data/heroes.ts";
 import { POTIONS } from "../data/potions.ts";
 import { RELICS } from "../data/relics.ts";
 import {
-  brewOptionCount, canPrepare, drawOnResolve, finalTwice, openDrawCount, prepEmptyGain, rerollsPerTact, zeroWeightPerTact,
+  brewOptionCount, canPrepare, drawOnResolve, finalTwice, openDrawCount, prepEmptyGain, rerollEveryTact, rerollsPerTact, zeroWeightPerTact,
 } from "./rules.ts";
 import type {
   ActionResult, CardData, CardInstance, CardTarget, ChainBonus, Combat, Effect, EnemyAction, EnemyMove, EnemyUnit, HeroId, HeroRules, HeroUnit, Intent,
@@ -1037,7 +1037,7 @@ function resolveZeroWeight(combat: Combat, boundary: number): void {
 function startTact(combat: Combat): void {
   combat.turn += 1;
   // Переброс обновляется раз в два такта: неиспользованный не копится
-  if (isRareTact(combat.turn)) combat.rerollsLeft = rerollsPerTact(combat);
+  if (isRareTact(combat.turn) || rerollEveryTact(combat)) combat.rerollsLeft = rerollsPerTact(combat);
   freezeTact(combat, combat.turn + 2);
   combat.acting = "tact";
   recordEvent(combat, { type: "tactStart" });
