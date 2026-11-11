@@ -56,6 +56,8 @@ export function startDrag(element: HTMLElement, event: PointerEvent, from: { x: 
   ghost.style.width = `${rect.width}px`;
   ghost.style.height = `${rect.height}px`;
   document.body.append(ghost);
+  // Пока копия летит, страница не прокручивается (css/timeline.css)
+  document.documentElement.classList.add("is-dragging");
   dragState.active = true;
   element.classList.add("card--lifted");
   element.dataset.justDragged = "1";
@@ -74,6 +76,7 @@ export function startDrag(element: HTMLElement, event: PointerEvent, from: { x: 
 
   const end = () => {
     dragState.active = false;
+    document.documentElement.classList.remove("is-dragging");
     handlers.onHover(null);
     document.querySelector(".timeline")?.classList.remove("timeline--dropping");
     element.classList.remove("card--lifted");

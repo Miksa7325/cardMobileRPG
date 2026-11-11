@@ -210,7 +210,8 @@ export async function playLaunch(before, combat, { onCardPlayed = null, stepMode
 
 // Одна клетка непрерывного боя: события клетки коротко показываются на экране. Нажатия не блокируются —
 // игрок может ставить карты, пока идёт анимация. Длится не дольше maxMs
-export async function playTick(before, combat, { onCardPlayed = null, maxMs = 1000 } = {}) {
+// stepMs — пауза после каждого события (эффекты такта идут по одному, по 0,5 с на каждый)
+export async function playTick(before, combat, { onCardPlayed = null, maxMs = 1000, stepMs = 0 } = {}) {
   const started = Date.now();
   for (const event of combat.events) {
     if (Date.now() - started > maxMs) skipping = true;
@@ -228,6 +229,7 @@ export async function playTick(before, combat, { onCardPlayed = null, maxMs = 10
     } else if (event.type !== "tactStart") {
       showEvent(event, before);
     }
+    if (stepMs > 0 && event.type !== "tactStart") await new Promise((resolve) => setTimeout(resolve, stepMs));
   }
   skipping = false;
 }

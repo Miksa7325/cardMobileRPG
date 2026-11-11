@@ -79,6 +79,24 @@ describe("карта на карту", () => {
     expect(combat.lane.find((item) => item.id === skip)!.start).toBe(1);
     expect(starts(combat)).toEqual([1, 2, 3]);
   });
+  it("перенос карты на карту дальше по шкале не оставляет дыры на старом месте", () => {
+    const combat = fight();
+    placeCard(combat, uidAt(combat), 1);
+    placeCard(combat, uidAt(combat), 2);
+    placeCard(combat, uidAt(combat), 3);
+    const first = combat.lane[0].id;
+    expect(moveLaneItem(combat, first, 3).ok).toBe(true);
+    expect(starts(combat)).toEqual([1, 2, 3]);
+    expect(combat.lane.find((item) => item.id === first)!.start).toBe(2);
+  });
+  it("пустые клетки между сдвинутыми картами не прибавляются, даже если Замедление переходит на новую карту", () => {
+    const combat = fight();
+    combat.hero.statuses.slow = 1;
+    placeCard(combat, uidAt(combat), 1); // с Замедлением: клетки 1–2
+    placeCard(combat, uidAt(combat), 3);
+    expect(placeCard(combat, uidAt(combat), 1).ok).toBe(true); // Замедление теперь у новой: 1–2, старые — 3 и 4
+    expect(starts(combat)).toEqual([1, 3, 4]);
+  });
   it("на карту, которая уже срабатывает, поставить нельзя", () => {
     const combat = fight({ deck: deckOf("bash") });
     quiet(combat);

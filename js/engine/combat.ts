@@ -485,23 +485,74 @@ function settleLane(combat: Combat, lane: LaneItem[], fixed: LaneItem | null): L
   return result;
 }
 
+// Карты, которые ещё не начали срабатывать, — их можно сдвигать
+function movableItems(combat: Combat, lane: LaneItem[]): LaneItem[] {
+  return lane
+    .filter((item) => !item.resolved && item.weight > 0 && item.start > combat.clock)
+    .sort((a, b) => a.start - b.start || a.id - b.id);
+}
+
+// Пустые клетки перед каждой из карт items (по расписанию slots): перед первой — после клетки afterEnd
+function gapsBetween(items: LaneItem[], slots: Map<number, HeroSlot>, afterEnd: number): number[] {
+  return items.map((item, index) => {
+    const previousEnd = index === 0 ? afterEnd : slots.get(items[index - 1].id)!.end;
+    return Math.max(0, slots.get(item.id)!.start - previousEnd - 1);
+  });
+}
+
+// Расставляет карты items по порядку друг за другом: перед каждой — столько пустых клеток, сколько в gaps.
+// anchorEnd — клетка, после которой встаёт первая. Сколько клеток займёт каждая карта (Ловкость, Замедление,
+// Ускорение), считаем по расписанию заново после каждой: так пустых клеток не прибавляется
+const FAR = 100000; // пока карту не поставили на новое место, она стоит далеко и никому не мешает
+function packInOrder(combat: Combat, lane: LaneItem[], items: LaneItem[], gaps: number[], anchorEnd: (lane: LaneItem[]) => number): LaneItem[] {
+  const ids = new Set(items.map((item) => item.id));
+  let result = lane.map((item) => (ids.has(item.id) ? { ...item, start: item.start + FAR } : item));
+  let previous: number | null = null;
+  items.forEach((item, index) => {
+    const end = previous === null ? anchorEnd(result) : heroSchedule(combat, result).lane.get(previous)!.end;
+    result = result.map((entry) => (entry.id === item.id ? { ...entry, start: end + 1 + gaps[index] } : entry));
+    previous = item.id;
+  });
+  return result;
+}
+
 // Карту поставили (или перенесли) на шкалу: если на её месте уже стоит карта, которая ещё не начала срабатывать,
-// новая встаёт на начало той карты, а та и все следующие сдвигаются вправо ровно настолько, чтобы новая поместилась
+// новая встаёт на начало той карты, а та и все следующие встают за новой с теми же пустыми клетками между собой
 function arrangeLane(combat: Combat, lane: LaneItem[], placed: LaneItem): LaneItem[] {
   if (placed.weight === 0) return lane;
-  const others = lane.filter((item) => item !== placed && !item.resolved && item.weight > 0 && item.start > combat.clock);
-  const without = heroSchedule(combat, lane.filter((item) => item !== placed)).lane;
+  const rest = lane.filter((item) => item !== placed);
+  const before = heroSchedule(combat, rest).lane;
+  const others = movableItems(combat, rest);
   // Попали в середину карты — встаём на её начало
-  const host = others.find((item) => item.start < placed.start && without.get(item.id)!.end >= placed.start);
+  const host = others.find((item) => item.start < placed.start && before.get(item.id)!.end >= placed.start);
   if (host) placed.start = host.start;
-  const following = others.filter((item) => item.start >= placed.start).sort((a, b) => a.start - b.start || a.id - b.id);
+  const following = others.filter((item) => item.start >= placed.start);
   if (following.length === 0) return settleLane(combat, lane, placed);
-  // Где кончится новая карта, если следующих нет: с учётом Ловкости, Замедления и Ускорения
+  // Новая карта не достаёт до следующей — сдвигать нечего
   const alone = heroSchedule(combat, lane.filter((item) => !following.includes(item))).lane.get(placed.id)!;
-  const delta = alone.end + 1 - following[0].start;
-  const moved = new Set(following);
-  const result = delta > 0 ? lane.map((item) => (moved.has(item) ? { ...item, start: item.start + delta } : item)) : lane;
-  return settleLane(combat, result, placed);
+  if (alone.end < before.get(following[0].id)!.start) return settleLane(combat, lane, placed);
+  const gaps = gapsBetween(following, before, before.get(following[0].id)!.start - 1);
+  const packed = packInOrder(combat, lane, following, gaps, (current) => heroSchedule(combat, current).lane.get(placed.id)!.end);
+  return settleLane(combat, packed, placed);
+}
+
+// Карту со шкалы переносят на другую карту: на её старом месте дыры не остаётся — карты, стоявшие за ней,
+// подтягиваются на её место (с теми же пустыми клетками между собой). Возвращает шкалу без карты и новое начало
+// для неё (начало той карты, на которую её бросили, после подтягивания). Если бросили не на карту — null
+function closeGapForInsert(combat: Combat, item: LaneItem, start: number): { lane: LaneItem[]; start: number } | null {
+  if (item.weight === 0) return null;
+  const rest = combat.lane.filter((entry) => entry !== item);
+  const before = heroSchedule(combat, rest).lane;
+  const host = movableItems(combat, rest).find((entry) => {
+    const slot = before.get(entry.id)!;
+    return slot.start <= start && start <= slot.end;
+  });
+  if (!host) return null;
+  const old = heroSchedule(combat).lane.get(item.id)!;
+  const behind = movableItems(combat, rest).filter((entry) => entry.start > old.end);
+  const gaps = gapsBetween(behind, before, old.end);
+  const lane = behind.length > 0 ? packInOrder(combat, rest, behind, gaps, () => old.start - 1) : rest;
+  return { lane, start: lane.find((entry) => entry.id === host.id)!.start };
 }
 
 function aliveEnemies(combat: Combat): EnemyUnit[] {
@@ -700,7 +751,11 @@ export function moveLaneItem(combat: Combat, id: number, start: number, targetId
   if (targetError) return fail(targetError);
   if (item.weight === 0 && tactOfBoundary(start) !== tactOfBoundary(item.start)
     && zeroWeightInTact(combat, tactOfBoundary(start)) >= zeroWeightPerTact(combat)) return fail("zeroLimit");
-  const lane = arrangeLane(combat, combat.lane.map((entry) => (entry === item ? moved : entry)), moved);
+  // Бросили на другую карту — сначала закрываем дыру на старом месте
+  const closed = closeGapForInsert(combat, item, start);
+  if (closed) moved.start = closed.start;
+  const base = closed ? [...closed.lane, moved] : combat.lane.map((entry) => (entry === item ? moved : entry));
+  const lane = arrangeLane(combat, base, moved);
   const error = checkLane(combat, lane, moved);
   if (error) return fail(error);
   combat.lane = lane;

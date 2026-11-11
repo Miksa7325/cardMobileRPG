@@ -79,6 +79,7 @@ function resetView(): void {
 // тестового режима и когда игрок ушёл с экрана боя или свернул игру (тогда ждёт кнопку «Продолжить»)
 
 const HEARTBEAT_MS = 100;
+const TACT_EFFECT_MS = 500; // сколько длится каждый эффект такта (Яд, Горение, силы, реликвии)
 let heartbeat: ReturnType<typeof setInterval> | null = null;
 let waiting = false; // время стоит, пока игрок не нажмёт кнопку: игру сворачивали или уходили с экрана
 let progress = 0; // доля текущей клетки, которая уже прошла
@@ -116,6 +117,12 @@ function onHeartbeat(): void {
     return;
   }
   if (timeStands(current) || ticking) return;
+  // Последняя клетка такта прошла: сразу эффекты такта, шкала стоит, пока они идут (по 0,5 с на каждый)
+  if (current.tactDue) {
+    progress = 0;
+    void doTick(current);
+    return;
+  }
   // Следующая клетка пуста — шкала ждёт карту (освободили клетку посреди хода — шкала возвращается к началу клетки)
   if (!nextCellFilled(current)) {
     if (progress > 0) {
@@ -126,8 +133,7 @@ function onHeartbeat(): void {
   }
   progress += HEARTBEAT_MS / getCellMs();
   if (progress < 1) {
-    // Пока ждут эффекты такта, шкала стоит
-    if (!current.tactDue) setTimelineProgress(progress);
+    setTimelineProgress(progress);
     return;
   }
   progress = 0;
@@ -138,6 +144,7 @@ function onHeartbeat(): void {
 async function doTick(current: Combat): Promise<void> {
   ticking = true;
   const before = captureCombatView(current);
+  const tactStep = Boolean(current.tactDue);
   const result = tick(current);
   if (!result.ok) {
     ticking = false;
@@ -145,7 +152,9 @@ async function doTick(current: Combat): Promise<void> {
   }
   if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
   await ui.playTick(before, current, {
-    maxMs: getCellMs() * 0.7,
+    // Эффекты такта идут по одному: на каждый — TACT_EFFECT_MS, шкала всё это время стоит
+    maxMs: tactStep ? Infinity : getCellMs() * 0.7,
+    stepMs: tactStep ? TACT_EFFECT_MS : 0,
     onCardPlayed: (event: { cardId: string; targetId: string | null }) => {
       const card = CARDS[event.cardId];
       playCardEffect(card, getVfxPositions(before, card, event.targetId));
