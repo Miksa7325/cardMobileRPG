@@ -1,0 +1,15 @@
+C:\VScode Projects\cardDungeonExplorer\docs\PLAN.md
+C:\VScode Projects\cardDungeonExplorer\docs\balance.md
+C:\VScode Projects\cardDungeonExplorer\docs\cards\alchemist.md
+C:\VScode Projects\cardDungeonExplorer\docs\cards\assassin.md
+C:\VScode Projects\cardDungeonExplorer\docs\cards\mage.md
+C:\VScode Projects\cardDungeonExplorer\docs\cards\warlock.md
+C:\VScode Projects\cardDungeonExplorer\docs\cards\warrior.md
+C:\VScode Projects\cardDungeonExplorer\docs\classes.md
+C:\VScode Projects\cardDungeonExplorer\docs\enemies\act1.md
+C:\VScode Projects\cardDungeonExplorer\docs\enemies\act10.md
+C:\VScode Projects\cardDungeonExplorer\docs\enemies\act4.md
+C:\VScode Projects\cardDungeonExplorer\docs\enemies\act6.md
+C:\VScode Projects\cardDungeonExplorer\docs\enemies\act7.md
+C:\VScode Projects\cardDungeonExplorer\docs\events.md
+C:\VScode Projects\cardDungeonExplorer\docs\relics.md
