@@ -133,13 +133,21 @@ describe("легендарные карты Убийцы", () => {
     expect(combat.hero.statuses.poison).toBeUndefined();
   });
 
-  // Правило Призрака переделывается (docs/cards/ghost.md): пока проверяем, что и с ним на стыке одна карта весом 0
-  it("Призрак: на стыке — всё равно одна карта весом 0", () => {
-    const { combat, uids } = assassin(["a_ghost", "a_flourish", "a_flourish", "a_flourish", "a_flourish"]);
-    placeCard(combat, uids[0], 1);
-    advance(combat, 3);
-    for (const [index, uid] of uids.slice(1, 4).entries()) expect(placeCard(combat, uid, 3 + index).ok).toBe(true);
-    expect(placeCard(combat, uids[4], 3)).toEqual({ ok: false, reason: "boundaryTaken" });
+  it("Призрак: каждая карта весом 0 даёт Ускорение 1", () => {
+    // Одна и та же карта весом 0 — с Призраком и без него: разница в Ускорении ровно 1
+    const hasteAfterZero = (withGhost: boolean) => {
+      const { combat, uids } = assassin(withGhost ? ["a_ghost", "a_flourish"] : ["a_flourish"]);
+      if (withGhost) {
+        placeCard(combat, uids[0], 1); // вес 2: сработает во второй клетке
+        advance(combat, 2);
+      }
+      combat.hero.statuses.haste = 0;
+      placeCard(combat, uids[uids.length - 1], combat.clock);
+      advance(combat, 1);
+      return combat.events.filter((event) => event.type === "status" && event.status === "haste" && event.targetId === "hero" && event.by?.toString().startsWith("lane"))
+        .reduce((sum, event) => sum + (event.amount as number), 0);
+    };
+    expect(hasteAfterZero(true) - hasteAfterZero(false)).toBe(1);
   });
 });
 

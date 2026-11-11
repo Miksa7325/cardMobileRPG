@@ -115,6 +115,6 @@ export const ASSASSIN_CARDS: CardData[] = [
   power("a_poison_queen", "Королева ядов", "legendary", 2, "Яд на врагах больше не убывает. Наложить {poison} Яда всем врагам.", [allStatus("poison", 3)],
     { rules: { poisonStays: true } }),
   // Тень: нет лимита карт весом 0 за такт
-  power("a_ghost", "Призрак", "legendary", 2, "Карт весом 0 за такт — сколько угодно. В начале такта: {haste} Ускорение.", [],
-    { rules: { zeroWeightUnlimited: true }, power: tactStart([energy(1)]) }),
+  power("a_ghost", "Призрак", "legendary", 2, "Каждая карта весом 0 даёт Ускорение 1. В начале такта: {haste} Ускорение.", [],
+    { rules: { zeroWeightHaste: 1 }, power: tactStart([energy(1)]) }),
 ];

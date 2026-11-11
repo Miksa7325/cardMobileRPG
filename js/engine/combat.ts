@@ -1211,6 +1211,11 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
   if (item.card) {
     const alive = aliveEnemies(combat).length;
     playResolvedCard(combat, item.card, item.targetId, 1, bonus);
+    // «Призрак»: сработавшая карта весом 0 даёт Ускорение
+    const zeroHaste = combat.hero.rules?.zeroWeightHaste ?? 0;
+    if (item.weight === 0 && zeroHaste > 0 && !isOver(combat)) {
+      executeEffects(combat, [{ type: "applyStatus", status: "haste", amount: zeroHaste, target: "self" }], { source: combat.hero, targets: [combat.hero], fromCard: false });
+    }
     if (finalsOnKill.length > 0 && !isOver(combat) && aliveEnemies(combat).length < alive) {
       executeEffects(combat, finalsOnKill.flatMap((entry) => bonusEffects(combat, item, card!, entry)), {
         source: combat.hero, targets: resolveTargets(combat, card!.target, item.targetId), fromCard: true,
