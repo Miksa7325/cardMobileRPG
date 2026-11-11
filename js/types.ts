@@ -416,12 +416,12 @@ export interface EnemyUnit extends Unit {
 // Карта или зелье на дорожке героя
 export interface LaneItem {
   id: number; // номер постановки: при равенстве раньше срабатывает то, что поставили раньше
-  kind: "card" | "potion";
+  kind: "card" | "potion" | "skip"; // skip — «Пропуск клетки»: занимает клетку и действует как пустая
   card?: CardInstance; // карта: пока она на шкале, её нет ни в руке, ни в стопках
   potionId?: string; // зелье: пока оно на шкале, его нет в сумке
   start: number; // вес ≥ 1: первая клетка (1–6); вес 0: стык (0 — перед клеткой 1, 6 — после клетки 6)
   weight: number; // вес без статусов
-  targetId: string | null;
+  targetId: string | null; // враг, по которому карта сработала (цель берётся в момент срабатывания)
   locked: boolean; // уже сработали добор или вместимость: вернуть в руку нельзя
   resolved: boolean;
   end?: number; // клетка, в которой сработало
@@ -466,6 +466,8 @@ export interface Combat {
   frozenCells: number[]; // замороженные клетки дорожки героя (номера клеток с начала боя): в них нельзя ставить
   blockedCells?: number[]; // клетки каждого такта (1–3), закрытые особенностью акта
   minCardWeight?: number; // особенность акта: карты легче этого весят столько
+  focusId?: string | null; // выбранный враг: по нему бьют карты и зелья «на врага» в момент срабатывания
+  tactDue?: boolean; // последняя клетка такта прошла: следующий шаг — эффекты конца и начала такта
   acting?: string; // чьё действие сейчас идёт: «lane:3», «prep:5», «enemy:skeleton-0:1», «tact». Попадает в события как by
   hero: HeroUnit;
   enemies: EnemyUnit[];

@@ -3,12 +3,15 @@
 // Как идёт бой:
 // 1. Начало боя: рука по классу, враги ставят ходы на свои дорожки на 6 клеток вперёд, время стоит (status "planning").
 //    Игрок расставляет карты на клетки 1–6.
-// 2. «Начать» (startCombat): время идёт. Экран вызывает tick — одна клетка — раз в 1–2 секунды и в конце каждого
-//    такта встаёт до кнопки игрока: тогда экран просто не вызывает tick. Карты и зелья можно ставить (placeCard, placePotion), убирать (removeFromLane) и
-//    переставлять (moveLaneItem) прямо во время боя, не дальше 6 клеток вперёд от указателя времени.
+// 2. «Начать» (startCombat): время идёт. Экран вызывает tick — одна клетка — раз в 1–2 секунды, пока следующая клетка
+//    героя занята (nextCellFilled); на пустой клетке экран ждёт. Карты, зелья и «Пропуск клетки» можно ставить (placeCard,
+//    placePotion, placeSkip), убирать (removeFromLane) и переставлять (moveLaneItem) прямо во время боя, не дальше 6 клеток
+//    вперёд от указателя времени. Поставленная на занятое место карта встаёт перед той картой и сдвигает её и все следующие.
 // 3. Действие срабатывает в своей последней клетке, карта весом 0 — на своём стыке клеток. При ничьей первым герой,
-//    если только у врага нет Ускорения. Каждая сработавшая карта приводит в руку новую.
-// 4. Ходов нет — есть такты по 3 клетки: в начале такта Яд, Горение, Прилив, переброс (раз в два такта); в конце — силы «в конце такта».
+//    если только у врага нет Ускорения. Каждая сработавшая карта приводит в руку новую. Карты «на врага» бьют врага,
+//    выбранного в момент срабатывания (focusId).
+// 4. Ходов нет — есть такты по 3 клетки. После последней клетки такта отдельный шаг tick (tactDue) — эффекты такта:
+//    в конце — силы «в конце такта», в начале следующего — Яд, Горение, Прилив, переброс (раз в два такта).
 //    Комбо Убийцы — длина текущей цепочки: пустая клетка дорожки обнуляет его.
 //    Слабость теряет стак после каждой атаки носителя, Ловкость облегчает первую карту каждого такта.
 // launch — для тестов и бота: начать и прогнать 6 клеток подряд.
@@ -209,7 +212,7 @@ export function heroSchedule(combat: Combat, lane: LaneItem[] = combat.lane, pre
   const roughLane = laneSlots();
   const roughPrepared = preparedSlots(roughLane);
   const order = [
-    ...lane.filter((item) => !item.resolved && item.weight > 0).map((item) => ({ key: `l${item.id}`, end: roughLane.get(item.id)!.end, side: 0, id: item.id })),
+    ...lane.filter((item) => !item.resolved && item.weight > 0 && item.kind !== "skip").map((item) => ({ key: `l${item.id}`, end: roughLane.get(item.id)!.end, side: 0, id: item.id })),
     ...prepared.map((spell) => ({ key: `p${spell.id}`, end: roughPrepared.get(spell.id)!.end, side: 1, id: spell.id })),
   ].sort((a, b) => a.end - b.end || a.side - b.side || a.id - b.id);
   const slow = combat.hero.statuses.slow ?? 0;
@@ -225,12 +228,12 @@ function prepWork(spell: PreparedSpell, mark: { slowed: boolean; hasted: boolean
   return Math.max(1, T.prepWorkPerWeight * spell.weight + (mark?.slowed ? 1 : 0) - (mark?.hasted ? 1 : 0));
 }
 
-// Клетки основной шкалы, занятые картами и зельями (карты весом 0 клеток не занимают)
+// Клетки основной шкалы, занятые картами и зельями (карты весом 0 клеток не занимают, «Пропуск клетки» — пустая клетка)
 function busyCells(lane: LaneItem[], slots: Map<number, HeroSlot>): Set<number> {
   const busy = new Set<number>();
   for (const item of lane) {
     const slot = slots.get(item.id);
-    if (item.weight === 0 || !slot) continue;
+    if (item.weight === 0 || item.kind === "skip" || !slot) continue;
     for (let cell = slot.start; cell <= slot.end; cell++) busy.add(cell);
   }
   return busy;
@@ -293,13 +296,19 @@ function chainLane(combat: Combat, lane: LaneItem[], marks: Map<string, { slowed
   const weighted = lane.filter((item) => item.weight > 0).sort((a, b) => a.start - b.start || a.id - b.id);
   for (const item of weighted) {
     if (item.resolved) {
-      tactsWithCard.add(tactOfCell(item.start));
+      if (item.kind !== "skip") tactsWithCard.add(tactOfCell(item.start));
       prevEnd = item.end ?? prevEnd;
       slots.set(item.id, { start: item.start, end: prevEnd, weight: item.weight, slowed: false, hasted: false });
       continue;
     }
-    const mark = marks.get(`l${item.id}`);
     const start = Math.max(item.start, prevEnd + 1);
+    // «Пропуск клетки» — пустая клетка: всегда 1 клетка, Ловкость, Замедление и Ускорение его не трогают
+    if (item.kind === "skip") {
+      prevEnd = Math.max(combat.clock, start);
+      slots.set(item.id, { start, end: prevEnd, weight: 1, slowed: false, hasted: false });
+      continue;
+    }
+    const mark = marks.get(`l${item.id}`);
     const tact = tactOfCell(start);
     const isFirst = !tactsWithCard.has(tact);
     tactsWithCard.add(tact);
@@ -403,6 +412,8 @@ function freezeTact(combat: Combat, tact: number): void {
     combat.frozenCells.push(cell);
     recordEvent(combat, { type: "freeze", targetId: enemy.instanceId, cell });
   }
+  // Карты, сдвинутые за горизонт, могли оказаться на замёрзшей клетке: они уезжают за неё
+  combat.lane = settleLane(combat, combat.lane, null);
 }
 
 // ---------- Расстановка ----------
@@ -448,14 +459,82 @@ function checkLane(combat: Combat, lane: LaneItem[], checked: LaneItem): string 
   return null;
 }
 
+// Насколько карту надо сдвинуть вправо: она наехала на предыдущую или стоит на замёрзшей клетке (0 — не надо)
+function conflictShift(combat: Combat, item: LaneItem, slot: HeroSlot): number {
+  if (slot.start !== item.start) return slot.start - item.start;
+  const frozen = combat.frozenCells.filter((cell) => cell >= slot.start && cell <= slot.end);
+  return frozen.length > 0 ? Math.max(...frozen) + 1 - item.start : 0;
+}
+
+// Карты, которые ещё не начались, не должны накладываться друг на друга и стоять на замёрзших клетках.
+// Первая такая карта и все следующие едут вправо на одно число клеток: пустые клетки между ними сохраняются,
+// а уехать они могут и дальше 6 клеток вперёд. fixed — карта, которую только что поставили: она стоит на месте
+function settleLane(combat: Combat, lane: LaneItem[], fixed: LaneItem | null): LaneItem[] {
+  let result = lane;
+  for (let guard = 0; guard < 50; guard++) {
+    const slots = heroSchedule(combat, result).lane;
+    const movable = result
+      .filter((item) => item !== fixed && !item.resolved && item.weight > 0 && item.start > combat.clock)
+      .sort((a, b) => a.start - b.start || a.id - b.id);
+    const index = movable.findIndex((item) => conflictShift(combat, item, slots.get(item.id)!) > 0);
+    if (index < 0) return result;
+    const delta = conflictShift(combat, movable[index], slots.get(movable[index].id)!);
+    const shifted = new Set(movable.slice(index));
+    result = result.map((item) => (shifted.has(item) ? { ...item, start: item.start + delta } : item));
+  }
+  return result;
+}
+
+// Карту поставили (или перенесли) на шкалу: если на её месте уже стоит карта, которая ещё не начала срабатывать,
+// новая встаёт на начало той карты, а та и все следующие сдвигаются вправо ровно настолько, чтобы новая поместилась
+function arrangeLane(combat: Combat, lane: LaneItem[], placed: LaneItem): LaneItem[] {
+  if (placed.weight === 0) return lane;
+  const others = lane.filter((item) => item !== placed && !item.resolved && item.weight > 0 && item.start > combat.clock);
+  const without = heroSchedule(combat, lane.filter((item) => item !== placed)).lane;
+  // Попали в середину карты — встаём на её начало
+  const host = others.find((item) => item.start < placed.start && without.get(item.id)!.end >= placed.start);
+  if (host) placed.start = host.start;
+  const following = others.filter((item) => item.start >= placed.start).sort((a, b) => a.start - b.start || a.id - b.id);
+  if (following.length === 0) return settleLane(combat, lane, placed);
+  // Где кончится новая карта, если следующих нет: с учётом Ловкости, Замедления и Ускорения
+  const alone = heroSchedule(combat, lane.filter((item) => !following.includes(item))).lane.get(placed.id)!;
+  const delta = alone.end + 1 - following[0].start;
+  const moved = new Set(following);
+  const result = delta > 0 ? lane.map((item) => (moved.has(item) ? { ...item, start: item.start + delta } : item)) : lane;
+  return settleLane(combat, result, placed);
+}
+
 function aliveEnemies(combat: Combat): EnemyUnit[] {
   return combat.enemies.filter((enemy) => enemy.hp > 0);
 }
 
-// Цель нужна только картам и зельям «на врага»
+// Цель карты «на врага» выбирают не при постановке, а в момент срабатывания (focusId).
+// Если цель всё же передали (бот, тесты), она должна быть живым врагом
 function checkTarget(combat: Combat, target: CardTarget, targetId: string | null | undefined): string | null {
-  if (target !== "enemy") return null;
+  if (target !== "enemy" || targetId === null || targetId === undefined) return null;
   return aliveEnemies(combat).some((enemy) => enemy.instanceId === targetId) ? null : "invalidTarget";
+}
+
+// Выбранный враг: по нему бьют карты «на врага». Если он умер — ближайший к нему живой
+export function focusedEnemy(combat: Combat): EnemyUnit | null {
+  const alive = aliveEnemies(combat);
+  const chosen = alive.find((enemy) => enemy.instanceId === combat.focusId);
+  if (chosen || alive.length === 0) return chosen ?? null;
+  const index = Math.max(0, combat.enemies.findIndex((enemy) => enemy.instanceId === combat.focusId));
+  return [...alive].sort((a, b) => Math.abs(combat.enemies.indexOf(a) - index) - Math.abs(combat.enemies.indexOf(b) - index))[0];
+}
+
+// Игрок выбрал врага: карты, которые сработают дальше, ударят его
+export function setFocus(combat: Combat, enemyId: string): ActionResult {
+  if (!aliveEnemies(combat).some((enemy) => enemy.instanceId === enemyId)) return fail("invalidTarget");
+  combat.focusId = enemyId;
+  return OK;
+}
+
+// По кому сработает действие «на врага»: по выбранному врагу; если выбора нет (бот, старые тесты) — по цели постановки
+function actualTarget(combat: Combat, plannedId: string | null): string | null {
+  if (!combat.focusId) return plannedId;
+  return focusedEnemy(combat)?.instanceId ?? plannedId;
 }
 
 // Эффекты добора и варки срабатывают сразу при постановке. Возвращает, были ли они:
@@ -526,14 +605,27 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   const item: LaneItem = {
     id: combat.nextLaneId, kind: "card", card: instance, start, weight, targetId, locked: false, resolved: false,
   };
-  const error = checkLane(combat, [...combat.lane, item], item);
+  const lane = arrangeLane(combat, [...combat.lane, item], item);
+  const error = checkLane(combat, lane, item);
   if (error) return fail(error);
 
   combat.nextLaneId += 1;
   takeFromHand(combat.piles, uid);
-  combat.lane.push(item);
+  combat.lane = lane;
   combat.events = [];
   item.locked = runPlanningEffects(combat, card.effects);
+  return OK;
+}
+
+// «Пропуск клетки»: особая карта, которая всегда есть в руке и не кончается. Занимает 1 клетку и действует как пустая
+export function placeSkip(combat: Combat, start: number): ActionResult {
+  if (!canAct(combat)) return fail("notPlanning");
+  const item: LaneItem = { id: combat.nextLaneId, kind: "skip", start, weight: 1, targetId: null, locked: false, resolved: false };
+  const lane = arrangeLane(combat, [...combat.lane, item], item);
+  const error = checkLane(combat, lane, item);
+  if (error) return fail(error);
+  combat.nextLaneId += 1;
+  combat.lane = lane;
   return OK;
 }
 
@@ -563,12 +655,13 @@ export function placePotion(combat: Combat, index: number, start: number, target
   const item: LaneItem = {
     id: combat.nextLaneId, kind: "potion", potionId, start, weight: potionWeight(combat), targetId, locked: false, resolved: false,
   };
-  const error = checkLane(combat, [...combat.lane, item], item);
+  const lane = arrangeLane(combat, [...combat.lane, item], item);
+  const error = checkLane(combat, lane, item);
   if (error) return fail(error);
 
   combat.nextLaneId += 1;
   combat.potions.splice(index, 1);
-  combat.lane.push(item);
+  combat.lane = lane;
   combat.events = [];
   item.locked = runPlanningEffects(combat, potion.effects);
   return OK;
@@ -602,12 +695,12 @@ export function moveLaneItem(combat: Combat, id: number, start: number, targetId
   if (!item) return fail("notOnLane");
   if (item.locked || hasStarted(combat, item)) return fail("locked");
   const moved = { ...item, start, targetId: targetId === undefined ? item.targetId : targetId };
-  const target = item.card ? getCardData(item.card).target : POTIONS[item.potionId!].target;
+  const target = item.card ? getCardData(item.card).target : item.potionId ? POTIONS[item.potionId].target : "self";
   const targetError = checkTarget(combat, target, moved.targetId);
   if (targetError) return fail(targetError);
   if (item.weight === 0 && tactOfBoundary(start) !== tactOfBoundary(item.start)
     && zeroWeightInTact(combat, tactOfBoundary(start)) >= zeroWeightPerTact(combat)) return fail("zeroLimit");
-  const lane = combat.lane.map((entry) => (entry === item ? moved : entry));
+  const lane = arrangeLane(combat, combat.lane.map((entry) => (entry === item ? moved : entry)), moved);
   const error = checkLane(combat, lane, moved);
   if (error) return fail(error);
   combat.lane = lane;
@@ -750,17 +843,36 @@ export function startCombat(combat: Combat): ActionResult {
   return OK;
 }
 
-// Сваренное зелье выбирают на остановке в конце такта: пока выбор не сделан, время не пройдёт дальше конца такта.
-// Посреди такта время из-за варки не встаёт
+// Сваренное зелье выбирают сразу, как поставили карту варки: пока выбор не сделан, время стоит
 export function brewBlocksTime(combat: Combat): boolean {
-  return combat.brewChoices.length > 0 && combat.clock % T.tactCells === 0;
+  return combat.brewChoices.length > 0;
 }
 
-// Одна клетка времени. На конце такта, пока не выбрано зелье варки, время стоит
+// Занята ли следующая клетка дорожки героя: картой, зельем или «Пропуском клетки». Замёрзшая клетка пустой не считается —
+// поставить в неё нельзя. На пустой клетке экран останавливает время, пока игрок её не займёт.
+// Пока ждут эффекты конца такта, клетка не нужна
+export function nextCellFilled(combat: Combat): boolean {
+  if (combat.tactDue) return true;
+  const cell = combat.clock + 1;
+  if (combat.frozenCells.includes(cell)) return true;
+  const slots = heroSchedule(combat).lane;
+  return combat.lane.some((item) => {
+    if (item.resolved || item.weight === 0) return false;
+    const slot = slots.get(item.id)!;
+    return slot.start <= cell && cell <= slot.end;
+  });
+}
+
+// Один шаг времени: клетка, а после последней клетки такта — отдельный шаг с эффектами конца и начала такта
+// (на экране шкала в это время стоит). Пока не выбрано зелье варки, время стоит
 export function tick(combat: Combat): ActionResult {
   if (combat.status !== "running") return fail("notRunning");
   if (brewBlocksTime(combat)) return fail("chooseBrew");
   combat.events = [];
+  if (combat.tactDue) {
+    runTact(combat);
+    return OK;
+  }
   // Карты весом 0, поставленные на текущий стык во время паузы
   resolveZeroWeight(combat, combat.clock);
   if (!isOver(combat)) resolveBoundary(combat, combat.clock + 1);
@@ -771,16 +883,21 @@ export function tick(combat: Combat): ActionResult {
   return OK;
 }
 
-// Для тестов и бота: начать (если ещё не начат) и прогнать cells клеток подряд. События всех клеток копятся.
-// Встаёт, если бой кончился или на конце такта надо выбрать зелье варки
+// Для тестов и бота: начать (если ещё не начат) и прогнать cells клеток подряд вместе с эффектами тактов.
+// События всех клеток копятся. Встаёт, если бой кончился или надо выбрать зелье варки
 export function advance(combat: Combat, cells: number = HORIZON): ActionResult {
   if (combat.status === "planning") startCombat(combat);
   if (combat.status !== "running") return fail("notRunning");
   const events = [...combat.events];
-  for (let i = 0; i < cells && combat.status === "running" && !brewBlocksTime(combat); i++) {
+  const step = () => {
     tick(combat);
     events.push(...combat.events);
+  };
+  for (let i = 0; i < cells && combat.status === "running" && !brewBlocksTime(combat); ) {
+    if (!combat.tactDue) i++;
+    step();
   }
+  if (combat.tactDue && combat.status === "running" && !brewBlocksTime(combat)) step();
   combat.events = events;
   return OK;
 }
@@ -812,10 +929,15 @@ function resolveBoundary(combat: Combat, boundary: number): void {
   checkPhases(combat);
   if (isOver(combat)) return;
 
-  if (boundary % T.tactCells === 0) {
-    finishTact(combat);
-    if (!isOver(combat)) startTact(combat);
-  }
+  // Последняя клетка такта: эффекты такта — следующим шагом времени
+  if (boundary % T.tactCells === 0) combat.tactDue = true;
+}
+
+// Шаг такта: конец прошедшего такта и начало следующего
+function runTact(combat: Combat): void {
+  combat.tactDue = false;
+  finishTact(combat);
+  if (!isOver(combat)) startTact(combat);
 }
 
 // Следующее действие, которое срабатывает на текущем стыке, или null. Первым ходит герой,
@@ -887,7 +1009,17 @@ function drawAfterResolve(combat: Combat): void {
 }
 
 function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
+  // «Пропуск клетки» просто прошёл: как пустая клетка, без эффектов, добора и Кровотечения
+  if (item.kind === "skip") {
+    item.resolved = true;
+    item.start = slot.start;
+    item.end = combat.clock;
+    return;
+  }
   combat.acting = `lane:${item.id}`;
+  // Цель — враг, выбранный сейчас. Запоминаем её: по ней «Первая» узнаёт смену цели у следующих карт
+  const target = item.card ? getCardData(item.card).target : POTIONS[item.potionId!].target;
+  if (target === "enemy") item.targetId = actualTarget(combat, item.targetId);
   // Бонусы цепочки (один или два) проверяем, пока карта ещё на своём месте среди несыгранных. Каждый — сам по себе
   const links = item.card ? chainLinks(combat) : [];
   const index = links.findIndex((link) => link.item === item);
@@ -928,6 +1060,7 @@ function resolveLaneItem(combat: Combat, item: LaneItem, slot: HeroSlot): void {
 
 function resolvePrepared(combat: Combat, spell: PreparedSpell, slot: HeroSlot): void {
   combat.acting = `prep:${spell.id}`;
+  if (getCardData(spell.card).target === "enemy") spell.targetId = actualTarget(combat, spell.targetId);
   combat.prepared = combat.prepared.filter((entry) => entry !== spell);
   spendTimingStacks(combat, combat.hero, slot);
   // Сорванное заклинание Мага уходит в сброс
@@ -1073,7 +1206,7 @@ export interface ActionPreview {
 }
 
 // Предпросмотр на 6 клеток вперёд: розыгрыш на копии боя. Числа уже учитывают всё, что сработает раньше на шкале.
-// Ключ — чьё действие: «lane:3», «prep:5», «enemy:skeleton-0:1». Предпросмотр доходит до конца такта, где ждёт выбор варки
+// Ключ — чьё действие: «lane:3», «prep:5», «enemy:skeleton-0:1». Пока ждёт выбор варки, предпросмотра нет
 export function previewLaunch(combat: Combat): Map<string, ActionPreview> {
   const result = new Map<string, ActionPreview>();
   if (!canAct(combat)) return result;

@@ -1,18 +1,18 @@
 // Экран боя на бесконечной шкале: враги, шкала, герой, рука. Показывает состояние боя и передаёт действия игрока в логику.
-// Как играть: сначала карты расставляют на первые 6 клеток и жмут «Начать». Время идёт по такту (3 клетки) и в конце
-// каждого такта встаёт: чтобы прошёл следующий, игрок снова жмёт кнопку. Карты можно ставить, убирать и переставлять
-// и на остановке, и пока идёт такт (не дальше 6 клеток вперёд). Карту перетаскивают на клетку шкалы (или на врага),
-// либо нажимают карту, потом клетку или врага. Нажатие на карту на шкале возвращает её в руку.
-// Пока палец тащит карту, время идёт вдвое медленнее.
+// Как играть (раздел «Управление шкалой» в docs/PLAN.md): сначала карты расставляют и жмут «Начать». Дальше время
+// идёт само, пока следующая клетка героя занята, и ждёт на пустой. После последней клетки такта шкала стоит одну клетку
+// времени — срабатывают эффекты такта. Тап по карте ставит её в ближайшую клетку, удержание показывает описание,
+// карту можно нести на клетку (на занятой — сдвинет ту карту), на подготовку Мага или на стопки (переброс).
+// В руке всегда есть «Пропуск клетки». Нажатие на карту на шкале возвращает её в руку.
+// Карты «на врага» бьют врага, выбранного в момент срабатывания: выбирают тапом по врагу.
 import { CARDS } from "../../data/cards.ts";
 import { ENEMIES } from "../../data/enemies.ts";
 import { HEROES } from "../../data/heroes.ts";
 import { POTIONS } from "../../data/potions.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
-import { CONFIG } from "../../config.ts";
 import {
-  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, getEnemyIntent, getUpcomingDraws, moveLaneItem, placeCard, placePotion,
-  previewLaunch, removeFromLane, rerollCard, startCombat, tick,
+  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, focusedEnemy, getEnemyIntent, getUpcomingDraws, moveLaneItem,
+  nextCellFilled, placeCard, placePotion, placeSkip, previewLaunch, removeFromLane, rerollCard, setFocus, startCombat, tick,
 } from "../../engine/combat.ts";
 import { getCardData } from "../../engine/deck.ts";
 import { createNodeCombat, finishCombat } from "../../engine/run.ts";
@@ -22,20 +22,21 @@ import type { ActionResult, CardData, CardInstance, Combat, EnemyUnit, Equipment
 import { captureCombatView, playTick, showDrawnCards } from "../animations.js";
 import { enemySprite, heroSprite, IDLE_STYLES, setHeroLookVariable } from "../art.js";
 import { playSound } from "../audio.js";
-import { createCardElement, shakeCard } from "../components/card.ts";
+import { createCardElement, formatDescription, shakeCard } from "../components/card.ts";
 import { openCardList } from "../components/cardList.ts";
 import { createCardPicker } from "../components/cardPicker.ts";
-import { openCardPreview } from "../components/cardPreview.ts";
+import { createRichText } from "../components/cardPreview.ts";
 import { createHpBar } from "../components/hpBar.js";
 import { createCombatItems, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { createTimeline, setTimelineProgress, showLaneSlot } from "../components/timeline.ts";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
+import { type HandEntry, enableHandGestures } from "../handGestures.ts";
 import { createIcon } from "../icons.js";
 import { showScreen } from "../router.js";
 import { animationMs, getCellMs } from "../settings.js";
-import { type DropTarget, dragState, enableTimelineDrag } from "../timelineDrag.ts";
+import { type DropTarget, dragState } from "../timelineDrag.ts";
 import {
   applyTutorialHighlights, createTutorialBanner, finishTutorial, finishTutorialBattle, isTutorialBattle, notifyTutorial, tutorialActionForCard,
 } from "../tutorial.ts";
@@ -52,11 +53,11 @@ const IDLE = IDLE_STYLES as Record<string, string>;
 
 const INTENT_ICONS: Record<string, string> = { attack: "damage", defend: "block", buff: "buff", debuff: "debuff" };
 
-// Что игрок выбрал нажатием: карту из руки или зелье. Следующее нажатие на клетку или врага поставит его
-type Selection = { kind: "card"; uid: number } | { kind: "potion"; index: number } | null;
+// Зелье, выбранное нажатием: следующее нажатие на клетку или врага поставит его. Карты из руки ставятся сразу
+type Selection = { kind: "potion"; index: number } | null;
 let selection: Selection = null;
-// Чья дорожка видна целиком. Остальные враги показывают над головой только ближайший ход
-let selectedEnemyId: string | null = null;
+// Шкала развёрнута: видны дорожки всех врагов, а не только выбранного
+let lanesExpanded = false;
 
 function combat(): Combat {
   return state.combat as Combat;
@@ -64,23 +65,22 @@ function combat(): Combat {
 
 function resetView(): void {
   selection = null;
-  selectedEnemyId = null;
+  lanesExpanded = false;
   waiting = false;
   progress = 0;
 }
 
 // ---------- Время ----------
 //
-// «Сердцебиение» раз в 100 мс копит долю клетки (во время перетаскивания — вдвое медленнее). Набралась клетка —
-// логика делает шаг (tick), экран коротко показывает её события и рисуется заново. Пока клетка идёт, шкала плавно
-// едет под полосой времени (в первой клетке боя — сама полоса).
-// Время стоит: до «Начать», в конце каждого такта (ждёт кнопку), пока не выбрано зелье варки, пока открыта панель
-// тестового режима и когда игрок ушёл с экрана боя или свернул игру (тогда тоже ждёт кнопку)
+// «Сердцебиение» раз в 100 мс копит долю клетки. Набралась клетка — логика делает шаг (tick), экран коротко
+// показывает её события и рисуется заново. Пока клетка идёт, шкала плавно едет под полосой времени (в первой клетке
+// боя — сама полоса). После последней клетки такта шкала стоит одну клетку времени, потом шаг такта (Яд, силы…).
+// Время стоит: до «Начать», пока следующая клетка героя пуста, пока не выбрано зелье варки, пока открыта панель
+// тестового режима и когда игрок ушёл с экрана боя или свернул игру (тогда ждёт кнопку «Продолжить»)
 
 const HEARTBEAT_MS = 100;
-const TACT = CONFIG.timeline.tactCells;
 let heartbeat: ReturnType<typeof setInterval> | null = null;
-let waiting = false; // время стоит, пока игрок не нажмёт кнопку: конец такта или игру сворачивали
+let waiting = false; // время стоит, пока игрок не нажмёт кнопку: игру сворачивали или уходили с экрана
 let progress = 0; // доля текущей клетки, которая уже прошла
 let ticking = false; // идёт шаг и его анимация
 let pendingRender = false; // экран надо перерисовать, как только палец отпустит карту
@@ -116,16 +116,25 @@ function onHeartbeat(): void {
     return;
   }
   if (timeStands(current) || ticking) return;
-  progress += HEARTBEAT_MS / (getCellMs() * (dragState.active ? CONFIG.timeline.dragSlowdown : 1));
+  // Следующая клетка пуста — шкала ждёт карту (освободили клетку посреди хода — шкала возвращается к началу клетки)
+  if (!nextCellFilled(current)) {
+    if (progress > 0) {
+      progress = 0;
+      setTimelineProgress(0);
+    }
+    return;
+  }
+  progress += HEARTBEAT_MS / getCellMs();
   if (progress < 1) {
-    setTimelineProgress(progress);
+    // Пока ждут эффекты такта, шкала стоит
+    if (!current.tactDue) setTimelineProgress(progress);
     return;
   }
   progress = 0;
   void doTick(current);
 }
 
-// Один шаг времени: логика проходит клетку, экран показывает её события и рисуется заново
+// Один шаг времени: логика проходит клетку (или такт), экран показывает её события и рисуется заново
 async function doTick(current: Combat): Promise<void> {
   ticking = true;
   const before = captureCombatView(current);
@@ -134,8 +143,6 @@ async function doTick(current: Combat): Promise<void> {
     ticking = false;
     return;
   }
-  // Такт кончился — время встаёт до кнопки
-  if (current.clock % TACT === 0) waiting = true;
   if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
   await ui.playTick(before, current, {
     maxMs: getCellMs() * 0.7,
@@ -219,14 +226,17 @@ function aliveEnemies(): EnemyUnit[] {
   return combat().enemies.filter((enemy) => enemy.hp > 0);
 }
 
+// Выбранный враг: по нему бьют карты «на врага», его дорожка видна на шкале
 function selectedEnemy(): EnemyUnit | null {
-  const alive = aliveEnemies();
-  return alive.find((enemy) => enemy.instanceId === selectedEnemyId) ?? alive[0] ?? null;
+  return focusedEnemy(combat());
 }
 
 export function renderCombatScreen(root: HTMLElement): void {
   const current = combat();
   const screen = el("main", "combat");
+  // Выбранный враг есть всегда: если его ещё нет или он умер — выбран ближайший живой
+  const focus = focusedEnemy(current);
+  if (focus && current.focusId !== focus.instanceId) current.focusId = focus.instanceId;
   const preview = previewLaunch(current);
   screen.append(
     createTopBar(current),
@@ -235,23 +245,25 @@ export function renderCombatScreen(root: HTMLElement): void {
       onPotionTap,
       selectedPotionIndex: selection?.kind === "potion" ? selection.index : null,
     }),
-    createTimeline(current, selectedEnemy(), preview, {
+    createTimeline(current, lanesExpanded ? aliveEnemies() : focus ? [focus] : [], focus, lanesExpanded, preview, {
       onHeroLaneTap: (cell, boundary) => placeSelected({ kind: "lane", cell, boundary }),
       onPrepLaneTap: () => placeSelected({ kind: "prep" }),
       onItemTap: returnToHand,
       onItemMove: moveItem,
       onItemHover: previewMove,
+      onToggleLanes: () => {
+        lanesExpanded = !lanesExpanded;
+        showScreen("combat");
+      },
     }),
     createHero(current),
     el("p", "combat__hint", getHint(current)),
-    createSelectionBar(current),
+    el("div", "hand-info hand-info--hidden"),
     createHand(current),
     createBottomBar(current),
   );
-  // Сваренное зелье выбирают, когда время стоит: до «Начать» и на остановке в конце такта
-  if (current.brewChoices.length > 0 && (current.status === "planning" || waiting || brewBlocksTime(current))) {
-    screen.append(createBrewChoice(current));
-  }
+  // Сваренное зелье выбирают сразу: пока не выбрано, время стоит
+  if (current.brewChoices.length > 0) screen.append(createBrewChoice(current));
   if (state.test.pickerOpen) screen.append(createCardPicker());
   const banner = state.test.enabled && !isTutorialBattle() ? null : ui.createTutorialBanner("combat", current);
   if (banner) screen.append(banner);
@@ -369,81 +381,130 @@ function createHero(current: Combat): HTMLElement {
 }
 
 function getHint(current: Combat): string {
-  if (selection?.kind === "card") return TEXTS.timeline.hintSelected;
   if (selection?.kind === "potion") return TEXTS.timeline.hintPotion;
   if (current.status === "planning") return TEXTS.timeline.hintPlan;
-  if (!waiting) return current.brewChoices.length > 0 ? TEXTS.timeline.hintBrewLater : TEXTS.timeline.hintRunning;
-  return isTactEnd(current) ? TEXTS.timeline.hintTactEnd : TEXTS.timeline.hintStopped;
+  if (waiting) return TEXTS.timeline.hintStopped;
+  if (brewBlocksTime(current)) return TEXTS.timeline.hintBrew;
+  return nextCellFilled(current) ? TEXTS.timeline.hintRunning : TEXTS.timeline.hintEmptyCell;
 }
 
-// Время стоит ровно на конце такта (а не посреди него — после того как игру сворачивали)
-function isTactEnd(current: Combat): boolean {
-  return current.clock % TACT === 0 && progress === 0;
-}
-
-// ---------- Рука и выбранная карта ----------
-
-function selectedCard(): CardInstance | null {
-  if (selection?.kind !== "card") return null;
-  const uid = selection.uid;
-  return combat().piles.hand.find((card) => card.uid === uid) ?? null;
-}
+// ---------- Рука ----------
 
 function canPrepare(current: Combat): boolean {
   return Boolean(HEROES[current.hero.heroId].prepares);
 }
 
+function canAct(current: Combat): boolean {
+  return current.status === "planning" || current.status === "running";
+}
+
 // Можно ли поставить карту хоть куда-нибудь
 function isPlayable(current: Combat, instance: CardInstance): boolean {
   const weight = cardWeight(instance, current);
-  if (weight === null || (current.status !== "planning" && current.status !== "running")) return false;
+  if (weight === null || !canAct(current)) return false;
   return findFreeStart(current, weight) !== null || canPrepare(current);
+}
+
+// Описание над рукой, пока палец держит карту
+function showHandInfo(content: HTMLElement | null): void {
+  const info = document.querySelector<HTMLElement>(".hand-info");
+  if (!info) return;
+  info.replaceChildren(...(content ? [content] : []));
+  info.classList.toggle("hand-info--hidden", !content);
+}
+
+function describeCard(instance: CardInstance): HTMLElement {
+  const card = getCardData(instance);
+  const plus = instance.level > 1 ? `+${instance.level}` : instance.level === 1 ? "+" : "";
+  const block = el("div", "hand-info__body");
+  block.append(
+    el("p", "hand-info__name", `${card.name}${plus} · ${TEXTS.preview.types[card.type]}`),
+    createRichText("hand-info__text", formatDescription(card, combat().hero)),
+  );
+  return block;
+}
+
+function describeSkip(): HTMLElement {
+  const block = el("div", "hand-info__body");
+  block.append(el("p", "hand-info__name", TEXTS.timeline.skipName), el("p", "hand-info__text", TEXTS.timeline.skipDescription));
+  return block;
+}
+
+// «Пропуск клетки» в руке: особая карта, всегда первая и всегда доступна
+function createSkipCard(): HTMLElement {
+  const element = el("div", "card card--skip card--playable");
+  element.append(el("div", "card__cost", "1"), el("div", "card__name", TEXTS.timeline.skipName), el("div", "card__skip-icon", TEXTS.timeline.skipShort));
+  return element;
 }
 
 function createHand(current: Combat): HTMLElement {
   const hand = el("div", "hand");
-  const count = current.piles.hand.length;
-  const middle = (count - 1) / 2;
+  const count = current.piles.hand.length + 1; // ещё «Пропуск клетки»
   // Чем больше карт в руке, тем меньше наклон, иначе крайние уйдут за экран
   const spread = Math.min(1, 5 / count);
   hand.style.setProperty("--card-count", String(count));
+  const entries: HandEntry[] = [];
 
-  current.piles.hand.forEach((instance, index) => {
-    const isSelected = selection?.kind === "card" && selection.uid === instance.uid;
-    const element = createCardElement(instance, current.hero, {
-      playable: isPlayable(current, instance),
-      selected: isSelected,
-      onTap: () => onCardTap(instance),
-      onHold: () => openCardPreview(instance, current.hero),
-    });
-    enableTimelineDrag(element, {
+  const skip = createSkipCard();
+  entries.push({
+    element: skip,
+    canDrag: () => canAct(current),
+    onBlocked: shakeCard,
+    onTap: () => (canAct(current) ? placeSkipAt(nearest(current, 1)) : shakeCard(skip)),
+    describe: describeSkip,
+    onHover: (target) => previewPlacement(target, 1, (probe, start) => placeSkip(probe, start)),
+    onDrop: (target) => {
+      if (target?.kind === "lane") placeSkipAt(target.cell);
+      else if (target?.kind === "reroll") showError({ ok: false, reason: "cannotReroll" });
+    },
+  });
+
+  for (const instance of current.piles.hand) {
+    const element = createCardElement(instance, current.hero, { playable: isPlayable(current, instance), selected: false, onTap: () => {} });
+    const weight = cardWeight(instance, current) ?? 1;
+    entries.push({
+      element,
       canDrag: () => isPlayable(current, instance),
       onBlocked: shakeCard,
-      onHover: (target) => previewSlot(instance, target),
-      onDrop: (target, ghost) => {
-        ghost.remove();
-        placeCardAt(instance, target);
-      },
+      onTap: () => (isPlayable(current, instance) ? placeCardAt(instance, nearestTarget(current, weight)) : shakeCard(element)),
+      describe: () => describeCard(instance),
+      onHover: (target) => previewPlacement(target, weight, (probe, start) => placeCard(probe, instance.uid, start)),
+      onDrop: (target) => dropCard(instance, target),
     });
-    const offset = (index - middle) * spread;
-    element.style.setProperty("--fan-angle", `${offset * 3}deg`);
-    element.style.setProperty("--fan-drop", `${offset * offset * 2}px`);
-    hand.append(element);
+  }
+
+  entries.forEach((entry, index) => {
+    const offset = (index - (count - 1) / 2) * spread;
+    entry.element.style.setProperty("--fan-angle", `${offset * 3}deg`);
+    entry.element.style.setProperty("--fan-drop", `${offset * offset * 2}px`);
+    hand.append(entry.element);
   });
+  enableHandGestures(hand, entries, { showInfo: showHandInfo });
   return hand;
 }
 
-// Пока палец несёт карту, на дорожке героя видно, куда она встанет и можно ли туда
-function previewSlot(instance: CardInstance, target: DropTarget): void {
-  const weight = cardWeight(instance, combat()) ?? 1;
+// Ближайшая к полосе времени клетка, куда карта такого веса встанет, ничего не сдвигая (у веса 0 — стык)
+function nearest(current: Combat, weight: number): number | null {
+  return findFreeStart(current, weight);
+}
+
+function nearestTarget(current: Combat, weight: number): DropTarget {
+  const start = nearest(current, weight);
+  return start === null ? null : { kind: "lane", cell: start, boundary: start };
+}
+
+// Пока палец несёт карту, на дорожке героя видно, куда она встанет (с учётом сдвига других карт) и можно ли туда
+function previewPlacement(target: DropTarget, weight: number, place: (probe: Combat, start: number) => ActionResult): void {
   if (target?.kind !== "lane") {
     showLaneSlot(null, weight, false);
     return;
   }
   const start = weight === 0 ? target.boundary : target.cell;
   const probe = structuredClone(combat());
-  const ok = placeCard(probe, instance.uid, start, targetFor(getCardData(instance).target, null)).ok;
-  showLaneSlot(start, weight, ok);
+  const ok = place(probe, start).ok;
+  // Карта на карту встаёт на начало той карты: показываем, где она окажется на самом деле
+  const placed = ok ? probe.lane.find((item) => item.id === probe.nextLaneId - 1) : undefined;
+  showLaneSlot(placed?.start ?? start, weight, ok);
 }
 
 // Где окажется перенесённая по шкале карта: на клетке под пальцем (или на стыке, если вес 0)
@@ -458,61 +519,50 @@ function previewMove(id: number, target: DropTarget): void {
   const start = moveStart(id, target);
   if (!item || start === null) return showLaneSlot(null, 1, false);
   const probe = structuredClone(combat());
-  showLaneSlot(start, item.weight, moveLaneItem(probe, id, start).ok);
+  const ok = moveLaneItem(probe, id, start).ok;
+  const moved = ok ? probe.lane.find((entry) => entry.id === id) : undefined;
+  showLaneSlot(moved?.start ?? start, item.weight, ok);
 }
 
-// Карту перенесли по шкале: на враге — та же клетка, но новая цель
+// Карту перенесли по шкале на другое место (на занятой клетке она сдвинет ту карту)
 function moveItem(id: number, target: DropTarget): void {
-  const current = combat();
-  const item = current.lane.find((entry) => entry.id === id);
-  if (!item || !target) return;
-  const result = target.kind === "enemy"
-    ? moveLaneItem(current, id, item.start, target.id)
-    : target.kind === "lane" ? moveLaneItem(current, id, moveStart(id, target)!) : { ok: false as const, reason: "noRoom" };
+  const start = moveStart(id, target);
+  if (start === null) return;
+  const result = moveLaneItem(combat(), id, start);
   if (!result.ok) return showError(result);
   playSound("cardPick");
   afterChange();
 }
 
-// Под выбранной картой — что ещё с ней можно сделать: перебросить (раз в два такта), подготовить
-function createSelectionBar(current: Combat): HTMLElement {
-  const bar = el("div", "combat__selection");
-  const instance = selectedCard();
-  if (!instance) return bar;
-  bar.append(actionButton(`${TEXTS.timeline.rerollCard} (${current.rerollsLeft})`, () => reroll(instance.uid), current.rerollsLeft <= 0));
-  if (canPrepare(current)) bar.append(actionButton(TEXTS.timeline.prepare, () => placeSelected({ kind: "prep" })));
-  bar.append(actionButton(TEXTS.timeline.details, () => openCardPreview(instance, current.hero)));
-  return bar;
-}
-
-function actionButton(text: string, onTap: () => void, disabled = false): HTMLElement {
-  const button = el("button", "button button--secondary combat__action", text) as HTMLButtonElement;
-  button.type = "button";
-  button.disabled = disabled;
-  button.addEventListener("click", onTap);
-  return button;
+// Карту из руки отпустили: на шкалу, на подготовку Мага или на стопки — переброс
+function dropCard(instance: CardInstance, target: DropTarget): void {
+  if (target?.kind === "reroll") reroll(instance.uid);
+  else placeCardAt(instance, target);
 }
 
 function createBottomBar(current: Combat): HTMLElement {
   const bar = el("div", "combat__bottom-bar");
   const clock = el("div", "combat__capacity", TEXTS.timeline.clock(current.turn, current.clock));
 
+  // Стопки: открыть список карт; сюда же несут карту, чтобы перебросить её
   const piles = el("button", "combat__piles") as HTMLButtonElement;
   piles.type = "button";
   const upcoming = getUpcomingDraws(current).map((card) => getCardData(card).name).join(", ");
   piles.append(
-    el("div", "", `${TEXTS.drawPile}: ${current.piles.draw.length} · ${TEXTS.discardPile}: ${current.piles.discard.length}`),
+    el("div", "", `${TEXTS.drawPile}: ${current.piles.draw.length} · ${TEXTS.discardPile}: ${current.piles.discard.length} · ${TEXTS.timeline.reroll(current.rerollsLeft)}`),
     el("div", "combat__upcoming", upcoming ? `${TEXTS.timeline.upcoming} ${upcoming}` : ""),
   );
   piles.addEventListener("click", () => openPiles(current));
 
-  // До начала боя — «Начать», на остановке — следующий такт, пока такт идёт — кнопка ждёт его конца
+  // До боя — «Начать», после сворачивания игры — «Продолжить». Остальное время кнопка только показывает, что с временем
   let label = TEXTS.timeline.tactRunning;
   if (current.status === "planning") label = TEXTS.timeline.launch;
-  else if (waiting) label = isTactEnd(current) ? TEXTS.timeline.nextTact : TEXTS.timeline.resume;
+  else if (waiting) label = TEXTS.timeline.resume;
+  else if (brewBlocksTime(current)) label = TEXTS.timeline.brewWait;
+  else if (!nextCellFilled(current)) label = TEXTS.timeline.waitingCard;
   const launchButton = el("button", "button combat__launch", label) as HTMLButtonElement;
   launchButton.type = "button";
-  launchButton.disabled = current.status === "running" && !waiting;
+  launchButton.disabled = current.status !== "planning" && !waiting;
   launchButton.addEventListener("click", onClockButtonTap);
 
   bar.append(clock, piles, launchButton);
@@ -563,25 +613,10 @@ function showError(result: ActionResult): void {
   playSound("error");
 }
 
-// Карте «на врага» нужна цель: тот, на кого её бросили, иначе выбранный враг
-function targetFor(target: CardData["target"], enemyId: string | null): string | null {
-  if (target !== "enemy") return null;
-  return enemyId ?? selectedEnemy()?.instanceId ?? null;
-}
-
+// Подсветка врагов, когда выбрано зелье «на врага»: нажатие на врага поставит зелье и выберет этого врага
 function wantsEnemyTarget(): boolean {
-  if (selection?.kind === "card") {
-    const instance = selectedCard();
-    return instance ? getCardData(instance).target === "enemy" : false;
-  }
   if (selection?.kind === "potion") return POTIONS[combat().potions[selection.index]]?.target === "enemy";
   return false;
-}
-
-function onCardTap(instance: CardInstance): void {
-  const same = selection?.kind === "card" && selection.uid === instance.uid;
-  selection = same ? null : { kind: "card", uid: instance.uid };
-  showScreen("combat");
 }
 
 function onPotionTap(index: number): void {
@@ -590,64 +625,58 @@ function onPotionTap(index: number): void {
   showScreen("combat");
 }
 
-// Нажатие на врага: с выбранной картой «на врага» — поставить её в первую свободную клетку против него,
-// иначе — показать его дорожку, а на показанном враге — описание
+// Нажатие на врага: выбрать его (по нему ударят карты, которые сработают дальше), на выбранном — описание.
+// С выбранным зельем «на врага» — ещё и поставить зелье в ближайшую клетку
 function onEnemyTap(current: Combat, enemy: EnemyUnit): void {
   if (selection && wantsEnemyTarget()) {
-    placeSelected({ kind: "enemy", id: enemy.instanceId });
+    setFocus(current, enemy.instanceId);
+    placeSelected({ kind: "lane", cell: -1, boundary: -1 });
     return;
   }
   if (selectedEnemy() !== enemy) {
-    selectedEnemyId = enemy.instanceId;
-    showScreen("combat");
+    setFocus(current, enemy.instanceId);
+    playSound("click");
+    afterChange();
     return;
   }
   showTooltip(describeEnemy(current, enemy));
 }
 
+// Выбранное зелье ставится на нажатую клетку (cell −1 — в ближайшую)
 function placeSelected(target: DropTarget): void {
-  if (selection?.kind === "card") {
-    const instance = selectedCard();
-    if (instance) placeCardAt(instance, target);
-    return;
-  }
-  if (selection?.kind === "potion" && target) {
-    const current = combat();
-    const potion = POTIONS[current.potions[selection.index]];
-    const weight = HEROES[current.hero.heroId].potionWeight;
-    let start: number | null = null;
-    if (target.kind === "lane") start = weight === 0 ? target.boundary : target.cell;
-    if (target.kind === "enemy") start = findFreeStart(current, weight);
-    if (start === null) return showError({ ok: false, reason: "noRoom" });
-    const enemyId = target.kind === "enemy" ? target.id : null;
-    const result = placePotion(current, selection.index, start, targetFor(potion.target, enemyId));
-    if (!result.ok) return showError(result);
-    selection = null;
-    playSound("potion");
-    afterChange();
-  }
+  if (selection?.kind !== "potion" || target?.kind !== "lane") return;
+  const current = combat();
+  const weight = HEROES[current.hero.heroId].potionWeight;
+  const start = target.cell < 0 ? nearest(current, weight) : weight === 0 ? target.boundary : target.cell;
+  if (start === null) return showError({ ok: false, reason: "noRoom" });
+  const result = placePotion(current, selection.index, start);
+  if (!result.ok) return showError(result);
+  selection = null;
+  playSound("potion");
+  afterChange();
 }
 
 function placeCardAt(instance: CardInstance, target: DropTarget): void {
-  if (!target) return;
+  if (!target) return showError({ ok: false, reason: "noRoom" });
+  if (target.kind === "reroll") return;
   const current = combat();
-  const card = getCardData(instance);
   const weight = cardWeight(instance, current);
   if (weight === null) return showError({ ok: false, reason: "cannotPlay" });
 
-  let result: ActionResult;
-  if (target.kind === "prep") {
-    result = placeCard(current, instance.uid, 0, targetFor(card.target, null), { prepare: true });
-  } else {
-    const enemyId = target.kind === "enemy" ? target.id : null;
-    const start = target.kind === "lane" ? (weight === 0 ? target.boundary : target.cell) : findFreeStart(current, weight);
-    if (start === null) return showError({ ok: false, reason: "noRoom" });
-    result = placeCard(current, instance.uid, start, targetFor(card.target, enemyId));
-  }
+  const result = target.kind === "prep"
+    ? placeCard(current, instance.uid, 0, null, { prepare: true })
+    : placeCard(current, instance.uid, weight === 0 ? target.boundary : target.cell);
   if (!result.ok) return showError(result);
-  selection = null;
   const tutorialAction = tutorialActionForCard(instance);
   if (tutorialAction) notifyTutorial(tutorialAction);
+  playSound("cardPick");
+  afterChange();
+}
+
+function placeSkipAt(start: number | null): void {
+  if (start === null) return showError({ ok: false, reason: "noRoom" });
+  const result = placeSkip(combat(), start);
+  if (!result.ok) return showError(result);
   playSound("cardPick");
   afterChange();
 }
@@ -663,7 +692,6 @@ function returnToHand(id: number): void {
 function reroll(uid: number): void {
   const result = rerollCard(combat(), uid);
   if (!result.ok) return showError(result);
-  selection = null;
   playSound("draw");
   afterChange();
 }
@@ -701,8 +729,8 @@ function buildDamageLog(current: Combat): string[] {
   return lines;
 }
 
-// «Начать» запускает время; на остановке в конце такта та же кнопка запускает следующий такт.
-// Кнопки паузы нет: время и так встаёт в конце каждого такта
+// «Начать» запускает время; «Продолжить» — после того как игру сворачивали или уходили с экрана боя.
+// Остальное время кнопка не нужна: время само идёт, пока следующая клетка занята
 function onClockButtonTap(): void {
   const current = combat();
   if (current.status === "planning") {
@@ -754,4 +782,3 @@ function showCombatEnd(): void {
   saveRun(run);
   showScreen("reward");
 }
-

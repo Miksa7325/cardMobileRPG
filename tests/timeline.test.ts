@@ -61,9 +61,11 @@ describe("расстановка", () => {
     const combat = fight({ deck: deckOf("bash") });
     const target = firstEnemy(combat);
     expect(placeCard(combat, uidAt(combat), 1, target).ok).toBe(true);
-    expect(placeCard(combat, uidAt(combat), 2, target)).toEqual({ ok: false, reason: "overlap" });
     expect(placeCard(combat, uidAt(combat), 6, target)).toEqual({ ok: false, reason: "outOfTimeline" });
-    expect(placeCard(combat, uidAt(combat), 5, target).ok).toBe(true);
+    expect(placeCard(combat, uidAt(combat), 4, target).ok).toBe(true);
+    // На занятую клетку карта встаёт перед той картой, а та сдвигается: клетки 1–2 новая, 3–4 первая, 5–6 вторая
+    expect(placeCard(combat, uidAt(combat), 2, target).ok).toBe(true);
+    expect(combat.lane.map((item) => item.start).sort((a, b) => a - b)).toEqual([1, 3, 6]);
   });
   it("вместимости нет: все 6 клеток можно занять, седьмую — только когда время дойдёт", () => {
     const combat = fight({ heroId: "mage", deck: deckOf("m_spark") });
@@ -242,7 +244,7 @@ describe("новые статусы", () => {
     combat.hero.statuses.dexterity = 2;
     placeCard(combat, uidAt(combat), 1, firstEnemy(combat));
     expect(placeCard(combat, uidAt(combat), 2, firstEnemy(combat)).ok).toBe(true); // вторая в том же такте — уже вес 2
-    expect(placeCard(combat, uidAt(combat), 3, firstEnemy(combat))).toEqual({ ok: false, reason: "overlap" });
+    expect(heroSchedule(combat).lane.get(combat.lane[1].id)).toMatchObject({ start: 2, end: 3 });
   });
   it("Ловкость облегчает первую карту и следующего такта", () => {
     const combat = fight({ deck: deckOf("bash", 10) });
@@ -356,18 +358,18 @@ describe("Алхимик и зелья", () => {
     chooseBrew(combat, 0, chosen);
     expect(combat.potions).toEqual([chosen]);
   });
-  it("варка посреди такта время не останавливает: выбор — на остановке в конце такта", () => {
+  it("варка посреди такта сразу останавливает время до выбора", () => {
     const combat = fight({ heroId: "alchemist", deck: deckOf("al_brew", 20) });
     quiet(combat);
     advance(combat, 1);
     placeCard(combat, uidAt(combat), 2);
     expect(combat.brewChoices).toHaveLength(1);
     advance(combat, 6);
-    expect(combat.clock).toBe(3); // дошло до конца такта и встало
+    expect(combat.clock).toBe(1); // время стоит, пока не выбрано зелье
     expect(launch(combat)).toEqual({ ok: false, reason: "chooseBrew" });
     chooseBrew(combat, 0, combat.brewChoices[0].options[0]);
     advance(combat, 3);
-    expect(combat.clock).toBe(6);
+    expect(combat.clock).toBe(4);
   });
   it("зелье Алхимика весит 0, у остальных героев — 1", () => {
     const alchemist = fight({ heroId: "alchemist", deck: deckOf("al_toss"), potions: ["block_potion"] });

@@ -1,4 +1,5 @@
-// Шкала боя на экране: дорожка выбранного врага, дорожка героя и (у Мага) дорожка подготовки.
+// Шкала боя на экране: дорожка выбранного врага (или всех врагов, если шкалу развернули), дорожка героя
+// и (у Мага) дорожка подготовки. Сыгранные карты и ходы остаются на шкале погасшими, пока не уедут за левый край.
 // Шкала бесконечная, экран показывает окно из 7 клеток: прошедшую клетку слева от полосы времени и 6 впереди.
 // В самом начале боя полоса стоит у левого края и за первую клетку доходит до своего места — 1 клетка от края;
 // дальше полоса стоит, а плавно едет сама шкала. Номера клеток считаются с начала боя, черты отделяют такты.
@@ -30,9 +31,10 @@ let origin = 0;
 export interface TimelineHandlers {
   onHeroLaneTap: (cell: number, boundary: number) => void; // нажали на дорожку героя: клетка и ближайший стык (с начала боя)
   onPrepLaneTap: () => void;
-  onItemTap: (id: number) => void; // нажали на карту или зелье на шкале
+  onItemTap: (id: number) => void; // нажали на карту, зелье или пропуск на шкале
   onItemMove: (id: number, target: DropTarget) => void; // перенесли карту на другое место шкалы
   onItemHover: (id: number, target: DropTarget) => void; // несут карту по шкале: показать, куда встанет
+  onToggleLanes: () => void; // развернуть или свернуть дорожки всех врагов
 }
 
 // Где на дорожке точка экрана: номер клетки и ближайший стык, считая с начала боя.
@@ -101,9 +103,10 @@ function previewValue(preview: ActionPreview | undefined): HTMLElement {
 function createEnemyTrack(combat: Combat, enemy: EnemyUnit, preview: Map<string, ActionPreview>): HTMLElement {
   const track = createTrack("enemy");
   for (const entry of getEnemyLane(combat, enemy)) {
-    if (entry.resolved || !visible(entry.start, entry.end)) continue;
+    if (!visible(entry.start, entry.end)) continue;
     const chip = el("div", `lane-chip lane-chip--enemy lane-chip--${entry.intent}`);
     place(chip, entry.start, entry.end - entry.start + 1);
+    if (entry.resolved) chip.classList.add("lane-chip--played");
     if (entry.end > origin + STRIP) chip.classList.add("lane-chip--overflow");
     // Скрытый ход: «?», пока до него больше 2 клеток
     if (entry.hidden) {
@@ -135,14 +138,21 @@ function createHeroTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
   const slots = heroSchedule(combat).lane;
   for (const item of combat.lane) {
     const slot = slots.get(item.id)!;
-    if (item.resolved) continue;
-    if (item.weight > 0 && !visible(slot.start, slot.end)) continue;
+    if (item.weight > 0 ? !visible(slot.start, slot.end) : slot.start < origin) continue;
     const card = item.card ? getCardData(item.card) : null;
-    const name = card ? card.name : POTIONS[item.potionId!].icon;
-    const chip: HTMLElement = el("div", `lane-chip lane-chip--hero lane-chip--${card?.type ?? "potion"}`);
+    const name = card ? card.name : item.potionId ? POTIONS[item.potionId].icon : TEXTS.timeline.skipShort;
+    const kind = card?.type ?? (item.kind === "skip" ? "skip" : "potion");
+    const chip: HTMLElement = el("div", `lane-chip lane-chip--hero lane-chip--${kind}`);
     chip.dataset.laneId = String(item.id);
-    if (item.locked) chip.classList.add("lane-chip--locked");
     place(chip, slot.start, item.weight === 0 ? 0 : slot.end - slot.start + 1);
+    // Сыгранная карта остаётся погасшей, пока не уедет за левый край; трогать её нельзя
+    if (item.resolved) {
+      chip.classList.add("lane-chip--played");
+      chip.append(el("span", "lane-chip__name", name));
+      track.append(chip);
+      continue;
+    }
+    if (item.locked) chip.classList.add("lane-chip--locked");
     const predicted = preview.get(`lane:${item.id}`);
     if (predicted?.chain) chip.classList.add("lane-chip--bonus");
     chip.append(el("span", "lane-chip__name", name), previewValue(predicted));
@@ -156,10 +166,7 @@ function createHeroTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
       canDrag: () => !item.locked && !started,
       onBlocked: () => {},
       onHover: (target) => handlers.onItemHover(item.id, target),
-      onDrop: (target, ghost) => {
-        ghost.remove();
-        handlers.onItemMove(item.id, target);
-      },
+      onDrop: (target) => handlers.onItemMove(item.id, target),
     });
     track.append(chip);
   }
@@ -195,8 +202,10 @@ function createPrepTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
   return track;
 }
 
+// enemies — чьи дорожки показать: выбранного врага или всех (шкала развёрнута), focused — выбранный враг
 export function createTimeline(
-  combat: Combat, selectedEnemy: EnemyUnit | null, preview: Map<string, ActionPreview>, handlers: TimelineHandlers,
+  combat: Combat, enemies: EnemyUnit[], focused: EnemyUnit | null, expanded: boolean, preview: Map<string, ActionPreview>,
+  handlers: TimelineHandlers,
 ): HTMLElement {
   clock = combat.clock;
   // Слева от полосы — одна прошедшая клетка; в самом начале боя прошедших нет и полоса стоит у края
@@ -218,11 +227,23 @@ export function createTimeline(
   }
   const numbersClip = el("div", "timeline__clip");
   numbersClip.append(numbers);
-  header.append(el("div", "timeline__label", ""), numbersClip);
+  // Кнопка в углу: развернуть шкалу на всех врагов (есть, только если врагов больше одного)
+  const corner = el("div", "timeline__label");
+  if (combat.enemies.filter((enemy) => enemy.hp > 0).length > 1) {
+    const toggle = el("button", "timeline__toggle", expanded ? TEXTS.timeline.collapseLanes : TEXTS.timeline.expandLanes) as HTMLButtonElement;
+    toggle.type = "button";
+    toggle.addEventListener("click", handlers.onToggleLanes);
+    corner.append(toggle);
+  }
+  header.append(corner, numbersClip);
   timeline.append(header);
 
   const tracks = el("div", "timeline__tracks");
-  if (selectedEnemy) tracks.append(createRow(ENEMIES[selectedEnemy.enemyId].name, createEnemyTrack(combat, selectedEnemy, preview), "enemy"));
+  for (const enemy of enemies) {
+    const row = createRow(ENEMIES[enemy.enemyId].name, createEnemyTrack(combat, enemy, preview), "enemy");
+    if (expanded && enemy === focused) row.classList.add("timeline__row--focused");
+    tracks.append(row);
+  }
   tracks.append(createRow(TEXTS.timeline.heroLane, createHeroTrack(combat, preview, handlers), "hero"));
   if (HEROES[combat.hero.heroId].prepares) {
     tracks.append(createRow(TEXTS.timeline.prepLane, createPrepTrack(combat, preview, handlers), "prep"));
