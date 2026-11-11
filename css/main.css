@@ -24,10 +24,29 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* overscroll-behavior убирает «резинку» при прокрутке */
+/* overscroll-behavior убирает «резинку» при прокрутке. Сама страница не прокручивается никогда:
+   длинные экраны прокручиваются внутри #app, а полос прокрутки не видно нигде (листают пальцем или колёсиком) */
 html,
 body {
+  height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
+}
+
+#app {
+  height: 100vh; /* для старых браузеров без dvh */
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 html {

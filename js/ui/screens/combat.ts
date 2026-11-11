@@ -19,7 +19,7 @@ import { createNodeCombat, finishCombat } from "../../engine/run.ts";
 import { saveRun } from "../../save.ts";
 import { state } from "../../state.ts";
 import type { ActionResult, CardData, CardInstance, Combat, EnemyUnit, Equipment, HeroId, Run, Unit } from "../../types.ts";
-import { captureCombatView, playTick, showDrawnCards } from "../animations.js";
+import { captureCombatView, planCellMs, playCell, playTick, showDrawnCards } from "../animations.js";
 import { enemySprite, heroSprite, IDLE_STYLES, setHeroLookVariable } from "../art.js";
 import { playSound } from "../audio.js";
 import { createCardElement, formatDescription, shakeCard } from "../components/card.ts";
@@ -48,6 +48,8 @@ const ui = {
   createTutorialBanner: createTutorialBanner as Untyped,
   createRunBar: createRunBar as Untyped,
   playTick: playTick as Untyped,
+  playCell: playCell as Untyped,
+  planCell: planCellMs as (combat: Combat) => number,
 };
 const IDLE = IDLE_STYLES as Record<string, string>;
 
@@ -68,6 +70,7 @@ function resetView(): void {
   lanesExpanded = false;
   waiting = false;
   progress = 0;
+  flight = null;
 }
 
 // ---------- Время ----------
@@ -109,6 +112,12 @@ function onHeartbeat(): void {
     // Ушли с экрана боя: время встаёт, а вернувшись, игрок продолжит кнопкой
     stopClock();
     waiting = true;
+    flight = null;
+    return;
+  }
+  // Едет клетка, которая уже сработала: шкала доезжает, действия идут своим чередом
+  if (flight) {
+    advanceFlight();
     return;
   }
   if (pendingRender && !dragState.active && !ticking) {
@@ -123,43 +132,77 @@ function onHeartbeat(): void {
     void doTick(current);
     return;
   }
-  // Следующая клетка пуста — шкала ждёт карту (освободили клетку посреди хода — шкала возвращается к началу клетки)
-  if (!nextCellFilled(current)) {
-    if (progress > 0) {
-      progress = 0;
-      setTimelineProgress(0);
-    }
-    return;
-  }
-  progress += HEARTBEAT_MS / getCellMs();
-  if (progress < 1) {
-    setTimelineProgress(progress);
-    return;
-  }
-  progress = 0;
-  void doTick(current);
+  // Следующая клетка пуста — шкала ждёт карту
+  if (!nextCellFilled(current)) return;
+  startFlight(current);
 }
 
-// Один шаг времени: логика проходит клетку (или такт), экран показывает её события и рисуется заново
+// ---------- Клетка в пути ----------
+//
+// Клетка срабатывает сразу, как шкала начинает её прокручивать: логика уже прошла её, а экран ещё показывает шкалу
+// до неё и доезжает за время клетки. Действия клетки (по очереди, как их посчитал движок) показываются во время
+// прокрутки и кончаются вместе с ней; если им не хватает времени — после прокрутки шкала ждёт их (микропауза)
+
+interface Flight {
+  combat: Combat;
+  before: ReturnType<typeof captureCombatView>;
+  done: boolean; // все действия клетки показаны
+}
+let flight: Flight | null = null;
+
+function onCardPlayed(before: Flight["before"]) {
+  return (event: { cardId: string; targetId: string | null }) => {
+    const card = CARDS[event.cardId];
+    playCardEffect(card, getVfxPositions(before, card, event.targetId));
+  };
+}
+
+function startFlight(current: Combat): void {
+  const before = captureCombatView(current);
+  if (!tick(current).ok) return;
+  if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
+  const entry: Flight = { combat: current, before, done: false };
+  flight = entry;
+  progress = 0;
+  savePlanning();
+  // Действия ставим ближе к концу клетки: начинаем так, чтобы они кончились вместе с прокруткой
+  const delay = Math.max(0, getCellMs() - ui.planCell(current));
+  setTimeout(() => {
+    if (flight !== entry) return;
+    void ui.playCell(before, current, { onCardPlayed: onCardPlayed(before) }).then(() => {
+      entry.done = true;
+    });
+  }, delay);
+}
+
+function advanceFlight(): void {
+  const entry = flight!;
+  progress = Math.min(1, progress + HEARTBEAT_MS / getCellMs());
+  setTimelineProgress(progress);
+  if (progress < 1 || !entry.done) return;
+  // Клетка доехала и все её действия показаны: экран рисуется уже с новым временем
+  flight = null;
+  progress = 0;
+  if (state.combat !== entry.combat) return;
+  if (dragState.active) pendingRender = true;
+  else {
+    showScreen("combat");
+    showDrawnCards(entry.before.handUids, entry.combat);
+  }
+  finishCombatIfOver();
+}
+
+// Шаг такта: эффекты конца и начала такта по одному, по TACT_EFFECT_MS на каждый; шкала всё это время стоит
 async function doTick(current: Combat): Promise<void> {
   ticking = true;
   const before = captureCombatView(current);
-  const tactStep = Boolean(current.tactDue);
   const result = tick(current);
   if (!result.ok) {
     ticking = false;
     return;
   }
   if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
-  await ui.playTick(before, current, {
-    // Эффекты такта идут по одному: на каждый — TACT_EFFECT_MS, шкала всё это время стоит
-    maxMs: tactStep ? Infinity : getCellMs() * 0.7,
-    stepMs: tactStep ? TACT_EFFECT_MS : 0,
-    onCardPlayed: (event: { cardId: string; targetId: string | null }) => {
-      const card = CARDS[event.cardId];
-      playCardEffect(card, getVfxPositions(before, card, event.targetId));
-    },
-  });
+  await ui.playTick(before, current, { maxMs: Infinity, stepMs: TACT_EFFECT_MS, onCardPlayed: onCardPlayed(before) });
   ticking = false;
   if (state.combat !== current) return;
   savePlanning();
@@ -264,7 +307,7 @@ export function renderCombatScreen(root: HTMLElement): void {
         lanesExpanded = !lanesExpanded;
         showScreen("combat");
       },
-    }),
+    }, flight ? current.clock - 1 : current.clock),
     createHero(current),
     el("p", "combat__hint", getHint(current)),
     el("div", "hand-info hand-info--hidden"),

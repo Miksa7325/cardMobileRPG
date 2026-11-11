@@ -323,16 +323,6 @@
   font-weight: bold;
 }
 
-/* Экран боя занимает весь экран: страница не прокручивается, даже когда копия карты летит за край */
-html.is-dragging,
-html.is-dragging body,
-html:has(main.combat),
-html:has(main.combat) body,
-html:has(.card--ghost),
-html:has(.card--ghost) body {
-  overflow: hidden;
-}
-
 /* Стопки внизу — ещё и место для переброса: пока несут карту, они подсвечены */
 .timeline--dropping ~ * .combat__piles,
 body:has(.card--ghost) .combat__piles {

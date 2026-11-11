@@ -202,12 +202,13 @@ function createPrepTrack(combat: Combat, preview: Map<string, ActionPreview>, ha
   return track;
 }
 
-// enemies — чьи дорожки показать: выбранного врага или всех (шкала развёрнута), focused — выбранный враг
+// enemies — чьи дорожки показать: выбранного врага или всех (шкала развёрнута), focused — выбранный враг.
+// viewClock — до какого стыка шкала показана: пока едет клетка, которая уже сработала, — на клетку раньше времени боя
 export function createTimeline(
   combat: Combat, enemies: EnemyUnit[], focused: EnemyUnit | null, expanded: boolean, preview: Map<string, ActionPreview>,
-  handlers: TimelineHandlers,
+  handlers: TimelineHandlers, viewClock: number = combat.clock,
 ): HTMLElement {
-  clock = combat.clock;
+  clock = viewClock;
   // Слева от полосы — одна прошедшая клетка; в самом начале боя прошедших нет и полоса стоит у края
   origin = Math.max(0, clock - 1);
   const timeline = el("div", "timeline");

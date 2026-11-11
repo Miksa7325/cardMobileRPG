@@ -234,6 +234,84 @@ export async function playTick(before, combat, { onCardPlayed = null, maxMs = 10
   skipping = false;
 }
 
+// ---------- Действия одной клетки по очереди ----------
+// Клетка срабатывает в начале прокрутки, а её действия (карта героя, ход врага, заклинание подготовки) показываются
+// по одному в том порядке, в каком их посчитал движок, — пока шкала едет. Длительность каждого считаем заранее:
+// так экран ставит их ближе к концу клетки, а если не хватает времени — после прокрутки остаётся микропауза
+
+const HERO_ACTION_MS = 320; // выпад героя и эффект карты
+const SIMPLE_ACTION_MS = 200; // действие без движения бойца: числа, блок, статус
+
+// Соседние события одного действия (поле by — чьё действие) — одно действие
+function groupActions(events) {
+  const actions = [];
+  for (const event of events) {
+    if (event.type === "tactStart") continue;
+    const last = actions[actions.length - 1];
+    if (last && last.by === event.by) last.events.push(event);
+    else actions.push({ by: event.by, events: [event] });
+  }
+  return actions;
+}
+
+// Сколько длится действие (без учёта настройки скорости)
+function actionRawMs(action) {
+  let ms = 0;
+  let heroHits = 0;
+  for (const event of action.events) {
+    if (event.type === "cardPlayed") ms += HERO_ACTION_MS;
+    else if (event.type === "enemyAction" && event.intent !== "attack") ms += CAST_MS;
+    else if (event.type === "hit" && event.sourceId !== "hero") {
+      const enemyId = String(event.sourceId).slice(0, String(event.sourceId).lastIndexOf("-"));
+      ms += ATTACK_STYLES[enemyId]?.kind === "magic" ? PROJECTILE_MS * 2 : STRIKE_MS;
+    } else if (event.type === "hit") {
+      if (heroHits > 0) ms += PLAYER_HIT_STAGGER_MS;
+      heroHits += 1;
+    }
+  }
+  return Math.max(ms, SIMPLE_ACTION_MS);
+}
+
+// Сколько миллисекунд займут все действия клетки
+export function planCellMs(combat) {
+  return groupActions(combat.events).reduce((sum, action) => sum + scaled(actionRawMs(action)), 0);
+}
+
+async function playAction(action, before, onCardPlayed) {
+  let heroHits = 0;
+  for (const event of action.events) {
+    if (event.type === "cardPlayed") {
+      onCardPlayed?.(event);
+      heroLunge();
+    } else if (event.type === "enemyAction") {
+      if (event.intent !== "attack") castAnimation(event.enemyId);
+    } else if (event.type === "hit" && event.sourceId !== "hero") {
+      await strike(event, before);
+    } else if (event.type === "chainBonus") {
+      const chip = document.querySelector(`.lane-chip[data-lane-id="${event.laneId}"]`);
+      chip?.classList.add("lane-chip--bonus-fired");
+      playSound("gem"); // временный звук бонуса цепочки
+    } else {
+      // Удары одной карты идут друг за другом
+      if (event.type === "hit") {
+        if (heroHits > 0) await wait(PLAYER_HIT_STAGGER_MS);
+        heroHits += 1;
+      }
+      showEvent(event, before);
+    }
+  }
+}
+
+// Проигрывает действия клетки по очереди: каждое длится не меньше своего расчётного времени
+export async function playCell(before, combat, { onCardPlayed = null } = {}) {
+  for (const action of groupActions(combat.events)) {
+    const started = Date.now();
+    await playAction(action, before, onCardPlayed);
+    const rest = scaled(actionRawMs(action)) - (Date.now() - started);
+    if (rest > 0) await new Promise((resolve) => setTimeout(resolve, rest));
+  }
+}
+
 // Рука уходит в сброс сразу, как только ход закончен
 function discardHandView() {
   for (const card of document.querySelectorAll(".hand .card")) {
