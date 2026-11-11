@@ -2,8 +2,8 @@
 // цель в момент срабатывания, остановка на пустой клетке, отдельный шаг такта. Запуск: npm test
 import { describe, expect, it } from "vitest";
 import {
-  advance, hasPendingZero, heroSchedule, launch, moveLaneItem, nextCellFilled, placeCard, placeSkip, removeFromLane, resolvePendingZero, setFocus,
-  startCombat, tick,
+  advance, chooseBrew, findPotionStart, findZeroCardStart, hasPendingZero, heroSchedule, launch, moveLaneItem, nextCellFilled, placeCard, placePotion,
+  placeSkip, removeFromLane, resolvePendingZero, setFocus, startCombat, tick,
 } from "../js/engine/combat.ts";
 import { deckOf, fight, quiet } from "./helpers.ts";
 
@@ -172,5 +172,56 @@ describe("ход времени", () => {
     expect(combat.clock).toBe(3); // шаг такта клетку не двигает
     expect(combat.turn).toBe(2);
     expect(enemy.hp).toBeLessThan(hp);
+  });
+});
+
+describe("стыки и карты весом 0", () => {
+  it("на одном стыке — не больше одной карты или зелья весом 0", () => {
+    const combat = fight({ deck: deckOf("adrenal_rush") });
+    expect(placeCard(combat, uidAt(combat), 1).ok).toBe(true);
+    expect(placeCard(combat, uidAt(combat), 1)).toEqual({ ok: false, reason: "boundaryTaken" });
+    const alchemist = fight({ heroId: "alchemist", deck: deckOf("al_toss"), potions: ["block_potion", "block_potion"] });
+    expect(placePotion(alchemist, 0, 2).ok).toBe(true);
+    expect(placePotion(alchemist, 0, 2)).toEqual({ ok: false, reason: "boundaryTaken" });
+  });
+  it("по тапу карта весом 0 встаёт на стык после последней карты на шкале", () => {
+    const combat = fight({ deck: deckOf("strike") });
+    placeCard(combat, uidAt(combat), 1);
+    placeCard(combat, uidAt(combat), 4);
+    expect(findZeroCardStart(combat)).toBe(4);
+    const empty = fight();
+    expect(findZeroCardStart(empty)).toBe(0);
+  });
+});
+
+describe("сваренное зелье", () => {
+  const brewing = () => {
+    const combat = fight({ heroId: "alchemist", deck: deckOf("al_brew", 20) });
+    quiet(combat);
+    expect(placeCard(combat, uidAt(combat), 2).ok).toBe(true); // варка в клетке 2
+    const potion = combat.brewChoices[0].options[0];
+    chooseBrew(combat, 0, potion);
+    return { combat, potion, card: combat.lane[0].id };
+  };
+  it("ставится только после карты, которая его сварила", () => {
+    const { combat } = brewing();
+    expect(placePotion(combat, 0, 1)).toEqual({ ok: false, reason: "afterBrew" });
+    expect(findPotionStart(combat, 0)).toBe(2);
+    expect(placePotion(combat, 0, 2).ok).toBe(true);
+  });
+  it("карту варки можно вернуть в руку: её зелье пропадает, а следующая варка даёт то же зелье", () => {
+    const { combat, potion, card } = brewing();
+    placePotion(combat, 0, 3);
+    expect(removeFromLane(combat, card).ok).toBe(true);
+    expect(combat.lane).toHaveLength(0);
+    expect(combat.potions).toEqual([]);
+    expect(placeCard(combat, uidAt(combat), 1).ok).toBe(true);
+    expect(combat.brewChoices).toHaveLength(0); // без выбора
+    expect(combat.potions).toEqual([potion]);
+  });
+  it("карту варки нельзя перенести за её зелье на шкале", () => {
+    const { combat, card } = brewing();
+    placePotion(combat, 0, 3);
+    expect(moveLaneItem(combat, card, 5)).toEqual({ ok: false, reason: "afterBrew" });
   });
 });

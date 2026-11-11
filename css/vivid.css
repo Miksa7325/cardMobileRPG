@@ -416,8 +416,7 @@
   pointer-events: none;
 }
 
-.card--rare .card__art::before,
-.card--epic .card__art::before,
+/* Лучи за рисунком — только у легендарных карт */
 .card--legendary .card__art::before {
   opacity: 0.32;
   animation: art-rays 14s linear infinite;
@@ -977,8 +976,6 @@
 .lite .hatch__sign--revealed::before,
 .lite .corridor__wall::after,
 .lite .combat__enemies .unit__portrait::after,
-.lite .card--rare .card__art::before,
-.lite .card--epic .card__art::before,
 .lite .card--legendary .card__art::before,
 .lite .card--large,
 .lite .city-npc__marker,

@@ -133,11 +133,13 @@ describe("легендарные карты Убийцы", () => {
     expect(combat.hero.statuses.poison).toBeUndefined();
   });
 
-  it("Призрак: карт весом 0 за такт — сколько угодно", () => {
+  // Правило Призрака переделывается (docs/cards/ghost.md): пока проверяем, что и с ним на стыке одна карта весом 0
+  it("Призрак: на стыке — всё равно одна карта весом 0", () => {
     const { combat, uids } = assassin(["a_ghost", "a_flourish", "a_flourish", "a_flourish", "a_flourish"]);
     placeCard(combat, uids[0], 1);
     advance(combat, 3);
-    for (const uid of uids.slice(1)) expect(placeCard(combat, uid, 3).ok).toBe(true);
+    for (const [index, uid] of uids.slice(1, 4).entries()) expect(placeCard(combat, uid, 3 + index).ok).toBe(true);
+    expect(placeCard(combat, uids[4], 3)).toEqual({ ok: false, reason: "boundaryTaken" });
   });
 });
 

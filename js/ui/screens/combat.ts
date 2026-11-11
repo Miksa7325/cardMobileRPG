@@ -11,7 +11,7 @@ import { HEROES } from "../../data/heroes.ts";
 import { POTIONS } from "../../data/potions.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import {
-  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, focusedEnemy, getEnemyIntent, getUpcomingDraws, hasPendingZero, moveLaneItem,
+  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, findPotionStart, findZeroCardStart, focusedEnemy, getEnemyIntent, getUpcomingDraws, hasPendingZero, moveLaneItem,
   nextCellFilled, placeCard, placePotion, placeSkip, previewLaunch, removeFromLane, rerollCard, resolvePendingZero, setFocus, startCombat, tick,
 } from "../../engine/combat.ts";
 import { getCardData } from "../../engine/deck.ts";
@@ -608,8 +608,9 @@ function nearest(current: Combat, weight: number): number | null {
   return findFreeStart(current, weight);
 }
 
+// Карта весом 0 по тапу встаёт на стык после последней карты на шкале, остальные — в ближайшую свободную клетку
 function nearestTarget(current: Combat, weight: number): DropTarget {
-  const start = nearest(current, weight);
+  const start = weight === 0 ? findZeroCardStart(current) : nearest(current, weight);
   return start === null ? null : { kind: "lane", cell: start, boundary: start };
 }
 
@@ -738,7 +739,7 @@ function showError(result: ActionResult): void {
 function onPotionTap(index: number): void {
   const current = combat();
   if (current.status !== "planning" && current.status !== "running") return;
-  const start = nearest(current, HEROES[current.hero.heroId].potionWeight);
+  const start = findPotionStart(current, index);
   if (start === null) return showError({ ok: false, reason: "noRoom" });
   const result = placePotion(current, index, start);
   if (!result.ok) return showError(result);

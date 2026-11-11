@@ -445,6 +445,8 @@ function checkLane(combat: Combat, lane: LaneItem[], checked: LaneItem): string 
   const slot = slots.get(checked.id)!;
   if (checked.weight === 0) {
     if (checked.start < combat.clock || checked.start > combat.clock + HORIZON) return "outOfTimeline";
+    // На стыке — не больше одной карты или зелья весом 0
+    if (lane.some((item) => item !== checked && item.id !== checked.id && item.weight === 0 && item.start === checked.start)) return "boundaryTaken";
   } else {
     if (checked.start <= combat.clock) return "pastCell";
     if (slot.start !== checked.start) return "overlap";
@@ -455,6 +457,15 @@ function checkLane(combat: Combat, lane: LaneItem[], checked: LaneItem): string 
     if (item === checked || item.resolved || item.weight === 0) continue;
     const other = slots.get(item.id)!;
     if (item.start > combat.clock && other.start !== item.start) return "overlap";
+  }
+  // Сваренное зелье — только после карты, которая его сварила (пока та не сработала)
+  for (const potion of lane) {
+    if (potion.resolved || potion.brewedBy === undefined) continue;
+    const card = lane.find((item) => item.id === potion.brewedBy && !item.resolved);
+    if (!card) continue;
+    const cardEnd = card.weight === 0 ? card.start : slots.get(card.id)!.end;
+    const at = potion.weight === 0 ? potion.start : slots.get(potion.id)!.start - 1;
+    if (at < cardEnd) return "afterBrew";
   }
   return null;
 }
@@ -590,25 +601,74 @@ function actualTarget(combat: Combat, plannedId: string | null): string | null {
 
 // Эффекты добора и варки срабатывают сразу при постановке. Возвращает, были ли они:
 // тогда карту уже нельзя вернуть в руку
-function runPlanningEffects(combat: Combat, effects: Effect[]): boolean {
+// Варка карту не запирает: её можно вернуть в руку, тогда сваренные ею зелья пропадут (dropBrews).
+// sourceId — карта на шкале, которая варит
+function runPlanningEffects(combat: Combat, effects: Effect[], sourceId?: number): boolean {
   const planning = effects.filter((effect) => PLANNING_EFFECTS.has(effect.type));
   for (const effect of planning) {
     if (effect.type === "brewPotion") {
-      // Варка с выбором: из двух случайных зелий игрок выберет одно (chooseBrew) — на остановке в конце такта
-      for (let i = 0; i < effect.amount; i++) offerBrew(combat);
+      // Варка с выбором: из двух случайных зелий игрок выберет одно (chooseBrew) — сразу, время ждёт
+      for (let i = 0; i < effect.amount; i++) offerBrew(combat, sourceId);
     } else {
       executeEffects(combat, [effect], { source: combat.hero, targets: [], fromCard: true });
     }
   }
-  return planning.length > 0;
+  return planning.some((effect) => effect.type !== "brewPotion");
 }
 
-function offerBrew(combat: Combat): void {
+// Пропало зелье, сваренное убранной картой: следующая варка в этом бою даст его снова, без выбора
+function offerBrew(combat: Combat, sourceId?: number): void {
+  const lost = combat.lostBrews?.shift();
+  if (lost) {
+    if (addPotion(combat, lost, sourceId ?? null)) fireTrigger(combat, "onPotionBrewed");
+    return;
+  }
   const pool = [...combat.potionPool];
   if (pool.length === 0) return;
   const options: string[] = [];
   while (options.length < brewOptionCount(combat) && pool.length > 0) options.push(pool.splice(nextInt(combat.rng, 0, pool.length - 1), 1)[0]);
-  combat.brewChoices.push({ options });
+  combat.brewChoices.push({ options, sourceId });
+}
+
+// ---------- Сумка зелий ----------
+// Рядом с сумкой хранится, какая карта на шкале сварила каждое зелье (potionSources, тот же порядок)
+
+function potionSource(combat: Combat, index: number): number | null {
+  return combat.potionSources?.[index] ?? null;
+}
+
+// Кладёт зелье в сумку; если места нет — пропадает. Возвращает, положили ли
+function addPotion(combat: Combat, potionId: string, sourceId: number | null): boolean {
+  if (combat.potions.length >= combat.maxPotions) return false;
+  const sources = combat.potionSources ?? [];
+  while (sources.length < combat.potions.length) sources.push(null);
+  sources.length = combat.potions.length;
+  combat.potions.push(potionId);
+  sources.push(sourceId);
+  combat.potionSources = sources;
+  return true;
+}
+
+function takePotion(combat: Combat, index: number): { potionId: string; sourceId: number | null } {
+  const sourceId = potionSource(combat, index);
+  const [potionId] = combat.potions.splice(index, 1);
+  combat.potionSources?.splice(index, 1);
+  return { potionId, sourceId };
+}
+
+// Карту варки убрали со шкалы: её выбор варки отменяется, а сваренные ею зелья пропадают из сумки и со шкалы
+// и запоминаются — следующая варка даст их снова
+function dropBrews(combat: Combat, sourceId: number): void {
+  combat.brewChoices = combat.brewChoices.filter((choice) => choice.sourceId !== sourceId);
+  const lost: string[] = [];
+  for (let index = combat.potions.length - 1; index >= 0; index--) {
+    if (potionSource(combat, index) === sourceId) lost.unshift(takePotion(combat, index).potionId);
+  }
+  for (const item of combat.lane.filter((entry) => !entry.resolved && entry.brewedBy === sourceId)) {
+    lost.push(item.potionId!);
+    combat.lane = combat.lane.filter((entry) => entry !== item);
+  }
+  if (lost.length > 0) combat.lostBrews = [...(combat.lostBrews ?? []), ...lost];
 }
 
 // Карт весом 0 — не больше zeroWeightPerTact за такт: считаем те, что стоят (или сработали) на стыках этого такта
@@ -664,7 +724,7 @@ export function placeCard(combat: Combat, uid: number, start: number, targetId: 
   takeFromHand(combat.piles, uid);
   combat.lane = lane;
   combat.events = [];
-  item.locked = runPlanningEffects(combat, card.effects);
+  item.locked = runPlanningEffects(combat, card.effects, item.id);
   return OK;
 }
 
@@ -706,12 +766,14 @@ export function placePotion(combat: Combat, index: number, start: number, target
   const item: LaneItem = {
     id: combat.nextLaneId, kind: "potion", potionId, start, weight: potionWeight(combat), targetId, locked: false, resolved: false,
   };
+  const sourceId = potionSource(combat, index);
+  if (sourceId !== null) item.brewedBy = sourceId;
   const lane = arrangeLane(combat, [...combat.lane, item], item);
   const error = checkLane(combat, lane, item);
   if (error) return fail(error);
 
   combat.nextLaneId += 1;
-  combat.potions.splice(index, 1);
+  takePotion(combat, index);
   combat.lane = lane;
   combat.events = [];
   item.locked = runPlanningEffects(combat, potion.effects);
@@ -727,8 +789,12 @@ export function removeFromLane(combat: Combat, id: number): ActionResult {
     if (item.locked || hasStarted(combat, item)) return fail("locked");
     // Убрать можно всегда: от этого остальные карты не сдвигаются
     combat.lane = combat.lane.filter((entry) => entry !== item);
-    if (item.card) combat.piles.hand.push(item.card);
-    if (item.potionId) combat.potions.push(item.potionId);
+    if (item.card) {
+      combat.piles.hand.push(item.card);
+      dropBrews(combat, item.id);
+    }
+    // Зелье возвращается в сумку вместе с памятью, какая карта его сварила
+    if (item.potionId) addPotion(combat, item.potionId, item.brewedBy ?? null);
     return OK;
   }
   const spell = combat.prepared.find((entry) => entry.id === id);
@@ -778,10 +844,7 @@ export function chooseBrew(combat: Combat, choiceIndex: number, potionId: string
   const choice = combat.brewChoices[choiceIndex];
   if (!choice || !choice.options.includes(potionId)) return fail("invalidChoice");
   combat.brewChoices.splice(choiceIndex, 1);
-  if (combat.potions.length < combat.maxPotions) {
-    combat.potions.push(potionId);
-    fireTrigger(combat, "onPotionBrewed");
-  }
+  if (addPotion(combat, potionId, choice.sourceId ?? null)) fireTrigger(combat, "onPotionBrewed");
   return OK;
 }
 
@@ -790,19 +853,51 @@ export function getUpcomingDraws(combat: Combat): CardInstance[] {
   return combat.piles.draw.slice(-openDrawCount(combat)).reverse();
 }
 
-// Куда можно поставить карту такого веса: первая подходящая клетка или null
-export function findFreeStart(combat: Combat, weight: number): number | null {
+// Куда можно поставить карту такого веса: первая подходящая клетка (у веса 0 — стык) или null.
+// from — с какой клетки или стыка искать; kind и brewedBy — что ставим: лимит карт весом 0 за такт — только для карт,
+// сваренное зелье — только после карты, которая его сварила
+export interface FreeStartOptions {
+  kind?: LaneItem["kind"];
+  brewedBy?: number;
+  from?: number;
+}
+
+export function findFreeStart(combat: Combat, weight: number, options: FreeStartOptions = {}): number | null {
+  const kind = options.kind ?? "card";
+  const fits = (start: number) => {
+    const probe: LaneItem = { id: -1, kind, start, weight, targetId: null, locked: false, resolved: false };
+    if (options.brewedBy !== undefined) probe.brewedBy = options.brewedBy;
+    return !checkLane(combat, [...combat.lane, probe], probe);
+  };
   if (weight === 0) {
-    for (let boundary = combat.clock; boundary <= combat.clock + HORIZON; boundary++) {
-      if (zeroWeightInTact(combat, tactOfBoundary(boundary)) < zeroWeightPerTact(combat)) return boundary;
+    for (let boundary = Math.max(combat.clock, options.from ?? 0); boundary <= combat.clock + HORIZON; boundary++) {
+      if (kind === "card" && zeroWeightInTact(combat, tactOfBoundary(boundary)) >= zeroWeightPerTact(combat)) continue;
+      if (fits(boundary)) return boundary;
     }
     return null;
   }
-  for (let start = combat.clock + 1; start + weight - 1 <= combat.clock + HORIZON; start++) {
-    const probe: LaneItem = { id: -1, kind: "card", start, weight, targetId: null, locked: false, resolved: false };
-    if (!checkLane(combat, [...combat.lane, probe], probe)) return start;
+  for (let start = Math.max(combat.clock + 1, options.from ?? 0); start + weight - 1 <= combat.clock + HORIZON; start++) {
+    if (fits(start)) return start;
   }
   return null;
+}
+
+// Куда встанет карта весом 0 по тапу: на стык после последней по времени карты на шкале (занят — на следующий).
+// Дальше подходящих стыков нет — на первый свободный
+export function findZeroCardStart(combat: Combat): number | null {
+  const slots = heroSchedule(combat).lane;
+  let last = combat.clock;
+  for (const item of combat.lane) {
+    if (item.resolved || item.kind !== "card") continue;
+    last = Math.max(last, item.weight === 0 ? item.start : slots.get(item.id)!.end);
+  }
+  return findFreeStart(combat, 0, { from: last }) ?? findFreeStart(combat, 0);
+}
+
+// Куда встанет зелье из сумки по тапу: в ближайшее место, а сваренное — после карты, которая его сварила
+export function findPotionStart(combat: Combat, index: number): number | null {
+  const source = potionSource(combat, index);
+  return findFreeStart(combat, potionWeight(combat), { kind: "potion", ...(source !== null ? { brewedBy: source } : {}) });
 }
 
 // ---------- Бонусы цепочки ----------
@@ -1372,7 +1467,7 @@ export function playCard(combat: Combat, uid: number, targetId?: string | null):
 
 // «Выпить зелье»: ставит его в первую свободную клетку
 export function usePotion(combat: Combat, index: number, targetId?: string | null): ActionResult {
-  const start = findFreeStart(combat, potionWeight(combat));
+  const start = findPotionStart(combat, index);
   if (start === null) return fail("noRoom");
   return placePotion(combat, index, start, targetId ?? null);
 }
