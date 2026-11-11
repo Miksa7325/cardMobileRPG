@@ -319,11 +319,25 @@
   --card-edge: #121018;
 }
 
+/* Рамка показывает редкость (с учётом улучшений): серая, зелёная, синяя, фиолетовая, золотая */
+.card--starter,
+.card--common {
+  --frame-grad: linear-gradient(145deg, #e6e6ea, #a8a8b0 28%, #5a5a62 55%, #d2d2d8 80%, #44444c);
+}
+
 .card--uncommon {
-  --frame-grad: linear-gradient(145deg, #cfeaff, #8fd8ff 26%, #2a70c0 55%, #c6ecff 80%, #1e5296);
+  --frame-grad: linear-gradient(145deg, #d4ffd9, #6fdc84 26%, #1f8a3a 55%, #c2f5cb 80%, #146a2a);
 }
 
 .card--rare {
+  --frame-grad: linear-gradient(145deg, #cfeaff, #6fb4ff 26%, #1f5fc0 55%, #c6e2ff 80%, #163f8a);
+}
+
+.card--epic {
+  --frame-grad: linear-gradient(145deg, #f0dcff, #b77cf5 26%, #6a24b0 55%, #e2c8ff 80%, #4a1580);
+}
+
+.card--legendary {
   --frame-grad: var(--gold-frame);
 }
 
@@ -354,10 +368,18 @@
 }
 
 .card--uncommon .card__name {
-  color: #c8ecff;
+  color: #c4f7cf;
 }
 
 .card--rare .card__name {
+  color: #c8e2ff;
+}
+
+.card--epic .card__name {
+  color: #e8d0ff;
+}
+
+.card--legendary .card__name {
   color: #ffe58a;
 }
 
@@ -394,7 +416,9 @@
   pointer-events: none;
 }
 
-.card--rare .card__art::before {
+.card--rare .card__art::before,
+.card--epic .card__art::before,
+.card--legendary .card__art::before {
   opacity: 0.32;
   animation: art-rays 14s linear infinite;
 }
@@ -954,6 +978,8 @@
 .lite .corridor__wall::after,
 .lite .combat__enemies .unit__portrait::after,
 .lite .card--rare .card__art::before,
+.lite .card--epic .card__art::before,
+.lite .card--legendary .card__art::before,
 .lite .card--large,
 .lite .city-npc__marker,
 .lite .unit__intent {

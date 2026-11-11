@@ -1,6 +1,6 @@
 // Рисует карту. На самой карте — значки с числами, полный текст показывает большая карта (cardPreview.ts).
 import { TEXTS } from "../../data/texts.ru.ts";
-import { chainBonuses, getCardData } from "../../engine/deck.ts";
+import { chainBonuses, getCardData, getCardRarity } from "../../engine/deck.ts";
 import { calculateBlock, calculateDamage, getBonus } from "../../engine/effects.ts";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
@@ -240,7 +240,8 @@ export interface CardElementOptions {
 
 export function createCardElement(instance: CardInstance, hero: Hero, { playable, selected, onTap, onHold = null }: CardElementOptions): HTMLElement {
   const card = getCardData(instance);
-  const element: HTMLElement = el("div", `card card--${card.type} card--${card.rarity}`);
+  // Рамка — по нынешней редкости: каждое улучшение поднимает её на ступень
+  const element: HTMLElement = el("div", `card card--${card.type} card--${getCardRarity(instance)}`);
   element.classList.add(playable ? "card--playable" : "card--unplayable");
   if (selected) element.classList.add("card--selected");
   fillCardFace(element, instance, hero);

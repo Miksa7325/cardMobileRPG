@@ -76,27 +76,27 @@
   background: linear-gradient(165deg, rgba(85, 82, 90, 0.72), rgba(36, 34, 40, 0.88)), url("/assets/images/textures/card-status.jpg") 0 0 / 96px;
 }
 
-/* Рамка показывает редкость */
+/* Рамка показывает редкость (с учётом улучшений): стартовая и обычная — серая, необычная — зелёная,
+   редкая — синяя, эпическая — фиолетовая, легендарная — золотая */
 .card--starter,
 .card--common {
-  --card-frame: #7d6a48;
+  --card-frame: #9a9aa2;
 }
 
 .card--uncommon {
-  --card-frame: #9ec6e6;
+  --card-frame: #4fc46a;
 }
 
 .card--rare {
-  --card-frame: #f1cf6b;
+  --card-frame: #3f8ff0;
 }
 
-/* Эпическая и легендарная: временные цвета рамки до этапа 9 */
 .card--epic {
-  --card-frame: #c58bf0;
+  --card-frame: #a65cf0;
 }
 
 .card--legendary {
-  --card-frame: #ff9a4d;
+  --card-frame: #f2c23c;
 }
 
 /* Можно разыграть: карта светится. Нельзя: тускнеет */
@@ -144,10 +144,18 @@
 }
 
 .card--uncommon .card__name {
-  color: #bfe0ff;
+  color: #b6f0c2;
 }
 
 .card--rare .card__name {
+  color: #bcd8ff;
+}
+
+.card--epic .card__name {
+  color: #e2c4ff;
+}
+
+.card--legendary .card__name {
   color: #ffe08a;
 }
 

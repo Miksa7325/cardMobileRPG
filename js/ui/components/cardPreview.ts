@@ -50,7 +50,7 @@ export function openCardPreview(instance: CardInstance, hero: Hero): void {
   const card = getCardData(instance);
   const overlay: HTMLElement = el("div", "card-preview");
 
-  const big: HTMLElement = el("div", `card card--large card--${card.type} card--${card.rarity} card--playable`);
+  const big: HTMLElement = el("div", `card card--large card--${card.type} card--${getCardRarity(instance)} card--playable`);
   fillCardFace(big, instance, hero);
 
   const text = formatDescription(card, hero);
