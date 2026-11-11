@@ -1,6 +1,7 @@
 /* Шкала хода на экране боя: дорожки, плашки карт и ходов врагов, полоса времени.
    Ширина подписи слева — --lane-label, остальное — окно из --visible клеток (7). Дорожка внутри окна длиннее
-   на клетку (--strip, 8) и едет влево на долю клетки --shift, пока идёт время. Числа ставит timeline.ts */
+   на клетку (--strip, 8) и едет влево на долю клетки --shift, пока идёт время. Числа ставит timeline.ts каждый кадр,
+   поэтому плавного перехода у них нет: он запаздывал бы и дёргал шкалу на стыке клеток */
 .timeline {
   --lane-label: 62px;
   --lane-gap: 6px;
@@ -39,7 +40,6 @@
 .timeline__strip {
   width: calc(100% * var(--strip, 8) / var(--visible, 7));
   transform: translateX(calc(var(--shift, 0) * -100% / var(--strip, 8)));
-  transition: transform calc(100ms * var(--anim-speed, 1)) linear;
 }
 
 .timeline__numbers {
@@ -107,7 +107,6 @@
   background: var(--color-highlight, #ffd36a);
   box-shadow: 0 0 8px var(--color-highlight, #ffd36a);
   pointer-events: none;
-  transition: left calc(100ms * var(--anim-speed, 1)) linear;
 }
 
 /* До «Начать» полосы нет: время ещё не пошло */

@@ -918,6 +918,21 @@ export function nextCellFilled(combat: Combat): boolean {
   });
 }
 
+// Карты весом 0, поставленные на стык, до которого дошло время, срабатывают сразу, даже если шкала стоит перед
+// пустой клеткой. Возвращает, сработало ли что-нибудь (события — в combat.events)
+export function hasPendingZero(combat: Combat): boolean {
+  if (combat.status !== "running" || combat.tactDue || brewBlocksTime(combat)) return false;
+  return combat.lane.some((item) => !item.resolved && item.weight === 0 && item.start <= combat.clock);
+}
+
+export function resolvePendingZero(combat: Combat): boolean {
+  if (!hasPendingZero(combat)) return false;
+  combat.events = [];
+  resolveZeroWeight(combat, combat.clock);
+  checkPhases(combat);
+  return true;
+}
+
 // Один шаг времени: клетка, а после последней клетки такта — отдельный шаг с эффектами конца и начала такта
 // (на экране шкала в это время стоит). Пока не выбрано зелье варки, время стоит
 export function tick(combat: Combat): ActionResult {

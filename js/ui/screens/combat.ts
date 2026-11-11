@@ -11,8 +11,8 @@ import { HEROES } from "../../data/heroes.ts";
 import { POTIONS } from "../../data/potions.ts";
 import { TEXTS } from "../../data/texts.ru.ts";
 import {
-  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, focusedEnemy, getEnemyIntent, getUpcomingDraws, moveLaneItem,
-  nextCellFilled, placeCard, placePotion, placeSkip, previewLaunch, removeFromLane, rerollCard, setFocus, startCombat, tick,
+  brewBlocksTime, cardWeight, chooseBrew, createCombat, findFreeStart, focusedEnemy, getEnemyIntent, getUpcomingDraws, hasPendingZero, moveLaneItem,
+  nextCellFilled, placeCard, placePotion, placeSkip, previewLaunch, removeFromLane, rerollCard, resolvePendingZero, setFocus, startCombat, tick,
 } from "../../engine/combat.ts";
 import { getCardData } from "../../engine/deck.ts";
 import { createNodeCombat, finishCombat } from "../../engine/run.ts";
@@ -55,9 +55,6 @@ const IDLE = IDLE_STYLES as Record<string, string>;
 
 const INTENT_ICONS: Record<string, string> = { attack: "damage", defend: "block", buff: "buff", debuff: "debuff" };
 
-// Зелье, выбранное нажатием: следующее нажатие на клетку или врага поставит его. Карты из руки ставятся сразу
-type Selection = { kind: "potion"; index: number } | null;
-let selection: Selection = null;
 // Шкала развёрнута: видны дорожки всех врагов, а не только выбранного
 let lanesExpanded = false;
 
@@ -66,7 +63,6 @@ function combat(): Combat {
 }
 
 function resetView(): void {
-  selection = null;
   lanesExpanded = false;
   waiting = false;
   progress = 0;
@@ -75,19 +71,21 @@ function resetView(): void {
 
 // ---------- Время ----------
 //
-// «Сердцебиение» раз в 100 мс копит долю клетки. Набралась клетка — логика делает шаг (tick), экран коротко
-// показывает её события и рисуется заново. Пока клетка идёт, шкала плавно едет под полосой времени (в первой клетке
-// боя — сама полоса). После последней клетки такта шкала стоит одну клетку времени, потом шаг такта (Яд, силы…).
-// Время стоит: до «Начать», пока следующая клетка героя пуста, пока не выбрано зелье варки, пока открыта панель
-// тестового режима и когда игрок ушёл с экрана боя или свернул игру (тогда ждёт кнопку «Продолжить»)
+// Часы идут покадрово (requestAnimationFrame) и копят долю клетки. Клетка срабатывает, как только шкала начинает её
+// прокручивать, а её действия показываются во время прокрутки (см. «Клетка в пути»). Доехала клетка — следующая
+// начинается в том же кадре, без остановки. Шкала встаёт только: перед пустой клеткой, на эффектах такта
+// (по 0,5 с на каждый), пока не досмотрены действия клетки (если анимации не успели), до «Начать», пока не выбрано
+// зелье варки, пока открыта панель тестового режима и когда игрок ушёл с экрана боя или свернул игру
+// (тогда ждёт кнопку «Продолжить»). Пока палец держит карту, перерисовывается только шкала
 
-const HEARTBEAT_MS = 100;
 const TACT_EFFECT_MS = 500; // сколько длится каждый эффект такта (Яд, Горение, силы, реликвии)
-let heartbeat: ReturnType<typeof setInterval> | null = null;
+const ACTION_MARGIN_MS = 60; // действия клетки кончаются чуть раньше прокрутки: на погрешность таймеров
+let frame: number | null = null;
+let lastFrameAt = 0;
 let waiting = false; // время стоит, пока игрок не нажмёт кнопку: игру сворачивали или уходили с экрана
 let progress = 0; // доля текущей клетки, которая уже прошла
-let ticking = false; // идёт шаг и его анимация
-let pendingRender = false; // экран надо перерисовать, как только палец отпустит карту
+let ticking = false; // идёт шаг такта и его анимация
+let pendingRender = false; // экран надо перерисовать целиком, как только палец отпустит карту
 
 function onCombatScreen(): boolean {
   return Boolean(document.querySelector("main.combat"));
@@ -98,15 +96,25 @@ function timeStands(current: Combat): boolean {
 }
 
 function ensureClock(): void {
-  if (!heartbeat) heartbeat = setInterval(onHeartbeat, HEARTBEAT_MS);
+  if (frame !== null) return;
+  lastFrameAt = performance.now();
+  frame = requestAnimationFrame(onFrame);
 }
 
 function stopClock(): void {
-  if (heartbeat) clearInterval(heartbeat);
-  heartbeat = null;
+  if (frame !== null) cancelAnimationFrame(frame);
+  frame = null;
 }
 
-function onHeartbeat(): void {
+function onFrame(now: number): void {
+  // Игру свернули — кадров не было: время за это время не идёт
+  const elapsed = Math.min(now - lastFrameAt, 100);
+  lastFrameAt = now;
+  frame = requestAnimationFrame(onFrame);
+  onClock(elapsed);
+}
+
+function onClock(elapsed: number): void {
   const current = state.combat as Combat | null;
   if (!current || !onCombatScreen()) {
     // Ушли с экрана боя: время встаёт, а вернувшись, игрок продолжит кнопкой
@@ -117,24 +125,56 @@ function onHeartbeat(): void {
   }
   // Едет клетка, которая уже сработала: шкала доезжает, действия идут своим чередом
   if (flight) {
-    advanceFlight();
-    return;
+    if (!advanceFlight(elapsed)) return;
   }
   if (pendingRender && !dragState.active && !ticking) {
     pendingRender = false;
     showScreen("combat");
-    return;
   }
-  if (timeStands(current) || ticking) return;
+  if (timeStands(current) || ticking) return resetProgress();
   // Последняя клетка такта прошла: сразу эффекты такта, шкала стоит, пока они идут (по 0,5 с на каждый)
   if (current.tactDue) {
-    progress = 0;
+    resetProgress();
     void doTick(current);
     return;
   }
-  // Следующая клетка пуста — шкала ждёт карту
-  if (!nextCellFilled(current)) return;
+  // Следующая клетка пуста — шкала ждёт карту. Карты весом 0 на этом стыке срабатывают и без неё
+  if (!nextCellFilled(current)) {
+    resetProgress();
+    if (hasPendingZero(current)) {
+      const before = captureCombatView(current);
+      resolvePendingZero(current);
+      void playInPlace(current, before);
+    }
+    return;
+  }
   startFlight(current);
+}
+
+// Действия, сработавшие, пока шкала стоит (карты весом 0 на стыке, «Начать»): показываются по очереди, потом экран
+// рисуется заново
+async function playInPlace(current: Combat, before: ReturnType<typeof captureCombatView>): Promise<void> {
+  ticking = true;
+  if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
+  await ui.playCell(before, current, { onCardPlayed: onCardPlayed(before) });
+  ticking = false;
+  if (state.combat !== current) return;
+  savePlanning();
+  if (dragState.active) {
+    refreshTimeline();
+    pendingRender = true;
+  } else {
+    showScreen("combat");
+    showDrawnCards(before.handUids, current);
+  }
+  finishCombatIfOver();
+}
+
+// Следующая клетка не началась: остаток доли прошлой клетки не нужен, шкала стоит ровно на стыке
+function resetProgress(): void {
+  if (progress === 0) return;
+  progress = 0;
+  setTimelineProgress(0);
 }
 
 // ---------- Клетка в пути ----------
@@ -147,6 +187,7 @@ interface Flight {
   combat: Combat;
   before: ReturnType<typeof captureCombatView>;
   done: boolean; // все действия клетки показаны
+  waited: boolean; // шкала доехала раньше, чем кончились анимации (микропауза)
 }
 let flight: Flight | null = null;
 
@@ -161,35 +202,48 @@ function startFlight(current: Combat): void {
   const before = captureCombatView(current);
   if (!tick(current).ok) return;
   if (state.test.enabled) state.test.damageLog = buildDamageLog(current);
-  const entry: Flight = { combat: current, before, done: false };
+  const entry: Flight = { combat: current, before, done: false, waited: false };
   flight = entry;
-  progress = 0;
   savePlanning();
   // Действия ставим ближе к концу клетки: начинаем так, чтобы они кончились вместе с прокруткой
-  const delay = Math.max(0, getCellMs() - ui.planCell(current));
+  const planned = ui.planCell(current);
+  if (planned === 0) {
+    entry.done = true;
+    return;
+  }
+  const left = getCellMs() * (1 - progress);
   setTimeout(() => {
     if (flight !== entry) return;
     void ui.playCell(before, current, { onCardPlayed: onCardPlayed(before) }).then(() => {
       entry.done = true;
     });
-  }, delay);
+  }, Math.max(0, left - planned - ACTION_MARGIN_MS));
 }
 
-function advanceFlight(): void {
+// Шкала доезжает клетку. Возвращает true, когда клетка доехала и её действия показаны: тогда в этом же кадре
+// может начаться следующая. Остаток доли клетки переходит в следующую, чтобы шкала ехала ровно
+function advanceFlight(elapsed: number): boolean {
   const entry = flight!;
-  progress = Math.min(1, progress + HEARTBEAT_MS / getCellMs());
-  setTimelineProgress(progress);
-  if (progress < 1 || !entry.done) return;
-  // Клетка доехала и все её действия показаны: экран рисуется уже с новым временем
+  progress += elapsed / getCellMs();
+  if (progress < 1 || !entry.done) {
+    if (progress >= 1) entry.waited = true;
+    setTimelineProgress(Math.min(1, progress));
+    return false;
+  }
+  // После микропаузы следующая клетка начинается с нуля
+  progress = entry.waited ? 0 : Math.min(progress - 1, 0.5);
   flight = null;
-  progress = 0;
-  if (state.combat !== entry.combat) return;
-  if (dragState.active) pendingRender = true;
-  else {
+  if (state.combat !== entry.combat) return false;
+  if (dragState.active) {
+    // Палец держит карту: рука и перенос не должны сорваться — перерисовываем только шкалу
+    refreshTimeline();
+    pendingRender = true;
+  } else {
     showScreen("combat");
     showDrawnCards(entry.before.handUids, entry.combat);
   }
   finishCombatIfOver();
+  return true;
 }
 
 // Шаг такта: эффекты конца и начала такта по одному, по TACT_EFFECT_MS на каждый; шкала всё это время стоит
@@ -295,19 +349,9 @@ export function renderCombatScreen(root: HTMLElement): void {
     createEnemies(current),
     createCombatItems(state.test.enabled ? current.relics : (state.run as Run).relics, current.potions, {
       onPotionTap,
-      selectedPotionIndex: selection?.kind === "potion" ? selection.index : null,
+      selectedPotionIndex: null,
     }),
-    createTimeline(current, lanesExpanded ? aliveEnemies() : focus ? [focus] : [], focus, lanesExpanded, preview, {
-      onHeroLaneTap: (cell, boundary) => placeSelected({ kind: "lane", cell, boundary }),
-      onPrepLaneTap: () => placeSelected({ kind: "prep" }),
-      onItemTap: returnToHand,
-      onItemMove: moveItem,
-      onItemHover: previewMove,
-      onToggleLanes: () => {
-        lanesExpanded = !lanesExpanded;
-        showScreen("combat");
-      },
-    }, flight ? current.clock - 1 : current.clock),
+    buildTimeline(current, preview),
     createHero(current),
     el("p", "combat__hint", getHint(current)),
     el("div", "hand-info hand-info--hidden"),
@@ -324,6 +368,32 @@ export function renderCombatScreen(root: HTMLElement): void {
   // Шкала продолжает ехать с того места клетки, где была до перерисовки
   setTimelineProgress(progress);
   if (current.status === "running") ensureClock();
+}
+
+// Шкала: дорожки выбранного врага (или всех), героя и подготовки Мага. Пока клетка в пути — на клетку раньше времени боя
+function buildTimeline(current: Combat, preview = previewLaunch(current)): HTMLElement {
+  const focus = focusedEnemy(current);
+  return createTimeline(current, lanesExpanded ? aliveEnemies() : focus ? [focus] : [], focus, lanesExpanded, preview, {
+    onHeroLaneTap: () => {},
+    onPrepLaneTap: () => {},
+    onItemTap: returnToHand,
+    onItemMove: moveItem,
+    onItemHover: previewMove,
+    onToggleLanes: () => {
+      lanesExpanded = !lanesExpanded;
+      showScreen("combat");
+    },
+  }, flight ? current.clock - 1 : current.clock);
+}
+
+// Пока палец держит карту, экран целиком не перерисовывается: обновляем только шкалу, чтобы она ехала дальше
+function refreshTimeline(): void {
+  const old = document.querySelector(".timeline");
+  if (!old) return;
+  const fresh = buildTimeline(combat());
+  if (old.classList.contains("timeline--dropping")) fresh.classList.add("timeline--dropping");
+  old.replaceWith(fresh);
+  document.querySelector(".combat__hint")?.replaceChildren(getHint(combat()));
 }
 
 function createTopBar(current: Combat): HTMLElement {
@@ -373,7 +443,6 @@ function createEnemy(current: Combat, enemy: EnemyUnit, compact: boolean, select
   const element = el("div", "unit");
   element.dataset.unitId = enemy.instanceId;
   if (selected && compact) element.classList.add("unit--selected");
-  if (wantsEnemyTarget()) element.classList.add("unit--targetable");
   element.append(
     createIntent(current, enemy),
     createPortrait(enemySprite(enemy.enemyId), IDLE[enemy.enemyId]),
@@ -433,7 +502,6 @@ function createHero(current: Combat): HTMLElement {
 }
 
 function getHint(current: Combat): string {
-  if (selection?.kind === "potion") return TEXTS.timeline.hintPotion;
   if (current.status === "planning") return TEXTS.timeline.hintPlan;
   if (waiting) return TEXTS.timeline.hintStopped;
   if (brewBlocksTime(current)) return TEXTS.timeline.hintBrew;
@@ -665,26 +733,21 @@ function showError(result: ActionResult): void {
   playSound("error");
 }
 
-// Подсветка врагов, когда выбрано зелье «на врага»: нажатие на врага поставит зелье и выберет этого врага
-function wantsEnemyTarget(): boolean {
-  if (selection?.kind === "potion") return POTIONS[combat().potions[selection.index]]?.target === "enemy";
-  return false;
-}
-
+// Нажатие на зелье ставит его в ближайшее место: зелье весом 0 (Алхимик) — на ближайший стык, весом 1 — в ближайшую
+// свободную клетку. Зелье «на врага», как и карты, бьёт врага, выбранного в момент срабатывания
 function onPotionTap(index: number): void {
-  const same = selection?.kind === "potion" && selection.index === index;
-  selection = same ? null : { kind: "potion", index };
-  showScreen("combat");
+  const current = combat();
+  if (current.status !== "planning" && current.status !== "running") return;
+  const start = nearest(current, HEROES[current.hero.heroId].potionWeight);
+  if (start === null) return showError({ ok: false, reason: "noRoom" });
+  const result = placePotion(current, index, start);
+  if (!result.ok) return showError(result);
+  playSound("potion");
+  afterChange();
 }
 
-// Нажатие на врага: выбрать его (по нему ударят карты, которые сработают дальше), на выбранном — описание.
-// С выбранным зельем «на врага» — ещё и поставить зелье в ближайшую клетку
+// Нажатие на врага: выбрать его (по нему ударят карты, которые сработают дальше), на выбранном — описание
 function onEnemyTap(current: Combat, enemy: EnemyUnit): void {
-  if (selection && wantsEnemyTarget()) {
-    setFocus(current, enemy.instanceId);
-    placeSelected({ kind: "lane", cell: -1, boundary: -1 });
-    return;
-  }
   if (selectedEnemy() !== enemy) {
     setFocus(current, enemy.instanceId);
     playSound("click");
@@ -692,20 +755,6 @@ function onEnemyTap(current: Combat, enemy: EnemyUnit): void {
     return;
   }
   showTooltip(describeEnemy(current, enemy));
-}
-
-// Выбранное зелье ставится на нажатую клетку (cell −1 — в ближайшую)
-function placeSelected(target: DropTarget): void {
-  if (selection?.kind !== "potion" || target?.kind !== "lane") return;
-  const current = combat();
-  const weight = HEROES[current.hero.heroId].potionWeight;
-  const start = target.cell < 0 ? nearest(current, weight) : weight === 0 ? target.boundary : target.cell;
-  if (start === null) return showError({ ok: false, reason: "noRoom" });
-  const result = placePotion(current, selection.index, start);
-  if (!result.ok) return showError(result);
-  selection = null;
-  playSound("potion");
-  afterChange();
 }
 
 function placeCardAt(instance: CardInstance, target: DropTarget): void {
@@ -787,12 +836,17 @@ function onClockButtonTap(): void {
   const current = combat();
   if (current.status === "planning") {
     playSound("click");
+    const before = captureCombatView(current);
     const result = startCombat(current);
     if (!result.ok) return showError(result);
     waiting = false;
     progress = 0;
-    selection = null;
     notifyTutorial("launched");
+    // Карты весом 0 на самом первом стыке сработали сразу: показываем их, потом время идёт
+    if (current.events.length > 0) {
+      void playInPlace(current, before).then(ensureClock);
+      return;
+    }
     afterChange();
     finishCombatIfOver();
     return;

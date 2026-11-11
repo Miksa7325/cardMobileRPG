@@ -2,7 +2,8 @@
 // цель в момент срабатывания, остановка на пустой клетке, отдельный шаг такта. Запуск: npm test
 import { describe, expect, it } from "vitest";
 import {
-  advance, heroSchedule, launch, moveLaneItem, nextCellFilled, placeCard, placeSkip, removeFromLane, setFocus, startCombat, tick,
+  advance, hasPendingZero, heroSchedule, launch, moveLaneItem, nextCellFilled, placeCard, placeSkip, removeFromLane, resolvePendingZero, setFocus,
+  startCombat, tick,
 } from "../js/engine/combat.ts";
 import { deckOf, fight, quiet } from "./helpers.ts";
 
@@ -142,6 +143,18 @@ describe("ход времени", () => {
     removeFromLane(combat, combat.lane[0].id);
     combat.frozenCells.push(1);
     expect(nextCellFilled(combat)).toBe(true);
+  });
+  it("карта весом 0 на стыке, где стоит время, срабатывает, даже если следующая клетка пуста", () => {
+    const combat = fight({ deck: deckOf("adrenal_rush") }); // вес 0, Ускорение 1
+    quiet(combat);
+    startCombat(combat);
+    expect(placeCard(combat, uidAt(combat), 0).ok).toBe(true);
+    expect(nextCellFilled(combat)).toBe(false);
+    expect(hasPendingZero(combat)).toBe(true);
+    expect(resolvePendingZero(combat)).toBe(true);
+    expect(combat.hero.statuses.haste).toBe(1);
+    expect(combat.clock).toBe(0);
+    expect(hasPendingZero(combat)).toBe(false);
   });
   it("после последней клетки такта эффекты такта — отдельным шагом", () => {
     const combat = fight();

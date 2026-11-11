@@ -81,6 +81,11 @@ export function startDrag(element: HTMLElement, event: PointerEvent, from: { x: 
 
   // Отпустили мимо: копия улетает обратно
   const returnGhost = () => {
+    // Плашку уже перерисовали — возвращаться некуда
+    if (!element.isConnected) {
+      ghost.remove();
+      return;
+    }
     const back = element.getBoundingClientRect();
     ghost.style.transition = "transform calc(180ms * var(--anim-speed))";
     ghost.style.transform = `translate(${back.left}px, ${back.top}px)`;
@@ -109,20 +114,14 @@ export function startDrag(element: HTMLElement, event: PointerEvent, from: { x: 
   };
 }
 
-// Перенос пальцем для карт на шкале: нажатие без движения остаётся обычным нажатием
+// Перенос пальцем для карт на шкале: нажатие без движения остаётся обычным нажатием.
+// Идущий перенос слушает всё окно: пока палец несёт карту, шкала перерисовывается, и сама плашка может пропасть
 export function enableTimelineDrag(element: HTMLElement, options: DragOptions): void {
   let start: { x: number; y: number } | null = null;
   let session: DragSession | null = null;
   let blocked = false;
 
-  element.addEventListener("pointerdown", (event) => {
-    if (!event.isPrimary) return;
-    start = { x: event.clientX, y: event.clientY };
-    blocked = false;
-    element.setPointerCapture(event.pointerId);
-  });
-
-  element.addEventListener("pointermove", (event) => {
+  const onMove = (event: PointerEvent) => {
     if (!start) return;
     if (session) {
       session.move(event);
@@ -134,18 +133,30 @@ export function enableTimelineDrag(element: HTMLElement, options: DragOptions): 
       blocked = true;
       options.onBlocked(element);
     }
-  });
-
-  element.addEventListener("pointerup", (event) => {
+  };
+  const stop = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onCancel);
+    session = null;
+    start = null;
+  };
+  const onUp = (event: PointerEvent) => {
     session?.drop(event);
-    session = null;
-    start = null;
-  });
-
-  element.addEventListener("pointercancel", () => {
+    stop();
+  };
+  const onCancel = () => {
     session?.cancel();
-    session = null;
-    start = null;
+    stop();
+  };
+
+  element.addEventListener("pointerdown", (event) => {
+    if (!event.isPrimary) return;
+    start = { x: event.clientX, y: event.clientY };
+    blocked = false;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
   });
 
   // После переноса браузер может прислать обычное нажатие: оно уже не нужно
